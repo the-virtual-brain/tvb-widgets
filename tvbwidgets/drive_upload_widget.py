@@ -1,3 +1,5 @@
+import os
+
 import ipywidgets
 from ebrains_drive.exceptions import DoesNotExist
 
@@ -17,8 +19,8 @@ class DriveUploadWidget(object):
             upload_value_dict = self.upload.value
             content = list(upload_value_dict.values())[0]['content']
             filename = list(upload_value_dict)[0]
-            local_file = "./" + filename
-            with open(local_file, "wb") as fp:
+            local_filename = "./" + filename
+            with open(local_filename, "wb") as fp:
                 fp.write(content)
 
             selected_repo = self.repo_browser.get_chosen_repo()
@@ -28,7 +30,9 @@ class DriveUploadWidget(object):
                 new_dir = selected_repo.get_dir('/spatial')
             except DoesNotExist:
                 new_dir = seafdir.mkdir('spatial')
-            file = new_dir.upload_local_file(local_file)
+            file = new_dir.upload_local_file(local_filename)
+            os.remove(local_filename)
+            print("Finished upload!")
 
         self.upload_button.on_click(on_upload_change)
 
