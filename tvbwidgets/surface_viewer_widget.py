@@ -2,8 +2,8 @@ import ipywidgets
 import numpy
 import pyvista
 
-from widgets.model_3d import Model3D
-from widgets.repo_browser_widget import RepoBrowserWidget
+from tvbwidgets.model_3d import Model3D
+from tvbwidgets.repo_browser_widget import RepoBrowserWidget
 
 pyvista.global_theme.jupyter_backend = 'ipygany'
 
@@ -38,8 +38,9 @@ class SurfaceViewer(object):
         return vbox
 
     def get_surface_contents(self):
-        vertices_filename = 'vertices.txt'
-        triangles_filename = 'triangles.txt'
+        repo_name = self.repo_browser.get_chosen_repo().name
+        vertices_filename = repo_name + '-' + 'vertices.txt'
+        triangles_filename = repo_name + '-' + 'triangles.txt'
 
         vertices_content = self.repo_browser.get_file_content(vertices_filename)
         triangles_content = self.repo_browser.get_file_content(triangles_filename)

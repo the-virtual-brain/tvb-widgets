@@ -118,7 +118,7 @@ class PhasePlaneWidget(HasTraits):
                 pp_splt.autoscale(enable=True, axis='y', tight=True)
             pp_splt.legend(model.state_variables)
 
-            # Fetching the parameter values from widgets.
+            # Fetching the parameter values from tvbwidgets.
             svx = plot_params.pop('svx')
             svy = plot_params.pop('svy')
 
@@ -494,7 +494,7 @@ class PhasePlaneWidget(HasTraits):
                                                       (1, self.model.nvar, 1,
                                                        self.model.number_of_modes))
 
-            # Add the widgets to the UI
+            # Add the tvbwidgets to the UI
             self.add_reset_noise_button()
             self.add_noise_slider()
             self.add_reset_random_stream_button()

@@ -3,9 +3,9 @@ import tvb.simulator.integrators as integrators_module
 import tvb.simulator.models as models_module
 from IPython.core.display_functions import display
 
-from widgets.drive_upload_widget import DriveUploadWidget
-from widgets.phase_plane_widget import PhasePlaneWidget
-from widgets.surface_viewer_widget import SurfaceViewer
+from tvbwidgets.drive_upload_widget import DriveUploadWidget
+from tvbwidgets.phase_plane_widget import PhasePlaneWidget
+from tvbwidgets.surface_viewer_widget import SurfaceViewer
 
 
 class Dashboard(object):

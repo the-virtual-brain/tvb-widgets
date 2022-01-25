@@ -1,7 +1,7 @@
 import ipywidgets
 from ebrains_drive.exceptions import DoesNotExist
 
-from widgets.repo_browser_widget import RepoBrowserWidget
+from tvbwidgets.repo_browser_widget import RepoBrowserWidget
 
 
 class DriveUploadWidget(object):
@@ -25,9 +25,9 @@ class DriveUploadWidget(object):
             seafdir = selected_repo.get_dir('/')
             try:
                 # TODO: Bug in ebrains_drive API: cannot upload in root folder, so we use a subdirectory
-                new_dir = selected_repo.get_dir('/tmp_test')
+                new_dir = selected_repo.get_dir('/spatial')
             except DoesNotExist:
-                new_dir = seafdir.mkdir('tmp_test')
+                new_dir = seafdir.mkdir('spatial')
             file = new_dir.upload_local_file(local_file)
 
         self.upload_button.on_click(on_upload_change)
