@@ -24,6 +24,7 @@ pipeline {
             }
             steps {
                 sh '''#!/bin/bash
+                    cd tvb-widgets
                     source activate tvb-widgets
                     rm -Rf dist
                     mkdir dist
