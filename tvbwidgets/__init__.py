@@ -10,7 +10,7 @@ from .logger.builder import get_logger
 
 LOGGER = get_logger(__name__)
 try:
-    __version__ = get_distribution(__name__).version
+    __version__ = get_distribution("tvb-widgets").version
 except DistributionNotFound:
     LOGGER.info("Package is not properly installed")
     try:
