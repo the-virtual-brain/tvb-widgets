@@ -1,8 +1,1 @@
-# -*- coding: utf-8 -*-
-#
-# "TheVirtualBrain - Widgets" package
-#
-# (c) 2022-2023, TVB Widgets Team
-#
-
-__version__ = "0.1"
+__version__ = "0.1.dev6+gac3fbb7.d20220201"
