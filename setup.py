@@ -18,6 +18,8 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md')) as fd:
 
 setuptools.setup(name='tvb-widgets',
                  packages=setuptools.find_packages(),
+                 use_scm_version=True,
+                 setup_requires=['setuptools_scm'],
                  include_package_data=True,
                  install_requires=REQUIRED_PACKAGES,
                  description='GUI widgets for EBRAINS showcases',
