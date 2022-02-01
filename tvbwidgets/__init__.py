@@ -5,7 +5,8 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 
-from .commons import logger
 from ._version import __version__
+from .logger.builder import get_logger
 
-logger.info(f"tvbwidgets version: {__version__}")
+LOGGER = get_logger(__name__)
+LOGGER.info(f"version: {__version__}")
