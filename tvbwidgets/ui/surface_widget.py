@@ -8,6 +8,7 @@
 import numpy
 import pyvista
 import ipywidgets
+from io import StringIO
 from tvbwidgets.model.model_3d import Model3D
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.storage_widget import StorageWidget
@@ -42,4 +43,6 @@ class SurfaceWidget(ipywidgets.VBox, TVBWidget):
     def _get_surface_contents(self):
         vertices_content = self.storage_widget.get_file_content('vertices.txt')
         triangles_content = self.storage_widget.get_file_content('triangles.txt')
-        return vertices_content, triangles_content
+        vertices_str = StringIO(vertices_content.decode())
+        triangles_str = StringIO(triangles_content.decode())
+        return vertices_str, triangles_str

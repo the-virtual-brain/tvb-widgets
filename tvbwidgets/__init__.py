@@ -12,11 +12,11 @@ LOGGER = get_logger(__name__)
 try:
     __version__ = get_distribution("tvb-widgets").version
 except DistributionNotFound:
-    LOGGER.info("Package is not fully installed")
+    LOGGER.debug("Package is not fully installed")
     try:
         from ._version import __version__
 
-        LOGGER.info("Version read from the internal _version.py file")
+        LOGGER.debug("Version read from the internal _version.py file")
     except ImportError:
         LOGGER.warn("Version not found, we will use fallback")
         __version__ = "1.0"

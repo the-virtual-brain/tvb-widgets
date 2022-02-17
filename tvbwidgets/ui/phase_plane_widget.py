@@ -196,21 +196,15 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             if np.all(U[:, :, mode] + V[:, :, mode] == 0):
                 pp_ax.set(title=model_name + " mode " + str(mode) + ": NO MOTION IN THIS PLANE")
                 X, Y = np.meshgrid(X, Y)
-                pp_quivers = pp_ax.scatter(X, Y, s=8, marker=".", c="k")
+                pp_ax.scatter(X, Y, s=8, marker=".", c="k")
             else:
-                pp_quivers = pp_ax.quiver(X, Y,
-                                          U[:, :, mode],
-                                          V[:, :, mode],
-                                          # UVmag[:, :, mode],
-                                          width=0.001, headwidth=8)
+                pp_ax.quiver(X, Y, U[:, :, mode], V[:, :, mode],
+                             # UVmag[:, :, mode],
+                             width=0.001, headwidth=8)
 
             # Plot the nullclines
-            nullcline_x = pp_ax.contour(X, Y,
-                                        U[:, :, mode],
-                                        [0], colors="r")
-            nullcline_y = pp_ax.contour(X, Y,
-                                        V[:, :, mode],
-                                        [0], colors="g")
+            pp_ax.contour(X, Y, U[:, :, mode], [0], colors="r")
+            pp_ax.contour(X, Y, V[:, :, mode], [0], colors="g")
 
             # Plot Trajectory
             if len(traj_texts):

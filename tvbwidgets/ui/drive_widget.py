@@ -70,7 +70,6 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
                     dirs_list.append(os.path.join(selected_dir, file.name))
         except DoesNotExist:
             self.logger.error("Folder {} could not be accessed".format(selected_dir))
-            pass
 
         self.dirs_dropdown.options = dirs_list
 
@@ -94,7 +93,6 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
                     files_list.append(os.path.join(sub_folder, file.name))
         except DoesNotExist:
             self.logger.error("Folder {} could not be accessed".format(sub_folder))
-            pass
 
     def get_file_content(self, filename):
         chosen_repo = self.get_chosen_repo()

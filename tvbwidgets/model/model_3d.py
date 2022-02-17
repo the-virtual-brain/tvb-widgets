@@ -5,7 +5,6 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 
-from io import StringIO
 import numpy as np
 
 
@@ -16,12 +15,9 @@ class Model3D(object):
         self.triangles = None
         self.update_surface(vertices_content, triangles_content)
 
-    def update_surface(self, vertices_content, triangles_content):
-        if vertices_content is None or triangles_content is None:
+    def update_surface(self, vertices_str, triangles_str):
+        if vertices_str is None or triangles_str is None:
             return
-
-        vertices_str = StringIO(vertices_content.decode())
-        triangles_str = StringIO(triangles_content.decode())
 
         self.vertices = np.loadtxt(vertices_str, dtype=np.float64, skiprows=0)
         self.triangles = np.loadtxt(triangles_str, dtype=np.int64, skiprows=0)
