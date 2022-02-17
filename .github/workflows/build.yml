@@ -26,20 +26,14 @@ jobs:
           python -m pip install scipy numpy tvb-library ipygany pyvista ipywidgets ebrains_drive
           python -m pip install pytest pytest-cov
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
       - name: Test with pytest
         run: |
           pytest
       - name: Compute coverage
         run: |
-          pytest --cov=tvbwidgets tvbwidgets/tests/
+          pytest -v  --cov --cov-report=xml
 
-  sonarcloud:
-    name: SonarCloud
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:

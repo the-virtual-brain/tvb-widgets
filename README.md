@@ -1,4 +1,5 @@
 # tvb-widgets
+![Github Actions Status](https://sonarcloud.io/api/project_badges/measure?project=the-virtual-brain_tvb-widgets&metric=alert_status)
 
 **TheVirtualBrain - Widgets** is a package with somehow generic GUI components, 
 but developed for **EBRAINS Showcases** in particular.
