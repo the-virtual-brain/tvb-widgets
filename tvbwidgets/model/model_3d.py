@@ -1,5 +1,11 @@
-from io import StringIO
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2023, TVB Widgets Team
+#
 
+from io import StringIO
 import numpy as np
 
 

@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2023, TVB Widgets Team
+#
+
 import colorsys
 
 import ipywidgets as widgets
@@ -8,6 +15,8 @@ import tvb.simulator.models as models_module
 from tvb.basic.neotraits.api import HasTraits, Attr, NArray
 from tvb.simulator.lab import integrators
 
+from tvbwidgets.ui.base_widget import TVBWidget
+
 
 def get_color(num_colours):
     for hue in range(num_colours):
@@ -16,7 +25,7 @@ def get_color(num_colours):
         yield "#{0:02x}{1:02x}{2:02x}".format(*col)
 
 
-class PhasePlaneWidget(HasTraits):
+class PhasePlaneWidget(HasTraits, TVBWidget):
     """
     The GUI for the interactive phase-plane viewer provides sliders for setting:
         - The value of all parameters of the Model.

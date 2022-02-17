@@ -11,7 +11,7 @@ import setuptools
 
 TEAM = "Juelich SDL Neuroscience, INS - Marseille, Codemart"
 
-REQUIRED_PACKAGES = ["ebrains_drive", "ipywidgets", "ipygany", "pyvista", "tvb-library"]
+REQUIRED_PACKAGES = ["ebrains_drive", "ipygany", "ipywidgets", "pyvista", "tvb-library"]
 
 with open(os.path.join(os.path.dirname(__file__), 'README.md')) as fd:
     DESCRIPTION = fd.read()
