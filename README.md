@@ -1,5 +1,9 @@
 # tvb-widgets
-![Github Actions Status](https://sonarcloud.io/api/project_badges/measure?project=the-virtual-brain_tvb-widgets&metric=alert_status)
+![Github Actions Status](https://sonarcloud.io/api/project_badges/measure?project=the-virtual-brain_tvb-widgets&metric=alert_status) 
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=the-virtual-brain_tvb-widgets&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=the-virtual-brain_tvb-widgets)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=the-virtual-brain_tvb-widgets&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=the-virtual-brain_tvb-widgets) 
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=the-virtual-brain_tvb-widgets&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=the-virtual-brain_tvb-widgets)
+
 
 **TheVirtualBrain - Widgets** is a package with somehow generic GUI components, 
 but developed for **EBRAINS Showcases** in particular.
