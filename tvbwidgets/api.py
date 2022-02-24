@@ -5,4 +5,6 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 
-print("HelloWorld!")
+from .ui.phase_plane_widget import PhasePlaneWidget
+from .ui.storage_widget import StorageWidget
+from .ui.surface_widget import SurfaceWidget
