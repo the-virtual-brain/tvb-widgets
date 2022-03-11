@@ -44,18 +44,6 @@ jupyter labextension develop --overwrite .
 yarn run build
 ```
 
-For classic notebook, you need to run:
-
-```
-jupyter nbextension install --sys-prefix --symlink --overwrite --py tvbwidgets
-jupyter nbextension enable --sys-prefix --py tvbwidgets
-```
-
-Note that the `--symlink` flag doesn't work on Windows, so you will here have to run
-the `install` command every time that you rebuild your extension. For certain installations
-you might also need another flag instead of `--sys-prefix`, but we won't cover the meaning
-of those flags here.
-
 ### How to see your changes
 #### Typescript:
 If you use JupyterLab to develop then you can watch the source directory and run JupyterLab at the same time in different
