@@ -15,21 +15,40 @@ jobs:
       matrix:
         python-version: [ "3.8", "3.9" ]
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install node
+          uses: actions/setup-node@v1
+          with:
+            node-version: "12.x"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Get npm cache directory
+        id: npm-cache
+        run: |
+          echo "::set-output name=dir::$(npm config get cache)"
+      - uses: actions/cache@v2
+        with:
+          path: ${{ steps.npm-cache.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install scipy numpy tvb-library ipygany pyvista ipywidgets ebrains_drive
+          python -m pip install setuptools codecov
           python -m pip install pytest pytest-cov
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
+          npm install -g codecov
       - name: Test with pytest
         run: |
+          python -m pip install --upgrade -v -e ".[test, examples, docs]"
+                    yarn run lint:check
           pytest
+          yarn run test
       - name: Compute coverage
         run: |
           pytest -v  --cov --cov-report=xml

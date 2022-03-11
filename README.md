@@ -23,9 +23,56 @@ These graphic user interface components enable:
  5. Integration of a subset of TVB analysis and visualisation tools.
  6. The GUIs must be designed to be integrated into cells in the notebooks and Jupyter notebook extension for HPC resource usage and job tracking will be also developed as independent panels.
 
-Installation:
+## Installation
 
     pip install tvb-widgets
+
+### Development Installation
+
+Create a dev environment with conda from *dev/prepare_env.sh* or mimic the command from *dev/Dockerfile*
+```
+Install the python. This will also build the TS package.
+```bash
+pip install -e ".[test, notebooks]"
+```
+
+When developing your extensions, you need to manually enable your extensions with the
+notebook / lab frontend. For lab, this is done by the command:
+
+```
+jupyter labextension develop --overwrite .
+yarn run build
+```
+
+For classic notebook, you need to run:
+
+```
+jupyter nbextension install --sys-prefix --symlink --overwrite --py tvbwidgets
+jupyter nbextension enable --sys-prefix --py tvbwidgets
+```
+
+Note that the `--symlink` flag doesn't work on Windows, so you will here have to run
+the `install` command every time that you rebuild your extension. For certain installations
+you might also need another flag instead of `--sys-prefix`, but we won't cover the meaning
+of those flags here.
+
+### How to see your changes
+#### Typescript:
+If you use JupyterLab to develop then you can watch the source directory and run JupyterLab at the same time in different
+terminals to watch for changes in the extension's source and automatically rebuild the widget.
+
+```bash
+# Watch the source directory in one terminal, automatically rebuilding when needed
+yarn run watch
+# Run JupyterLab in another terminal
+jupyter lab
+```
+
+After a change wait for the build to finish and then refresh your browser and the changes should take effect.
+
+#### Python:
+If you make a change to the python code then you will need to restart the notebook kernel to have it take effect.
+
 
 #  Acknowledgments
 This project has received funding from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).

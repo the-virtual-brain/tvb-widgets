@@ -5,20 +5,50 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 
-from pkg_resources import get_distribution, DistributionNotFound
 from .logger.builder import get_logger
+from ._version import __version__
 
 LOGGER = get_logger(__name__)
-try:
-    __version__ = get_distribution("tvb-widgets").version
-except DistributionNotFound:
-    LOGGER.debug("Package is not fully installed")
-    try:
-        from ._version import __version__
-
-        LOGGER.debug("Version read from the internal _version.py file")
-    except ImportError:
-        LOGGER.warn("Version not found, we will use fallback")
-        __version__ = "1.0"
-
 LOGGER.info(f"Version: {__version__}")
+
+
+def _jupyter_labextension_paths():
+    """
+    Called by Jupyter Lab Server to detect if it is a valid labextension and
+    to install the widget.
+    Returns
+    =======
+    src: Source directory name to copy files from. Webpack outputs generated files
+        into this directory and Jupyter Lab copies from this directory during
+        widget installation
+    dest: Destination directory name to install widget files to. Jupyter Lab copies
+        from `src` directory into <jupyter path>/labextensions/<dest> directory
+        during widget installation
+    """
+    return [{'src': 'labextension',
+             'dest': 'tvb-widgets',
+             }]
+
+
+def _jupyter_nbextension_paths():
+    """
+    Called by Jupyter Notebook Server to detect if it is a valid nbextension and
+    to install the widget.
+    Returns
+    =======
+    section: The section of the Jupyter Notebook Server to change.
+        Must be 'notebook' for widget extensions
+    src: Source directory name to copy files from. Webpack outputs generated files
+        into this directory and Jupyter Notebook copies from this directory during
+        widget installation
+    dest: Destination directory name to install widget files to. Jupyter Notebook copies
+        from `src` directory into <jupyter path>/nbextensions/<dest> directory
+        during widget installation
+    require: Path to importable AMD Javascript module inside the
+        <jupyter path>/nbextensions/<dest> directory
+    """
+    return [{'section': 'notebook',
+             'src': 'nbextension',
+             'dest': 'tvbwidgets',
+             'require': 'tvbwidgets/extension'
+             }]
