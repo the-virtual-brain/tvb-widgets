@@ -6,7 +6,7 @@ define(function() {
     window['requirejs'].config({
         map: {
             '*': {
-                'tvb-widgets': 'nbextensions/tvbwidgets/index',
+                'tvb-widgets': 'nbextensions/tvb-widgets/index',
             },
         }
     });

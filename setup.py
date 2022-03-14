@@ -33,7 +33,7 @@ package_data_spec = {
     NAME: ['nbextension/**js*', 'labextension/**']
 }
 data_files_spec = [
-    ('share/jupyter/nbextensions/tvbwidgets', 'tvbwidgets/nbextension', '**'),
+    ('share/jupyter/nbextensions/tvb-widgets', 'tvbwidgets/nbextension', '**'),
     ('share/jupyter/labextensions/tvb-widgets', 'tvbwidgets/labextension', '**'),
     ('share/jupyter/labextensions/tvb-widgets', '.', 'install.json'),
     ('etc/jupyter/nbconfig/notebook.d', '.', 'tvbwidgets.json'),

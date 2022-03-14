@@ -41,6 +41,7 @@ notebook / lab frontend. For lab, this is done by the command:
 
 ```
 jupyter labextension develop --overwrite .
+jupyter server extension enable tvbwidgets
 yarn run build
 ```
 

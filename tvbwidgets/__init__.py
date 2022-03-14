@@ -49,6 +49,6 @@ def _jupyter_nbextension_paths():
     """
     return [{'section': 'notebook',
              'src': 'nbextension',
-             'dest': 'tvbwidgets',
-             'require': 'tvbwidgets/extension'
+             'dest': 'tvb-widgets',
+             'require': 'extension'
              }]
