@@ -54,7 +54,11 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
     # plot methods
     def create_fig(self):
-        def on_key_press(event):
+        def update_on_plot_interaction(event):
+            """
+            Function that updates the checkboxes when the user navigates through the plot
+            using either the mouse or the keyboard
+            """
             picks = list(self.fig.mne.picks)
             for ch in picks:
                 ch_name = self.fig.mne.ch_names[ch]
@@ -62,8 +66,14 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                 if cb.value == False:
                     cb.value = True
 
+        # create the plot
         self.fig = self.data.plot(duration=5, n_channels=self.no_channels, clipping=2, show=False)
-        self.fig.canvas.mpl_connect('key_press_event', on_key_press)
+
+        # add custom widget handling on keyboard and mouse events
+        self.fig.canvas.mpl_connect('key_press_event', update_on_plot_interaction)
+        self.fig.canvas.mpl_connect('button_press_event', update_on_plot_interaction)
+
+        # display the plot
         with self.output:
             self.fig
         display(self)
