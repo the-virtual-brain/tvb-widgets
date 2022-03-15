@@ -55,11 +55,15 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     # plot methods
     def create_fig(self):
         def on_key_press(event):
-            # TODO: link plot nav. using keypress to the checkboxes
-            os.write(1, f"IN ON PRESS\n".encode())
+            picks = list(self.fig.mne.picks)
+            for ch in picks:
+                ch_name = self.fig.mne.ch_names[ch]
+                cb = self.checkboxes[ch_name]
+                if cb.value == False:
+                    cb.value = True
 
         self.fig = self.data.plot(duration=5, n_channels=self.no_channels, clipping=2, show=False)
-        callback_id = self.fig.canvas.mpl_connect('key_press_event', on_key_press)
+        self.fig.canvas.mpl_connect('key_press_event', on_key_press)
         with self.output:
             self.fig
         display(self)
