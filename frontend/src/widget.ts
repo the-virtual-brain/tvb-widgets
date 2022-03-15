@@ -10,7 +10,7 @@ import {
 import { MODULE_NAME, MODULE_VERSION } from './version';
 
 // Import the CSS
-import '.,/css/widget.css';
+import '../css/widget.css';
 
 export class ExampleModel extends DOMWidgetModel {
   defaults() {
