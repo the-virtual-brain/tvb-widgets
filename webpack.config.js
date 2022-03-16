@@ -24,7 +24,7 @@ module.exports = [
    * the notebook.
    */
   {
-    entry: './frontend/src/extension.ts',
+    entry: './src/extension.ts',
     output: {
       filename: 'index.js',
       path: path.resolve(__dirname, 'tvbwidgets', 'nbextension'),
@@ -50,7 +50,7 @@ module.exports = [
    * the custom widget embedder.
    */
   {
-    entry: './frontend/src/index.ts',
+    entry: './src/index.ts',
     output: {
         filename: 'index.js',
         path: path.resolve(__dirname, 'dist'),
@@ -73,10 +73,10 @@ module.exports = [
    * This bundle is used to embed widgets in the package documentation.
    */
   {
-    entry: './frontend/src/index.ts',
+    entry: './src/index.ts',
     output: {
       filename: 'embed-bundle.js',
-      path: path.resolve(__dirname, 'frontend', '_static'),
+      path: path.resolve(__dirname, '_static'),
       library: "tvb-widgets",
       libraryTarget: 'amd'
     },

@@ -9,7 +9,7 @@
     "noUnusedLocals": true,
     "outDir": "lib",
     "resolveJsonModule": true,
-    "rootDir": "frontend",
+    "rootDir": "src",
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
@@ -18,8 +18,8 @@
     "types": ["jest"]
   },
   "include": [
-    "frontend/src/**/*.ts",
-    "frontend/src/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
   ],
-  "exclude": ["frontend/src/**/__tests__"]
+  "exclude": ["src/**/__tests__"]
 }

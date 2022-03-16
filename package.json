@@ -11,7 +11,7 @@
   "files": [
     "lib/**/*.js",
     "dist/*.js",
-    "frontend/css/*.css"
+    "css/*.css"
   ],
   "homepage": "https://github.com/the-virtual-brain/tvb-widgets",
   "bugs": {
@@ -22,7 +22,7 @@
     "name": "TVB Widgets Team",
     "email": "tvb.admin@thevirtualbrain.org"
   },
-  "main": "lib/src/index.js",
+  "main": "lib/index.js",
   "types": "./lib/index.d.ts",
   "repository": {
     "type": "git",
@@ -82,7 +82,7 @@
     "webpack-cli": "^4.0.0"
   },
   "jupyterlab": {
-    "extension": "lib/src/plugin",
+    "extension": "lib/plugin",
     "outputDir": "tvbwidgets/labextension/",
     "sharedPackages": {
       "@jupyter-widgets/base": {

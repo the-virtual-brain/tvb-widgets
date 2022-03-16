@@ -21,8 +21,8 @@ prune tests/build
 
 # Javascript files
 graft tvbwidgets/nbextension
-graft frontend/src
-graft frontend/css
+graft src
+graft css
 prune **/node_modules
 prune coverage
 prune lib
