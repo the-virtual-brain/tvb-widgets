@@ -1,5 +1,5 @@
 // Copyright (c) TVB Widgets Team
-// Distributed under the terms of GPL v3 License.
+// Distributed under the terms of GPL-3.0-or-later License.
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore

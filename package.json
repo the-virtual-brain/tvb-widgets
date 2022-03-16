@@ -17,7 +17,7 @@
   "bugs": {
     "url": "https://req.thevirtualbrain.org"
   },
-  "license": "GPL v3",
+  "license": "GPL-3.0-or-later",
   "author": {
     "name": "TVB Widgets Team",
     "email": "tvb.admin@thevirtualbrain.org"
