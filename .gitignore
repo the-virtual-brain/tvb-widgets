@@ -153,4 +153,3 @@ tvbwidgets/labextension/*.tgz
 
 # Packed lab extensions
 tvbwidgets/labextension
-_static/embed-bundle.js*

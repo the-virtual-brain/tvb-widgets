@@ -12,6 +12,8 @@ define(function() {
     });
     // Export the required load_ipython_extension function
     return {
-        load_ipython_extension : function() {}
+        load_ipython_extension : function() {
+            // This is intentional
+        }
     };
 });
