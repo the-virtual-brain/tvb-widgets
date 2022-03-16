@@ -116,6 +116,12 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             else:
                 not_picked.append(ch_number)
 
+        if not picks:
+            self.fig.mne.picks = picks
+            self.fig.mne.n_channels = 0
+            self.update_fig()
+            return
+
         # if not enough values are checked, force the plot to display less channels
         n_channels = self.fig.mne.n_channels
         if (len(picks) < n_channels) or (n_channels < len(picks) <= self.no_channels):
@@ -141,9 +147,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         ch_start_index = list(self.fig.mne.ch_order).index(new_picks[0])
         self.fig.mne.ch_start = ch_start_index
 
-        self.fig._update_trace_offsets()
-        self.fig._update_vscroll()
-        self.fig._redraw(annotations=True)
+        self.update_fig()
 
     def get_next_checked_channel(self, ch_start, checked_list, ch_order):
         for i in range(len(ch_order)):
@@ -152,3 +156,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             if new_ch_start_number in checked_list:
                 break
         return ch_start
+
+    def update_fig(self):
+        self.fig._update_trace_offsets()
+        self.fig._update_vscroll()
+        self.fig._redraw(annotations=True)
