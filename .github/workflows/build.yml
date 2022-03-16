@@ -42,7 +42,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install scipy numpy tvb-library ipygany pyvista ipywidgets ebrains_drive
           python -m pip install setuptools codecov
-          python -m pip install pytest pytest-cov
+          python -m pip install pytest pytest-cov pytest-mock nbval
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           npm install -g codecov
       - name: Test with pytest
