@@ -8,7 +8,7 @@
 import json
 from pathlib import Path
 
-__all__ = ["__version__"]
+__all__ = ["__version__", "__frontend_module__"]
 
 
 def _fetch_version():
@@ -17,8 +17,12 @@ def _fetch_version():
     for settings in here.rglob("package.json"):
         try:
             with settings.open() as f:
-                version = json.load(f)["version"]
-                return version.replace("-alpha.", "a").replace("-beta.", "b").replace("-rc.", "rc")
+                data = json.load(f)
+                version = data["version"]
+                version = version.replace("-alpha.", "a").replace("-beta.", "b").replace("-rc.", "rc")
+                module = data["name"]
+                module = module.replace("-", "")
+                return version, module
 
         except FileNotFoundError:
             pass
@@ -26,4 +30,4 @@ def _fetch_version():
     raise FileNotFoundError(f"Could not find package.json under dir {here!s}")
 
 
-__version__ = _fetch_version()
+__version__, __frontend_module__ = _fetch_version()
