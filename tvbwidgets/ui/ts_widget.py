@@ -4,11 +4,11 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+
 from tvbwidgets.ui.base_widget import TVBWidget
 import ipywidgets as widgets
 import numpy as np
 import os
-from IPython.core.display_functions import display
 
 
 class TimeSeriesWidget(widgets.VBox, TVBWidget):
@@ -26,9 +26,9 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.checkboxes = dict()
         self.checkboxes_list = []
         self.create_checkbox_list()
-        self.region_box = widgets.HBox(children=self.checkboxes_list,
-                                       layout=widgets.Layout(height='400px', width='1400px'))
-        self.accordion = widgets.Accordion(children=[self.region_box])
+        self.checkboxes_region = widgets.HBox(children=self.checkboxes_list,
+                                              layout=widgets.Layout(height='400px', width='auto'))
+        self.accordion = widgets.Accordion(children=[self.checkboxes_region], layout=widgets.Layout(width='40%'))
         self.accordion.set_title(0, 'Channels')
 
         # buttons region
@@ -38,10 +38,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.unselect_all_btn.on_click(self.unselect_all)
         self.buttons_box = widgets.HBox(children=[self.select_all_btn, self.unselect_all_btn])
 
-        items = [self.accordion, self.buttons_box, self.output]
-        grid = widgets.GridBox(items)
-
-        super().__init__([grid], **kwargs)
+        super().__init__(**kwargs)
 
     # buttons methods
     def unselect_all(self, btn):
@@ -76,7 +73,10 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         # display the plot
         with self.output:
             self.fig
-        display(self)
+
+        items = [self.accordion, self.buttons_box, self.output]
+        grid = widgets.GridBox(items)
+        return grid
 
     # checkboxes methods
     def create_checkbox_list(self):
