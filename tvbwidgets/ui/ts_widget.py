@@ -4,23 +4,32 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
-
-from tvbwidgets.ui.base_widget import TVBWidget
 import ipywidgets as widgets
+import mne
 import numpy as np
 import os
 
+from tvb.datatypes.time_series import TimeSeries
+from tvbwidgets.ui.base_widget import TVBWidget
+
 
 class TimeSeriesWidget(widgets.VBox, TVBWidget):
-    def __init__(self, **kwargs):
+    def __init__(self, data, **kwargs):
         self.fig = None
 
         # data
-        data = kwargs.get('data', None)
         self.data = data
+        self.data_type = None
+        self.ch_names = []
+        self.ch_order = []
+        self.displayed_period = 0
         self.no_channels = 30
+        self.raw = None
 
-        self.output = widgets.Output()
+        self.configure_ts_widget()
+
+        # UI elements
+        self.output = widgets.Output(layout=widgets.Layout(border='solid'))
 
         # checkboxes region
         self.checkboxes = dict()
@@ -40,6 +49,47 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
         super().__init__(**kwargs)
 
+    # ====================================== CONFIGURATION =============================================================
+    def configure_ts_widget(self):
+        if isinstance(self.data, TimeSeries):
+            self.data_type = TimeSeries
+            self.configure_ch_names_ts()
+            self.configure_displayed_period_ts()
+            self.configure_ch_order_ts()
+            self.create_raw_from_ts()
+            os.write(1, f"It's a TVB TimeSeries!\n".encode())
+        elif isinstance(self.data, np.ndarray):
+            self.data_type = np.ndarray
+            os.write(1, f"It's a numpy array!\n".encode())
+
+    # configure channel names when data is a TVB TimeSeries object
+    def configure_ch_names_ts(self):
+        if not self.ch_names:
+            no_channels = self.data.shape[2]  # number of channels is on axis 2
+            self.ch_names = list(range(no_channels))
+            self.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
+
+    def configure_displayed_period_ts(self):
+        total_period = self.data.summary_info()['Length']
+        self.displayed_period = total_period / 10  # chose to display a tenth of the total duration
+
+    def configure_ch_order_ts(self):
+        if not self.ch_order:
+            no_channels = self.data.shape[2]  # number of channels is on axis 2
+            self.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
+
+    # ======================================= RAW OBJECT ==============================================================
+    def create_raw_from_ts(self):
+        # create Info object for Raw object
+        raw_info = mne.create_info(self.ch_names, sfreq=self.data.sample_rate)
+
+        # TODO: currently taking only 1st value for state var and mode; this should be corrected
+        data_for_raw = self.data.data[:, 0, :, 0]
+        data_for_raw = np.swapaxes(data_for_raw, 0, 1)
+        raw = mne.io.RawArray(data_for_raw, raw_info)
+        self.raw = raw
+
+    # ========================================== BUTTONS ===============================================================
     # buttons methods
     def unselect_all(self, btn):
         for cb_name in self.checkboxes:
@@ -49,8 +99,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         for cb_name in self.checkboxes:
             self.checkboxes[cb_name].value = True
 
-    # plot methods
-    def create_fig(self):
+    # =========================================== PLOT =================================================================
+    def get_widget(self):
         def update_on_plot_interaction(event):
             """
             Function that updates the checkboxes when the user navigates through the plot
@@ -64,7 +114,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                     cb.value = True
 
         # create the plot
-        self.fig = self.data.plot(duration=5, n_channels=self.no_channels, clipping=2, show=False)
+        self.fig = self.raw.plot(duration=self.displayed_period, n_channels=self.no_channels, clipping=None, show=False)
+        self.fig.mne.ch_order = self.ch_order
 
         # add custom widget handling on keyboard and mouse events
         self.fig.canvas.mpl_connect('key_press_event', update_on_plot_interaction)
@@ -78,13 +129,13 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         grid = widgets.GridBox(items)
         return grid
 
-    # checkboxes methods
+    # ======================================== CHECKBOXES ==============================================================
     def create_checkbox_list(self):
         checkboxes_stack = []
-        labels = self.data.ch_names
+        labels = self.ch_names
         for i, label in enumerate(labels):
             self.checkboxes[label] = widgets.Checkbox(value=True,
-                                                      description=label,
+                                                      description=str(label),
                                                       disabled=False,
                                                       indent=False)
             self.checkboxes[label].observe(self.update_ts, names="value", type="change")
