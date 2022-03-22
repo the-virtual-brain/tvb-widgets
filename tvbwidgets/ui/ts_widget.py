@@ -22,6 +22,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.data_type = None
         self.ch_names = []
         self.ch_order = []
+        self.ch_types = []
         self.displayed_period = 0
         self.no_channels = 30
         self.raw = None
@@ -29,14 +30,14 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.configure_ts_widget()
 
         # UI elements
-        self.output = widgets.Output(layout=widgets.Layout(border='solid'))
+        self.output = widgets.Output()
 
         # checkboxes region
         self.checkboxes = dict()
         self.checkboxes_list = []
         self.create_checkbox_list()
         self.checkboxes_region = widgets.HBox(children=self.checkboxes_list,
-                                              layout=widgets.Layout(height='400px', width='auto'))
+                                              layout=widgets.Layout(height='250px', width='auto'))
         self.accordion = widgets.Accordion(children=[self.checkboxes_region], layout=widgets.Layout(width='40%'))
         self.accordion.set_title(0, 'Channels')
 
@@ -56,6 +57,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             self.configure_ch_names_ts()
             self.configure_displayed_period_ts()
             self.configure_ch_order_ts()
+            self.configure_ch_types_ts()
             self.create_raw_from_ts()
             os.write(1, f"It's a TVB TimeSeries!\n".encode())
         elif isinstance(self.data, np.ndarray):
@@ -77,6 +79,11 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         if not self.ch_order:
             no_channels = self.data.shape[2]  # number of channels is on axis 2
             self.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
+
+    def configure_ch_types_ts(self):
+        if not self.ch_types:
+            types = ['misc' for x in self.ch_names]
+            self.ch_types = types
 
     # ======================================= RAW OBJECT ==============================================================
     def create_raw_from_ts(self):
@@ -116,6 +123,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         # create the plot
         self.fig = self.raw.plot(duration=self.displayed_period, n_channels=self.no_channels, clipping=None, show=False)
         self.fig.mne.ch_order = self.ch_order
+        self.fig.mne.ch_types = np.array(self.ch_types)
 
         # add custom widget handling on keyboard and mouse events
         self.fig.canvas.mpl_connect('key_press_event', update_on_plot_interaction)
@@ -211,4 +219,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def update_fig(self):
         self.fig._update_trace_offsets()
         self.fig._update_vscroll()
-        self.fig._redraw(annotations=True)
+        try:
+            self.fig._redraw(annotations=True)
+        except:
+            self.fig._redraw(update_data=False)     # needed in case of Unselect all
