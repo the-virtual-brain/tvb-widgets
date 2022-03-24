@@ -5,10 +5,13 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 import ipywidgets as widgets
+import math
 import mne
 import numpy as np
 import os
 
+from collections import OrderedDict
+from IPython.core.display_functions import display
 from tvb.datatypes.time_series import TimeSeries
 from tvbwidgets.ui.base_widget import TVBWidget
 
@@ -30,14 +33,14 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.configure_ts_widget()
 
         # UI elements
-        self.output = widgets.Output()
+        self.output = widgets.Output(layout=widgets.Layout(width='auto'))
 
         # checkboxes region
         self.checkboxes = dict()
         self.checkboxes_list = []
         self.create_checkbox_list()
         self.checkboxes_region = widgets.HBox(children=self.checkboxes_list,
-                                              layout=widgets.Layout(height='250px', width='auto'))
+                                              layout=widgets.Layout(height='250px'))
         self.accordion = widgets.Accordion(children=[self.checkboxes_region], layout=widgets.Layout(width='40%'))
         self.accordion.set_title(0, 'Channels')
 
@@ -46,7 +49,16 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.select_all_btn.on_click(self.select_all)
         self.unselect_all_btn = widgets.Button(description="Unselect all")
         self.unselect_all_btn.on_click(self.unselect_all)
-        self.buttons_box = widgets.HBox(children=[self.select_all_btn, self.unselect_all_btn])
+
+        # instructions region
+        self.instr_list = []
+        self.create_instructions()
+        self.instr_region = widgets.HBox(children=self.instr_list)
+        self.instr_accordion = widgets.Accordion(children=[self.instr_region], selected_index=None)
+        self.instr_accordion.set_title(0, 'Keyboard shortcuts')
+
+        self.buttons_box = widgets.HBox(children=[self.select_all_btn, self.unselect_all_btn, self.instr_accordion])
+
 
         super().__init__(**kwargs)
 
@@ -85,7 +97,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             types = ['misc' for x in self.ch_names]
             self.ch_types = types
 
-    # ======================================= RAW OBJECT ==============================================================
+    # ======================================= RAW OBJECT ===============================================================
     def create_raw_from_ts(self):
         # create Info object for Raw object
         raw_info = mne.create_info(self.ch_names, sfreq=self.data.sample_rate)
@@ -105,6 +117,49 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def select_all(self, btn):
         for cb_name in self.checkboxes:
             self.checkboxes[cb_name].value = True
+
+    # ===================================== INSTRUCTIONS DROPDOWN ======================================================
+    def create_instructions(self):
+        help_text = OrderedDict([
+            ('NAVIGATION', ' '),
+            ('→', f'Scroll ¼ right (scroll full window with Shift + →)'),
+            ('←', f'Scroll ¼ left (scroll full window with Shift + ←)'),
+            ('Home (fn + ← for Mac)', 'Show shorter time window'),
+            ('End (fn + → for Mac)', 'Show longer time window'),
+            ('↑', f'Scroll up (channels)'),
+            ('↓', f'Scroll down (channelss)'),
+            ('Page up (fn + ↑ for Mac)', 'Increase number of visible channels'),
+            ('Page down (fn + ↓ for Mac)', 'Decrease number of visible channels'),
+            ('SIGNAL TRANSFORMATIONS', ' '),
+            ('+ or =', 'Increase signal scaling'),
+            ('-', 'Decrease signal scaling'),
+            ('b', 'Toggle butterfly mode'),
+            ('d', 'Toggle DC removal'),
+            ('USER INTERFACE', ' '),
+            ('a', 'Toggle annotation mode'),
+            ('shift+j', 'Toggle all SSPs'),
+            ('p', 'Toggle draggable annotations'),
+            ('s', 'Toggle scalebars'),
+            ('z', 'Toggle scrollbars'),
+            ('esc', 'Close focused figure or dialog window'),
+            ('MOUSE INTERACTION', ' '),
+            (f'Left-click channel name', 'Mark/unmark bad channel'),
+            (f'Left-click channels data', 'Mark/unmark bad channel'),
+            ('Left-click-and-drag on plot', 'Add annotation (in annotation mode)'),
+            ('Left-click on plot background', 'Place vertical guide'),
+            ('Right-click on plot background', 'Clear vertical guide'),
+        ])
+        key_list = []
+        val_list = []
+        for key, value in help_text.items():
+            key_label = widgets.Label(value=key)
+            val_label = widgets.Label(value=value)
+
+            key_list.append(key_label)
+            val_list.append(val_label)
+
+        self.instr_list.append(widgets.VBox(children=key_list))
+        self.instr_list.append(widgets.VBox(children=val_list))
 
     # =========================================== PLOT =================================================================
     def get_widget(self):
@@ -131,9 +186,11 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
         # display the plot
         with self.output:
+            display(self.accordion)
+            display(self.buttons_box)
             self.fig
 
-        items = [self.accordion, self.buttons_box, self.output]
+        items = [self.output]
         grid = widgets.GridBox(items)
         return grid
 
@@ -141,13 +198,14 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def create_checkbox_list(self):
         checkboxes_stack = []
         labels = self.ch_names
+        cb_per_col = math.ceil(len(labels)/8)   # number of checkboxes in a column; should always display 8 cols
         for i, label in enumerate(labels):
             self.checkboxes[label] = widgets.Checkbox(value=True,
                                                       description=str(label),
                                                       disabled=False,
                                                       indent=False)
             self.checkboxes[label].observe(self.update_ts, names="value", type="change")
-            if i and i % 38 == 0:
+            if i and i % cb_per_col == 0:
                 self.checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
                 checkboxes_stack = []
             checkboxes_stack.append(self.checkboxes[label])
