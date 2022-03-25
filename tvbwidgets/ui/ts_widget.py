@@ -6,6 +6,7 @@
 #
 import ipywidgets as widgets
 import math
+import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import os
@@ -28,6 +29,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.ch_types = []
         self.displayed_period = 0
         self.no_channels = 30
+        self.selected_state_var = None
+        self.selected_mode = None
         self.raw = None
 
         self.configure_ts_widget()
@@ -57,9 +60,16 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.instr_accordion = widgets.Accordion(children=[self.instr_region], selected_index=None)
         self.instr_accordion.set_title(0, 'Keyboard shortcuts')
 
-        self.buttons_box = widgets.HBox(children=[self.select_all_btn, self.unselect_all_btn, self.instr_accordion])
+        # select dimensions region
+        self.create_state_var_selection()
+        self.state_var_accordion = widgets.Accordion(children=[self.state_var_radio_btn], selected_index=None)
+        self.state_var_accordion.set_title(0, 'State variable')
+        self.create_mode_selection()
+        self.mode_accordion = widgets.Accordion(children=[self.mode_radio_btn], selected_index=None)
+        self.mode_accordion.set_title(0, 'Mode')
 
-
+        self.buttons_box = widgets.HBox(children=[self.select_all_btn, self.unselect_all_btn, self.instr_accordion,
+                                                  self.state_var_accordion, self.mode_accordion])
         super().__init__(**kwargs)
 
     # ====================================== CONFIGURATION =============================================================
@@ -78,32 +88,36 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
     # configure channel names when data is a TVB TimeSeries object
     def configure_ch_names_ts(self):
-        if not self.ch_names:
-            no_channels = self.data.shape[2]  # number of channels is on axis 2
-            self.ch_names = list(range(no_channels))
-            self.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
+        no_channels = self.data.shape[2]  # number of channels is on axis 2
+        self.ch_names = list(range(no_channels))
+        self.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
 
     def configure_displayed_period_ts(self):
         total_period = self.data.summary_info()['Length']
         self.displayed_period = total_period / 10  # chose to display a tenth of the total duration
 
     def configure_ch_order_ts(self):
-        if not self.ch_order:
-            no_channels = self.data.shape[2]  # number of channels is on axis 2
-            self.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
+        no_channels = self.data.shape[2]  # number of channels is on axis 2
+        self.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
 
     def configure_ch_types_ts(self):
-        if not self.ch_types:
-            types = ['misc' for x in self.ch_names]
-            self.ch_types = types
+        types = ['misc' for x in self.ch_names]
+        self.ch_types = types
 
     # ======================================= RAW OBJECT ===============================================================
     def create_raw_from_ts(self):
         # create Info object for Raw object
         raw_info = mne.create_info(self.ch_names, sfreq=self.data.sample_rate)
 
-        # TODO: currently taking only 1st value for state var and mode; this should be corrected
-        data_for_raw = self.data.data[:, 0, :, 0]
+        valid_state_var = self.selected_state_var is not None
+        valid_mode = self.selected_mode is not None
+        if not (valid_state_var and valid_state_var):       # when plot is drawn for first time
+            data_for_raw = self.data.data[:, 0, :, 0]
+        else:
+            state_var = self.selected_state_var if valid_state_var else 0
+            mode = self.selected_mode if valid_mode else 0
+            data_for_raw = self.data.data[:, state_var, :, mode]
+
         data_for_raw = np.swapaxes(data_for_raw, 0, 1)
         raw = mne.io.RawArray(data_for_raw, raw_info)
         self.raw = raw
@@ -161,6 +175,43 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.instr_list.append(widgets.VBox(children=key_list))
         self.instr_list.append(widgets.VBox(children=val_list))
 
+    # ====================================== DIMENSIONS SELECTION ======================================================
+    def create_state_var_selection(self):
+        no_state_vars = self.data.shape[1]
+        state_vars = [i for i in range(no_state_vars)]
+        self.state_var_radio_btn = widgets.RadioButtons(options=state_vars, layout={'width': 'max-content'})
+        self.state_var_radio_btn.observe(self.state_var_update, names=['value'])
+
+    def create_mode_selection(self):
+        no_modes = self.data.shape[3]
+        modes = [i for i in range(no_modes)]
+        self.mode_radio_btn = widgets.RadioButtons(options=modes, layout={'width': 'max-content'})
+        self.mode_radio_btn.observe(self.mode_update, names=['value'])
+
+    def mode_update(self, s):
+        selected = self.mode_radio_btn.value
+        self.selected_mode = selected
+        self.dimensions_selection_update()
+
+    def state_var_update(self, s):
+        selected = self.state_var_radio_btn.value
+        self.selected_state_var = selected
+        self.dimensions_selection_update()
+
+    def dimensions_selection_update(self):
+        self.configure_ts_widget()
+        self.fig = self.raw.plot(duration=self.displayed_period, n_channels=self.no_channels, clipping=None,
+                                 show=False)
+        self.fig.set_size_inches(11, 7)
+
+        with self.output:
+            self.output.clear_output(wait=True)
+            display(self.fig.canvas)
+
+        # refresh the checkboxes if they were unselected
+        for cb_name in self.checkboxes:
+            self.checkboxes[cb_name].value = True
+
     # =========================================== PLOT =================================================================
     def get_widget(self):
         def update_on_plot_interaction(event):
@@ -172,7 +223,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             for ch in picks:
                 ch_name = self.fig.mne.ch_names[ch]
                 cb = self.checkboxes[ch_name]
-                if cb.value == False:
+                if not cb.value:
                     cb.value = True
 
         # create the plot
@@ -185,12 +236,23 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.fig.canvas.mpl_connect('button_press_event', update_on_plot_interaction)
 
         # display the plot
-        with self.output:
-            display(self.accordion)
-            display(self.buttons_box)
-            self.fig
+        with plt.ioff():
+            # create the plot
+            self.fig = self.raw.plot(duration=self.displayed_period, n_channels=self.no_channels, clipping=None,
+                                     show=False)
+            self.fig.set_size_inches(11, 7)
+            # self.fig.figure.canvas.set_window_title('TimeSeries plot')
+            self.fig.mne.ch_order = self.ch_order
+            self.fig.mne.ch_types = np.array(self.ch_types)
 
-        items = [self.output]
+            # add custom widget handling on keyboard and mouse events
+            self.fig.canvas.mpl_connect('key_press_event', update_on_plot_interaction)
+            self.fig.canvas.mpl_connect('button_press_event', update_on_plot_interaction)
+
+            with self.output:
+                display(self.fig.canvas)
+
+        items = [self.accordion, self.buttons_box, self.output]
         grid = widgets.GridBox(items)
         return grid
 
@@ -198,7 +260,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def create_checkbox_list(self):
         checkboxes_stack = []
         labels = self.ch_names
-        cb_per_col = math.ceil(len(labels)/8)   # number of checkboxes in a column; should always display 8 cols
+        cb_per_col = math.ceil(len(labels) / 8)  # number of checkboxes in a column; should always display 8 cols
         for i, label in enumerate(labels):
             self.checkboxes[label] = widgets.Checkbox(value=True,
                                                       description=str(label),
@@ -227,8 +289,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         picks = []
         not_picked = []
         for cb in list(self.checkboxes.values()):
-            ch_number = ch_names.index(cb.description)  # get the number repres. of checked/uncheched channel
-            if cb.value == True:
+            ch_number = ch_names.index(cb.description)  # get the number representation of checked/unchecked channel
+            if cb.value:
                 picks.append(ch_number)  # list with number representation of channels
             else:
                 not_picked.append(ch_number)
@@ -280,4 +342,4 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         try:
             self.fig._redraw(annotations=True)
         except:
-            self.fig._redraw(update_data=False)     # needed in case of Unselect all
+            self.fig._redraw(update_data=False)  # needed in case of Unselect all
