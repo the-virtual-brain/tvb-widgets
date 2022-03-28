@@ -9,7 +9,7 @@ import pytest
 
 import tvbwidgets.api as api
 from ebrains_drive.exceptions import ClientHttpError
-from tvbwidgets.auth import get_current_token
+from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.model.model_3d import Model3D
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvb.simulator.lab import models, integrators
