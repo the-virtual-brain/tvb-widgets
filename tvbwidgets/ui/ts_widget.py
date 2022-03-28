@@ -38,15 +38,6 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         # UI elements
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
 
-        # checkboxes region
-        self.checkboxes = dict()
-        self.checkboxes_list = []
-        self.create_checkbox_list()
-        self.checkboxes_region = widgets.HBox(children=self.checkboxes_list,
-                                              layout=widgets.Layout(height='250px'))
-        self.accordion = widgets.Accordion(children=[self.checkboxes_region], layout=widgets.Layout(width='40%'))
-        self.accordion.set_title(0, 'Channels')
-
         # buttons region
         self.select_all_btn = widgets.Button(description="Select all")
         self.select_all_btn.on_click(self.select_all)
@@ -68,8 +59,20 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.mode_accordion = widgets.Accordion(children=[self.mode_radio_btn], selected_index=None)
         self.mode_accordion.set_title(0, 'Mode')
 
-        self.buttons_box = widgets.HBox(children=[self.select_all_btn, self.unselect_all_btn, self.instr_accordion,
-                                                  self.state_var_accordion, self.mode_accordion])
+        self.selection_buttons = widgets.HBox(children=[self.select_all_btn, self.unselect_all_btn])
+        self.dropdown_region = widgets.HBox(children=[self.state_var_accordion, self.mode_accordion,
+                                                      self.instr_accordion])
+
+        # checkboxes region
+        self.checkboxes = dict()
+        self.checkboxes_list = []
+        self.create_checkbox_list()
+        self.checkboxes_region = widgets.HBox(children=self.checkboxes_list,
+                                              layout=widgets.Layout(height='250px'))
+        self.channels_region = widgets.VBox(children=[self.checkboxes_region, self.selection_buttons])
+        self.channels_accordion = widgets.Accordion(children=[self.channels_region], selected_index=None,
+                                                    layout=widgets.Layout(width='40%'))
+        self.channels_accordion.set_title(0, 'Channels')
         super().__init__(**kwargs)
 
     # ====================================== CONFIGURATION =============================================================
@@ -226,15 +229,6 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                 if not cb.value:
                     cb.value = True
 
-        # create the plot
-        self.fig = self.raw.plot(duration=self.displayed_period, n_channels=self.no_channels, clipping=None, show=False)
-        self.fig.mne.ch_order = self.ch_order
-        self.fig.mne.ch_types = np.array(self.ch_types)
-
-        # add custom widget handling on keyboard and mouse events
-        self.fig.canvas.mpl_connect('key_press_event', update_on_plot_interaction)
-        self.fig.canvas.mpl_connect('button_press_event', update_on_plot_interaction)
-
         # display the plot
         with plt.ioff():
             # create the plot
@@ -252,7 +246,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             with self.output:
                 display(self.fig.canvas)
 
-        items = [self.accordion, self.buttons_box, self.output]
+        items = [self.channels_accordion, self.dropdown_region, self.output]
         grid = widgets.GridBox(items)
         return grid
 
