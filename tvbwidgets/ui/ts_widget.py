@@ -103,7 +103,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
 
     def configure_ch_types_ts(self):
-        types = ['misc' for x in self.ch_names]
+        types = ['misc' for _ in self.ch_names]
         self.ch_types = types
 
     # ======================================= RAW OBJECT ===============================================================
@@ -113,7 +113,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
         valid_state_var = self.selected_state_var is not None
         valid_mode = self.selected_mode is not None
-        if not (valid_state_var and valid_state_var):  # when plot is drawn for first time
+        if not (valid_state_var and valid_mode):  # when plot is drawn for first time
             data_for_raw = self.data.data[:, 0, :, 0]
         else:
             state_var = self.selected_state_var if valid_state_var else 0
@@ -293,8 +293,9 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
         self.update_fig()
 
-    def get_next_checked_channel(self, ch_start, checked_list, ch_order):
-        for i in range(len(ch_order)):
+    @staticmethod
+    def get_next_checked_channel(ch_start, checked_list, ch_order):
+        for _ in range(len(ch_order)):
             ch_start += 1
             new_ch_start_number = ch_order[ch_start]  # get the number representation of next first channel
             if new_ch_start_number in checked_list:
