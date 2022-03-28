@@ -10,10 +10,9 @@ import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import os
-
-from collections import OrderedDict
 from IPython.core.display_functions import display
 from tvb.datatypes.time_series import TimeSeries
+from tvbwidgets.core.ini_parser import parse_ini_file
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
@@ -114,7 +113,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
         valid_state_var = self.selected_state_var is not None
         valid_mode = self.selected_mode is not None
-        if not (valid_state_var and valid_state_var):       # when plot is drawn for first time
+        if not (valid_state_var and valid_state_var):  # when plot is drawn for first time
             data_for_raw = self.data.data[:, 0, :, 0]
         else:
             state_var = self.selected_state_var if valid_state_var else 0
@@ -137,35 +136,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
     # ===================================== INSTRUCTIONS DROPDOWN ======================================================
     def create_instructions(self):
-        help_text = OrderedDict([
-            ('NAVIGATION', ' '),
-            ('→', f'Scroll ¼ right (scroll full window with Shift + →)'),
-            ('←', f'Scroll ¼ left (scroll full window with Shift + ←)'),
-            ('Home (fn + ← for Mac)', 'Show shorter time window'),
-            ('End (fn + → for Mac)', 'Show longer time window'),
-            ('↑', f'Scroll up (channels)'),
-            ('↓', f'Scroll down (channelss)'),
-            ('Page up (fn + ↑ for Mac)', 'Increase number of visible channels'),
-            ('Page down (fn + ↓ for Mac)', 'Decrease number of visible channels'),
-            ('SIGNAL TRANSFORMATIONS', ' '),
-            ('+ or =', 'Increase signal scaling'),
-            ('-', 'Decrease signal scaling'),
-            ('b', 'Toggle butterfly mode'),
-            ('d', 'Toggle DC removal'),
-            ('USER INTERFACE', ' '),
-            ('a', 'Toggle annotation mode'),
-            ('shift+j', 'Toggle all SSPs'),
-            ('p', 'Toggle draggable annotations'),
-            ('s', 'Toggle scalebars'),
-            ('z', 'Toggle scrollbars'),
-            ('esc', 'Close focused figure or dialog window'),
-            ('MOUSE INTERACTION', ' '),
-            (f'Left-click channel name', 'Mark/unmark bad channel'),
-            (f'Left-click channels data', 'Mark/unmark bad channel'),
-            ('Left-click-and-drag on plot', 'Add annotation (in annotation mode)'),
-            ('Left-click on plot background', 'Place vertical guide'),
-            ('Right-click on plot background', 'Clear vertical guide'),
-        ])
+        help_text = parse_ini_file(os.path.join(os.path.dirname(__file__), "ts_widget_help.ini"))
         key_list = []
         val_list = []
         for key, value in help_text.items():
@@ -325,7 +296,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def get_next_checked_channel(self, ch_start, checked_list, ch_order):
         for i in range(len(ch_order)):
             ch_start += 1
-            new_ch_start_number = ch_order[ch_start]        # get the number representation of next first channel
+            new_ch_start_number = ch_order[ch_start]  # get the number representation of next first channel
             if new_ch_start_number in checked_list:
                 break
         return ch_start
