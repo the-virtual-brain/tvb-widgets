@@ -10,14 +10,126 @@ import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import os
+from abc import ABC, abstractmethod
 from IPython.core.display_functions import display
 from tvb.datatypes.time_series import TimeSeries
 from tvbwidgets.core.ini_parser import parse_ini_file
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
+class TSWidgetBuilder(ABC):
+    """ Blueprint for builder of TS Widget """
+
+    @abstractmethod
+    def configure_ch_names(self):
+        pass
+
+    @abstractmethod
+    def configure_displayed_period(self):
+        pass
+
+    @abstractmethod
+    def configure_ch_order(self):
+        pass
+
+    @abstractmethod
+    def configure_ch_types(self):
+        pass
+
+    @abstractmethod
+    def create_raw(self):
+        pass
+
+    @abstractmethod
+    def create_ts_widget(self):
+        pass
+
+
+class TSWidgetBuilderFromTVB(TSWidgetBuilder):
+    """ Builder of TS Widget using TVB TimeSeries as input """
+
+    def __init__(self, data, *kwargs):
+        self.data = data
+        self.ts_widget = TimeSeriesWidget(self.data)
+
+    # ====================================== CONFIGURATION =============================================================
+    def configure_ch_names(self):
+        no_channels = self.data.shape[2]  # number of channels is on axis 2
+        self.ts_widget.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
+
+    def configure_displayed_period(self):
+        total_period = self.data.summary_info()['Length']
+        self.ts_widget.displayed_period = total_period / 10  # chose to display a tenth of the total duration
+
+    def configure_ch_order(self):
+        no_channels = self.data.shape[2]  # number of channels is on axis 2
+        self.ts_widget.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
+
+    def configure_ch_types(self):
+        types = ['misc' for _ in self.ts_widget.ch_names]
+        self.ts_widget.ch_types = types
+
+    # ======================================= RAW OBJECT ===============================================================
+    # TODO: maybe this should remain inside TSWidget class, as it is used (with small modifications) when changing the
+    #       state variable/mode as well?
+    def create_raw(self):
+        # create Info object for Raw object
+        raw_info = mne.create_info(self.ts_widget.ch_names, sfreq=self.data.sample_rate)
+
+        data_for_raw = self.data.data[:, 0, :, 0]  # plot is drawn for first time
+
+        data_for_raw = np.swapaxes(data_for_raw, 0, 1)
+        raw = mne.io.RawArray(data_for_raw, raw_info)
+        self.ts_widget.raw = raw
+
+    # ======================================== TS WIDGET ===============================================================
+
+    def create_ts_widget(self):
+        self.configure_ch_names()
+        self.configure_displayed_period()
+        self.configure_ch_order()
+        self.configure_ch_types()
+        self.create_raw()
+
+        self.ts_widget.create_checkboxes()
+        return self.ts_widget
+
+
+# TODO: finish builder from np array
+class TSWidgetBuilderFromNumpy():
+    """ Builder of TS Widget using numpy arrays as input """
+
+    def __init__(self, data, sample_freq, *kwargs):
+        self.data = data
+        self.sample_freq = sample_freq
+        self.ts_widget = TimeSeriesWidget(self.data)
+
+
+class TSWidgetFactory:
+    """ Orchestrates the creation of the TS Widget using the correct builder """
+
+    def __init__(self, data):
+        self.data = data
+        self.sample_freq = None
+        self.builder = None
+
+        self.set_builder()
+
+    def set_builder(self):
+        if isinstance(self.data, TimeSeries):
+            self.builder = TSWidgetBuilderFromTVB(self.data)
+        elif isinstance(self.data, np.ndarray):
+            self.builder = TSWidgetBuilderFromNumpy(self.data, self.sample_freq)
+
+    def create_ts_widget(self):
+        return self.builder.create_ts_widget()
+
+
 class TimeSeriesWidget(widgets.VBox, TVBWidget):
+    """ Actual TS Widget """
+
     def __init__(self, data, **kwargs):
+        super().__init__(**kwargs)
         self.fig = None
 
         # data
@@ -28,11 +140,9 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.ch_types = []
         self.displayed_period = 0
         self.no_channels = 30
-        self.selected_state_var = None
-        self.selected_mode = None
+        self.selected_state_var = 0
+        self.selected_mode = 0
         self.raw = None
-
-        self.configure_ts_widget()
 
         # UI elements
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
@@ -65,64 +175,6 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         # checkboxes region
         self.checkboxes = dict()
         self.checkboxes_list = []
-        self.create_checkbox_list()
-        self.checkboxes_region = widgets.HBox(children=self.checkboxes_list,
-                                              layout=widgets.Layout(height='250px'))
-        self.channels_region = widgets.VBox(children=[self.checkboxes_region, self.selection_buttons])
-        self.channels_accordion = widgets.Accordion(children=[self.channels_region], selected_index=None,
-                                                    layout=widgets.Layout(width='40%'))
-        self.channels_accordion.set_title(0, 'Channels')
-        super().__init__(**kwargs)
-
-    # ====================================== CONFIGURATION =============================================================
-    def configure_ts_widget(self):
-        if isinstance(self.data, TimeSeries):
-            self.data_type = TimeSeries
-            self.configure_ch_names_ts()
-            self.configure_displayed_period_ts()
-            self.configure_ch_order_ts()
-            self.configure_ch_types_ts()
-            self.create_raw_from_ts()
-            os.write(1, f"It's a TVB TimeSeries!\n".encode())
-        elif isinstance(self.data, np.ndarray):
-            self.data_type = np.ndarray
-            os.write(1, f"It's a numpy array!\n".encode())
-
-    # configure channel names when data is a TVB TimeSeries object
-    def configure_ch_names_ts(self):
-        no_channels = self.data.shape[2]  # number of channels is on axis 2
-        self.ch_names = list(range(no_channels))
-        self.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
-
-    def configure_displayed_period_ts(self):
-        total_period = self.data.summary_info()['Length']
-        self.displayed_period = total_period / 10  # chose to display a tenth of the total duration
-
-    def configure_ch_order_ts(self):
-        no_channels = self.data.shape[2]  # number of channels is on axis 2
-        self.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
-
-    def configure_ch_types_ts(self):
-        types = ['misc' for _ in self.ch_names]
-        self.ch_types = types
-
-    # ======================================= RAW OBJECT ===============================================================
-    def create_raw_from_ts(self):
-        # create Info object for Raw object
-        raw_info = mne.create_info(self.ch_names, sfreq=self.data.sample_rate)
-
-        valid_state_var = self.selected_state_var is not None
-        valid_mode = self.selected_mode is not None
-        if not (valid_state_var and valid_mode):  # when plot is drawn for first time
-            data_for_raw = self.data.data[:, 0, :, 0]
-        else:
-            state_var = self.selected_state_var if valid_state_var else 0
-            mode = self.selected_mode if valid_mode else 0
-            data_for_raw = self.data.data[:, state_var, :, mode]
-
-        data_for_raw = np.swapaxes(data_for_raw, 0, 1)
-        raw = mne.io.RawArray(data_for_raw, raw_info)
-        self.raw = raw
 
     # ========================================== BUTTONS ===============================================================
     # buttons methods
@@ -172,8 +224,21 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.selected_state_var = selected
         self.dimensions_selection_update()
 
+    def update_data_for_plot(self):
+        # create Info object for Raw object
+        raw_info = mne.create_info(self.ch_names, sfreq=self.data.sample_rate)
+
+        state_var = self.selected_state_var
+        mode = self.selected_mode
+        data_for_raw = self.data.data[:, state_var, :, mode]
+
+        data_for_raw = np.swapaxes(data_for_raw, 0, 1)
+        raw = mne.io.RawArray(data_for_raw, raw_info)
+        self.raw = raw
+
     def dimensions_selection_update(self):
-        self.configure_ts_widget()
+        # there should not be any need to update anything else besides self.raw
+        self.update_data_for_plot()
         self.fig = self.raw.plot(duration=self.displayed_period, n_channels=self.no_channels, clipping=None,
                                  show=False)
         self.fig.set_size_inches(11, 7)
@@ -222,7 +287,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         return grid
 
     # ======================================== CHECKBOXES ==============================================================
-    def create_checkbox_list(self):
+    def create_checkboxes(self):
+        """ This will be called from builder, because it needs the initializations done by it"""
         checkboxes_stack = []
         labels = self.ch_names
         cb_per_col = math.ceil(len(labels) / 8)  # number of checkboxes in a column; should always display 8 cols
@@ -237,6 +303,13 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                 checkboxes_stack = []
             checkboxes_stack.append(self.checkboxes[label])
         self.checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
+
+        self.checkboxes_region = widgets.HBox(children=self.checkboxes_list,
+                                              layout=widgets.Layout(height='250px'))
+        self.channels_region = widgets.VBox(children=[self.checkboxes_region, self.selection_buttons])
+        self.channels_accordion = widgets.Accordion(children=[self.channels_region], selected_index=None,
+                                                    layout=widgets.Layout(width='40%'))
+        self.channels_accordion.set_title(0, 'Channels')
 
     def update_ts(self, val):
         ch_names = list(self.fig.mne.ch_names)

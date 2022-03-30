@@ -16,7 +16,7 @@ def parse_ini_file(ini_file):
     :return: Dictionary after parsing
     """
     config = configparser.ConfigParser()
-    config.read(ini_file)
+    config.read(filenames=ini_file, encoding='UTF-8')
     sections = config.sections()
     result = OrderedDict()
     for s in sections:
