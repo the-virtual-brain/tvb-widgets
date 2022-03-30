@@ -142,10 +142,10 @@ class ThreeDWidget(ipywidgets.HBox, TVBWidget):
         def toggle_surface(change):
             self.__toggle_actor(change, mesh_actor)
 
-        checkbox = ipywidgets.Checkbox(description="Toggle Surface", value=True)
+        checkbox = ipywidgets.Checkbox(description="Toggle " + config.name, value=True)
         checkbox.observe(toggle_surface, names=['value'])
         self.plot_controls.children += checkbox,
-        self.__prepare_surface_controls(mesh_actor)
+        self.__prepare_surface_controls(mesh_actor, config)
 
         self.output_plot.update_plot()
 
@@ -167,7 +167,7 @@ class ThreeDWidget(ipywidgets.HBox, TVBWidget):
         def toggle_sensors(change):
             self.__toggle_actor(change, sensors_actor)
 
-        checkbox = ipywidgets.Checkbox(description="Toggle Sensors", value=True)
+        checkbox = ipywidgets.Checkbox(description="Toggle " + config.name, value=True)
         checkbox.observe(toggle_sensors, names=['value'])
         self.plot_controls.children += checkbox,
 
@@ -178,9 +178,9 @@ class ThreeDWidget(ipywidgets.HBox, TVBWidget):
         hbox_checkboxes = ipywidgets.VBox((label,))
         return hbox_checkboxes
 
-    def __prepare_surface_controls(self, actor):
+    def __prepare_surface_controls(self, actor, config):
         surface_type = ipywidgets.ToggleButtons(options=['Surface', 'Wireframe', 'Points'],
-                                                description='Surface controls:', disabled=False)
+                                                description=config.name + ' controls:', disabled=False)
         surface_type.style.description_width = '150px'
 
         def toggle_cortex_type(change):
