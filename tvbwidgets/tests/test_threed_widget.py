@@ -1,16 +1,15 @@
 import logging
 import numpy
+import tvbwidgets.api as api
 
 from tvb.datatypes.connectivity import Connectivity
 from tvb.datatypes.region_mapping import RegionMapping
 from tvb.datatypes.sensors import SensorsInternal
 from tvb.datatypes.surfaces import FaceSurface, CorticalSurface
 
-from tvbwidgets.ui.threed_widget import ThreeDWidget, Config
-
 
 def test_add_datatype(caplog, mocker):
-    widget = ThreeDWidget()
+    widget = api.ThreeDWidget()
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
@@ -52,9 +51,17 @@ def test_add_datatype(caplog, mocker):
 
     cortex = CorticalSurface(vertices=numpy.zeros((10, 3)), triangles=numpy.zeros((10, 3), dtype=int))
     reg_map = RegionMapping(array_data=numpy.zeros(10, dtype=int))
-    config = Config(name='Cortex')
+    config = api.Config(name='Cortex')
     config.add_region_mapping_as_cmap(reg_map)
     widget.add_datatype(cortex)
     assert widget.output_plot.total_actors == 4
     assert len(widget.plot_controls.children) == 4
     assert len(widget.surface_display_controls.children) == 2
+
+    left_spots = widget.output_plot.MAX_ACTORS - widget.output_plot.total_actors
+
+    caplog.clear()
+    for _ in range(left_spots + 1):
+        widget.add_datatype(connectivity)
+    assert caplog.records[0].levelname == 'INFO'
+    assert 'reached the maximum' in caplog.text

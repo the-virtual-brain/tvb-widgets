@@ -5,10 +5,13 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 import os
+import pytest
+
 import tvbwidgets.api as api
 from ebrains_drive.exceptions import ClientHttpError
 from tvbwidgets.auth import get_current_token
 from tvbwidgets.model.model_3d import Model3D
+from tvbwidgets.ui.base_widget import TVBWidget
 from tvb.simulator.lab import models, integrators
 
 
@@ -44,3 +47,10 @@ def test_interpret():
         raise RuntimeError("Expected to fail because EBRAINS token does not exist")
     except ClientHttpError:
         pass
+
+
+def test_add_datatype_not_implemented():
+    widget = TVBWidget()
+
+    with pytest.raises(NotImplementedError):
+        widget.add_datatype(10)

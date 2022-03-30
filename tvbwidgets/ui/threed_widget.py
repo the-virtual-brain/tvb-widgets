@@ -114,9 +114,6 @@ class ThreeDWidget(ipywidgets.HBox, TVBWidget):
 
     def __prepare_mesh(self, surface):
         # type: (Surface) -> PolyData
-        if surface is None:
-            return None
-
         dim_4th = numpy.full((surface.triangles.shape[0], 1), 3, dtype=int)
         faces = numpy.hstack((dim_4th, surface.triangles))
 
