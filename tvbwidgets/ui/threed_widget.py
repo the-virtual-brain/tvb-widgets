@@ -8,43 +8,109 @@
 import ipywidgets
 import numpy
 import pyvista
+
 from ipywidgets import Output, VBox
 from pyvista import PolyData
+
+from tvb.basic.neotraits.api import HasTraits
 from tvb.datatypes.connectivity import Connectivity
 from tvb.datatypes.region_mapping import RegionMapping
 from tvb.datatypes.sensors import Sensors
-from tvb.datatypes.surfaces import CorticalSurface, FaceSurface, Surface
+from tvb.datatypes.surfaces import Surface
 
 from tvbwidgets.ui.base_widget import TVBWidget
 
 pyvista.set_jupyter_backend('pythreejs')
 
 
-class CustomOutput(Output):
+class Config:
 
-    def __init__(self, plotter, **kwargs):
+    def __init__(self, name='Actor', style='Surface', color='White', light=True, size=1500, cmap=None, scalars=None):
+        self.name = name
+        self.style = style
+        self.color = color
+        self.light = light
+        self.size = size
+        self.cmap = cmap
+        self.scalars = scalars
+
+    def add_region_mapping_as_cmap(self, region_mapping):
+        # type: (RegionMapping) -> None
+        self.scalars = region_mapping.array_data
+        self.cmap = 'fire'
+
+
+class CustomOutput(Output):
+    CONFIG = Config()
+    MAX_ACTORS = 10
+
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.plotter = plotter
+        self.plotter = pyvista.Plotter()
+        self.total_actors = 0
+
+    @property
+    def can_draw(self):
+        return self.total_actors < self.MAX_ACTORS
+
+    def add_mesh(self, mesh, config=CONFIG):
+        if config.cmap is None or config.scalars is None:
+            actor = self.plotter.add_mesh(mesh, name=config.name, style=config.style, color=config.color,
+                                          lighting=config.light)
+        else:
+            actor = self.plotter.add_mesh(mesh, name=config.name, style=config.style, scalars=config.scalars,
+                                          cmap=config.cmap, lighting=config.light)
+        self.total_actors += 1
+        return actor
+
+    def add_points(self, points, config=CONFIG):
+        actor = self.plotter.add_points(points, name=config.name, color=config.color,
+                                        point_size=config.size)
+        self.total_actors += 1
+        return actor
+
+    def add_actor(self, actor):
+        self.plotter.add_actor(actor)
+
+    def remove_actor(self, actor):
+        self.plotter.renderer.remove_actor(actor, render=False)
+
+    def update_plot(self):
+        with self:
+            self.clear_output(wait=True)
+            self.plotter.show()
 
 
 class ThreeDWidget(ipywidgets.HBox, TVBWidget):
 
-    def __init__(self, cortical_surface, face_surface=None, connectivity=None, sensors=None, region_mapping=None):
-        # type: (CorticalSurface, FaceSurface, Connectivity, list[Sensors]) -> None
-        if cortical_surface is None:
-            raise AttributeError("The cortical surface is required for this widget, please provide one!")
-        self.cortical_mesh = self.__prepare_mesh(cortical_surface)
-        self.face_mesh = self.__prepare_mesh(face_surface)
-        self.connectivity_points = self.__prepare_connectivity_point(connectivity)
-        self.sensors_dict = self.__prepare_sensors_points(sensors)
-        self.region_mapping = self.__prepare_region_mapping(region_mapping)
-
-        self.output_plot = self.__prepare_plot()
+    def __init__(self):
+        self.output_plot = CustomOutput()
         self.plot_controls = self.__prepare_plot_controls()
-        hbox_cortex_controls = self.__prepare_cortical_controls()
-        vbox = VBox([hbox_cortex_controls, self.output_plot])
+        self.surface_display_controls = VBox()
+        vbox = VBox([self.surface_display_controls, self.output_plot])
 
         super().__init__([self.plot_controls, vbox], **{})
+
+    def add_datatype(self, datatype, config=None):
+        # type: (HasTraits, Config) -> None
+        if datatype is None:
+            self.logger.info("The provided datatype is None!")
+            return
+
+        if self.output_plot.can_draw is False:
+            self.logger.info("You have reached the maximum datatypes that can be drawn to this plot!")
+            return
+
+        if isinstance(datatype, Surface):
+            self.__draw_mesh_actor(datatype, config)
+        elif isinstance(datatype, Connectivity):
+            self.__draw_connectivity_actor(datatype, config)
+        elif isinstance(datatype, Sensors):
+            self.__draw_sensors_actor(datatype, config)
+        elif isinstance(datatype, RegionMapping):
+            self.logger.info("RegionMapping should be given as cmap in the config parameter!")
+        else:
+            self.logger.info("Datatype not supported by this widget!")
 
     def __prepare_mesh(self, surface):
         # type: (Surface) -> PolyData
@@ -57,144 +123,87 @@ class ThreeDWidget(ipywidgets.HBox, TVBWidget):
         mesh = PolyData(surface.vertices, faces)
         return mesh
 
-    def __prepare_sensors_points(self, sensors):
-        # type: (typing.Union[Sensors, list[Sensors]]) -> dict
-        if sensors is None:
-            return None
+    def __toggle_actor(self, change, actor):
+        if change.type == 'change':
+            if change.new is True:
+                self.output_plot.add_actor(actor)
+            else:
+                self.output_plot.remove_actor(actor)
+            self.output_plot.update_plot()
 
-        if type(sensors) in (tuple, list):
-            points_list = {current_sensors.sensors_type: current_sensors.locations for current_sensors in sensors}
-            return points_list
+    def __draw_mesh_actor(self, surface, config):
+        # type: (Surface, Config) -> None
+        if config is None:
+            config = Config(name='Surface')
 
-        return {sensors.sensors_type: sensors.locations}
+        mesh = self.__prepare_mesh(surface)
+        mesh_actor = self.output_plot.add_mesh(mesh, config)
 
-    def __prepare_connectivity_point(self, connectivity):
-        # type: (Connectivity) -> numpy.ndarray
-        if connectivity is None:
-            return None
+        def toggle_surface(change):
+            self.__toggle_actor(change, mesh_actor)
 
-        return connectivity.centres
+        checkbox = ipywidgets.Checkbox(description="Toggle Surface", value=True)
+        checkbox.observe(toggle_surface, names=['value'])
+        self.plot_controls.children += checkbox,
+        self.__prepare_surface_controls(mesh_actor)
 
-    def __prepare_region_mapping(self, region_mapping):
-        # type: (RegionMapping) -> numpy.ndarray
-        if region_mapping is None:
-            return None
+        self.output_plot.update_plot()
 
-        return region_mapping.array_data
+    def __draw_connectivity_actor(self, connectivity, config):
+        # type: (Connectivity, Config) -> None
+        if config is None:
+            config = Config(color='Green')
 
-    def __prepare_plotter(self):
-        plotter = pyvista.Plotter()
+        self.output_plot.add_points(connectivity.centres, config)
+        self.output_plot.update_plot()
 
-        self.cortical_actor = plotter.add_mesh(self.cortical_mesh, name='Cortex', style='surface',
-                                               scalars=self.region_mapping, cmap="fire", lighting=True)
-        if self.face_mesh is not None:
-            self.face_actor = plotter.add_mesh(self.face_mesh, name='Face', style='surface', color='white',
-                                               lighting=True,
-                                               opacity=0.2)
+    def __draw_sensors_actor(self, sensors, config):
+        # type: (Sensors, Config) -> None
+        if config is None:
+            config = Config(name='Sensors', color='Pink', size=1000)
 
-        if self.connectivity_points is not None:
-            self.connectivity_actor = plotter.add_points(self.connectivity_points, name='Connectivity', color='green',
-                                                         point_size=3000)
+        sensors_actor = self.output_plot.add_points(sensors.locations, config)
 
-        if self.sensors_dict is not None:
-            for (type, points) in self.sensors_dict.items():
-                sensors_actor = plotter.add_points(points, name=type, color='pink', point_size=2000,
-                                                   render_points_as_spheres=True)
-                # TODO: keep list of actors?
-                self.seeg_actor = sensors_actor
+        def toggle_sensors(change):
+            self.__toggle_actor(change, sensors_actor)
 
-        plotter.camera.zoom(2)
-        return plotter
+        checkbox = ipywidgets.Checkbox(description="Toggle Sensors", value=True)
+        checkbox.observe(toggle_sensors, names=['value'])
+        self.plot_controls.children += checkbox,
+
+        self.output_plot.update_plot()
 
     def __prepare_plot_controls(self):
         label = ipywidgets.Label('Display controls: ')
         hbox_checkboxes = ipywidgets.VBox((label,))
-
-        def toggle_surface(value, actor):
-            if value is True:
-                self.output_plot.plotter.add_actor(actor)
-            else:
-                self.output_plot.plotter.renderer.remove_actor(actor, render=False)
-            with self.output_plot:
-                self.output_plot.clear_output(wait=True)
-                self.output_plot.plotter.show()
-
-        def toggle_face(change):
-            if change.type == 'change':
-                toggle_surface(change.new, self.face_actor)
-
-        def toggle_cortex(change):
-            if change.type == 'change':
-                toggle_surface(change.new, self.cortical_actor)
-
-        def toggle_seeg(change):
-            if change.type == 'change':
-                toggle_surface(change.new, self.seeg_actor)
-
-        checkbox = ipywidgets.Checkbox(description="Toggle Cortex", value=True)
-        checkbox.observe(toggle_cortex, names=['value'])
-        hbox_checkboxes.children += checkbox,
-
-        if self.face_mesh:
-            checkbox = ipywidgets.Checkbox(description="Toggle Face", value=True)
-            checkbox.observe(toggle_face, names=['value'])
-            hbox_checkboxes.children += checkbox,
-
-        if self.sensors_dict:
-            checkbox = ipywidgets.Checkbox(description="Toggle SEEG", value=True)
-            checkbox.observe(toggle_seeg, names=['value'])
-            hbox_checkboxes.children += checkbox,
-
         return hbox_checkboxes
 
-    def __prepare_cortical_controls(self):
-        cortex_type = ipywidgets.ToggleButtons(options=['Surface', 'Wireframe', 'Points'],
-                                               description='Cortex controls:',
-                                               disabled=False)
+    def __prepare_surface_controls(self, actor):
+        surface_type = ipywidgets.ToggleButtons(options=['Surface', 'Wireframe', 'Points'],
+                                                description='Surface controls:', disabled=False)
+        surface_type.style.description_width = '150px'
 
         def toggle_cortex_type(change):
             if change['new'] == 'Wireframe':
-                self.cortical_actor.GetProperty().SetRepresentationToWireframe()
+                actor.GetProperty().SetRepresentationToWireframe()
             elif change['new'] == 'Surface':
-                self.cortical_actor.GetProperty().SetRepresentationToSurface()
+                actor.GetProperty().SetRepresentationToSurface()
             else:
-                self.cortical_actor.GetProperty().SetRepresentationToPoints()
+                actor.GetProperty().SetRepresentationToPoints()
+            self.output_plot.update_plot()
 
-            with self.output_plot:
-                self.output_plot.clear_output(wait=True)
-                self.output_plot.plotter.show()
+        surface_type.observe(toggle_cortex_type, 'value')
 
-        cortex_type.observe(toggle_cortex_type, 'value')
-
-        cortex_opacity = ipywidgets.FloatSlider(
-            value=1,
-            min=0,
-            max=1.0,
-            step=0.1,
-            description='Opacity:',
-            disabled=False,
-            continuous_update=False,
-            orientation='horizontal',
-            readout=True,
-            readout_format='.1f',
-        )
+        surface_opacity = ipywidgets.FloatSlider(value=1, min=0, max=1.0, step=0.1, description='Opacity:',
+                                                 disabled=False, continuous_update=False, orientation='horizontal',
+                                                 readout=True, readout_format='.1f')
 
         def on_opacity_change(change):
             value = change['new']
-            self.cortical_actor.GetProperty().SetOpacity(value)
-            with self.output_plot:
-                self.output_plot.clear_output(wait=True)
-                self.output_plot.plotter.show()
+            actor.GetProperty().SetOpacity(value)
+            self.output_plot.update_plot()
 
-        cortex_opacity.observe(on_opacity_change, names='value')
+        surface_opacity.observe(on_opacity_change, names='value')
 
-        hbox_cortex_controls = ipywidgets.HBox([cortex_type, cortex_opacity])
-        return hbox_cortex_controls
-
-    def __prepare_plot(self):
-        plotter = self.__prepare_plotter()
-        output = CustomOutput(plotter)
-        with output:
-            plotter.show()
-
-        return output
+        hbox_cortex_controls = ipywidgets.HBox([surface_type, surface_opacity])
+        self.surface_display_controls.children += hbox_cortex_controls,
