@@ -17,70 +17,82 @@ from tvbwidgets.core.ini_parser import parse_ini_file
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
-class TSWidgetBuilder(ABC):
+class ABCBuilder(ABC):
     """ Blueprint for builder of TS Widget """
 
     @abstractmethod
-    def configure_ch_names(self):
+    def _configure_ch_names(self, ts_widget):
+        # type: (TimeSeriesWidget) -> None
         pass
 
     @abstractmethod
-    def configure_displayed_period(self):
+    def _configure_displayed_period(self, ts_widget):
+        # type: (TimeSeriesWidget) -> None
         pass
 
     @abstractmethod
-    def configure_ch_order(self):
+    def _configure_ch_order(self, ts_widget):
+        # type: (TimeSeriesWidget) -> None
         pass
 
     @abstractmethod
-    def configure_ch_types(self):
+    def _configure_ch_types(self, ts_widget):
+        # type: (TimeSeriesWidget) -> None
         pass
 
     @abstractmethod
-    def create_raw(self):
+    def _create_raw(self, ts_widget):
+        # type: (TimeSeriesWidget) -> None
         pass
 
-    @abstractmethod
-    def create_ts_widget(self):
-        pass
+    def populate_widget(self, ts_widget):
+        # type: (TimeSeriesWidget) -> None
+        self._configure_ch_names(ts_widget)
+        self._configure_displayed_period(ts_widget)
+        self._configure_ch_order(ts_widget)
+        self._configure_ch_types(ts_widget)
+        self._create_raw(ts_widget)
+
+        ts_widget.create_checkboxes()
 
 
-class TSWidgetBuilderFromTVB(TSWidgetBuilder):
+class BuilderFromTVB(ABCBuilder):
     """ Builder of TS Widget using TVB TimeSeries as input """
 
-    def __init__(self, data, *kwargs):
+    def __init__(self, data):
+        # type: (TimeSeries) -> None
         self.data = data
-        self.ts_widget = TimeSeriesWidget(self.data)
 
     # ====================================== CONFIGURATION =============================================================
-    def configure_ch_names(self):
+    def _configure_ch_names(self, ts_widget):
+        # TODO here we can use the Connectivity region names from the
         no_channels = self.data.shape[2]  # number of channels is on axis 2
-        self.ts_widget.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
+        ts_widget.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
 
-    def configure_displayed_period(self):
+    def _configure_displayed_period(self, ts_widget):
         total_period = self.data.summary_info()['Length']
-        self.ts_widget.displayed_period = total_period / 10  # chose to display a tenth of the total duration
+        ts_widget.displayed_period = total_period / 10  # chose to display a tenth of the total duration
 
-    def configure_ch_order(self):
+    def _configure_ch_order(self, ts_widget):
         no_channels = self.data.shape[2]  # number of channels is on axis 2
-        self.ts_widget.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
+        ts_widget.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
 
-    def configure_ch_types(self):
-        types = ['misc' for _ in self.ts_widget.ch_names]
-        self.ts_widget.ch_types = types
+    def _configure_ch_types(self, ts_widget):
+        types = ['misc' for _ in ts_widget.ch_names]
+        ts_widget.ch_types = types
 
     # ======================================= RAW OBJECT ===============================================================
     # TODO: maybe this should remain inside TSWidget class, as it is used (with small modifications) when changing the
     #       state variable/mode as well?
-    def create_raw(self):
+    def _create_raw(self, ts_widget):
         # create Info object for Raw object
-        raw_info = mne.create_info(self.ts_widget.ch_names, sfreq=self.data.sample_rate)
+        raw_info = mne.create_info(ts_widget.ch_names, sfreq=self.data.sample_rate)
 
         data_for_raw = self.data.data[:, 0, :, 0]  # plot is drawn for first time
 
         data_for_raw = np.swapaxes(data_for_raw, 0, 1)
         raw = mne.io.RawArray(data_for_raw, raw_info)
-        self.ts_widget.raw = raw
+        ts_widget.raw = raw
 
     # ======================================== TS WIDGET ===============================================================
     def create_ts_widget(self):
@@ -96,14 +108,14 @@ class TSWidgetBuilderFromTVB(TSWidgetBuilder):
         return self.ts_widget
 
 
-class TSWidgetBuilderFromNumpy(TSWidgetBuilder):
+# TODO: finish builder from np array
+# TODO: should we consider also Pandas as possible input ?
+class BuilderFromNumpy(ABCBuilder):
     """ Builder of TS Widget using numpy arrays as input """
 
-    def __init__(self, data, sample_freq, *kwargs):
+    def __init__(self, data, sample_freq):
         self.data = data
         self.sample_freq = sample_freq
-        self.ts_widget = TimeSeriesWidget(self.data)
-
     # ====================================== CONFIGURATION =============================================================
     def configure_ch_names(self):
         no_channels = self.data.shape[2]  # number of channels is on axis 2
@@ -147,36 +159,16 @@ class TSWidgetBuilderFromNumpy(TSWidgetBuilder):
         return self.ts_widget
 
 
-class TSWidgetFactory:
-    """ Orchestrates the creation of the TS Widget using the correct builder """
-
-    def __init__(self, data, **kwargs):
-        self.data = data
-        self.sample_freq = kwargs.get('sample_freq', None)
-        self.builder = None
-
-        self.set_builder()
-
-    def set_builder(self):
-        if isinstance(self.data, TimeSeries):
-            self.builder = TSWidgetBuilderFromTVB(self.data)
-        elif isinstance(self.data, np.ndarray):
-            self.builder = TSWidgetBuilderFromNumpy(self.data, self.sample_freq)
-
-    def create_ts_widget(self):
-        return self.builder.create_ts_widget()
-
-
 class TimeSeriesWidget(widgets.VBox, TVBWidget):
-    """ Actual TS Widget """
+    """ Actual TimeSeries Widget """
 
-    def __init__(self, data, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.logger.error("Initializing TS Widget")
         self.fig = None
 
         # data
-        self.data = data
+        self.data = None
         self.ch_names = []
         self.ch_order = []
         self.ch_types = []
@@ -218,6 +210,16 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         # checkboxes region
         self.checkboxes = dict()
         self.checkboxes_list = []
+
+    def add_datatype(self, timeseries_tvb):
+        # type: (TimeSeries) -> None
+        builder = BuilderFromTVB(timeseries_tvb)
+        builder.populate_widget(self)
+
+    def add_data_array(self, numpy_array, sample_freq):
+        # type: (np.array, float) -> None
+        builder = BuilderFromNumpy(numpy_array, sample_freq)
+        builder.populate_widget(self)
 
     # ========================================== BUTTONS ===============================================================
     # buttons methods
