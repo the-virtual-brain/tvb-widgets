@@ -23,7 +23,7 @@ from tvbwidgets.ui.base_widget import TVBWidget
 pyvista.set_jupyter_backend('pythreejs')
 
 
-class Config:
+class SurfaceWidgetConfig:
 
     def __init__(self, name='Actor', style='Surface', color='White', light=True, size=1500, cmap=None, scalars=None):
         self.name = name
@@ -41,7 +41,7 @@ class Config:
 
 
 class CustomOutput(Output):
-    CONFIG = Config()
+    CONFIG = SurfaceWidgetConfig()
     MAX_ACTORS = 10
 
     def __init__(self, **kwargs):
@@ -69,11 +69,11 @@ class CustomOutput(Output):
         self.total_actors += 1
         return actor
 
-    def add_actor(self, actor):
+    def display_actor(self, actor):
         self.plotter.add_actor(actor)
 
-    def remove_actor(self, actor):
-        self.plotter.renderer.remove_actor(actor, render=False)
+    def hide_actor(self, actor):
+        self.plotter.renderer.hide_actor(actor, render=False)
 
     def update_plot(self):
         with self:
@@ -81,7 +81,7 @@ class CustomOutput(Output):
             self.plotter.show()
 
 
-class ThreeDWidget(ipywidgets.HBox, TVBWidget):
+class SurfaceWidget(ipywidgets.HBox, TVBWidget):
 
     def __init__(self, datatypes=None):
         # type: (list[HasTraits]) -> None
@@ -92,14 +92,15 @@ class ThreeDWidget(ipywidgets.HBox, TVBWidget):
 
         super().__init__([self.plot_controls, vbox], **{})
 
-        if not isinstance(datatypes, list):
-            self.logger.warning("Input not supported. Please provide a list of datatypes.")
-        else:
-            for datatype in datatypes:
-                self.add_datatype(datatype)
+        if datatypes is not None:
+            if not isinstance(datatypes, list):
+                self.logger.warning("Input not supported. Please provide a list of datatypes.")
+            else:
+                for datatype in datatypes:
+                    self.add_datatype(datatype)
 
     def add_datatype(self, datatype, config=None):
-        # type: (HasTraits, Config) -> None
+        # type: (HasTraits, SurfaceWidgetConfig) -> None
         if datatype is None:
             self.logger.info("The provided datatype is None!")
             return
@@ -130,15 +131,15 @@ class ThreeDWidget(ipywidgets.HBox, TVBWidget):
     def __toggle_actor(self, change, actor):
         if change.type == 'change':
             if change.new is True:
-                self.output_plot.add_actor(actor)
+                self.output_plot.display_actor(actor)
             else:
-                self.output_plot.remove_actor(actor)
+                self.output_plot.hide_actor(actor)
             self.output_plot.update_plot()
 
     def __draw_mesh_actor(self, surface, config):
-        # type: (Surface, Config) -> None
+        # type: (Surface, SurfaceWidgetConfig) -> None
         if config is None:
-            config = Config(name='Surface')
+            config = SurfaceWidgetConfig(name='Surface')
 
         mesh = self.__prepare_mesh(surface)
         mesh_actor = self.output_plot.add_mesh(mesh, config)
@@ -154,17 +155,17 @@ class ThreeDWidget(ipywidgets.HBox, TVBWidget):
         self.output_plot.update_plot()
 
     def __draw_connectivity_actor(self, connectivity, config):
-        # type: (Connectivity, Config) -> None
+        # type: (Connectivity, SurfaceWidgetConfig) -> None
         if config is None:
-            config = Config(color='Green')
+            config = SurfaceWidgetConfig(color='Green')
 
         self.output_plot.add_points(connectivity.centres, config)
         self.output_plot.update_plot()
 
     def __draw_sensors_actor(self, sensors, config):
-        # type: (Sensors, Config) -> None
+        # type: (Sensors, SurfaceWidgetConfig) -> None
         if config is None:
-            config = Config(name='Sensors', color='Pink', size=1000)
+            config = SurfaceWidgetConfig(name='Sensors', color='Pink', size=1000)
 
         sensors_actor = self.output_plot.add_points(sensors.locations, config)
 

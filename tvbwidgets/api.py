@@ -7,4 +7,4 @@
 
 from .ui.phase_plane_widget import PhasePlaneWidget
 from .ui.storage_widget import StorageWidget
-from .ui.threed_widget import ThreeDWidget, Config
+from .ui.surface_widget import SurfaceWidget, SurfaceWidgetConfig

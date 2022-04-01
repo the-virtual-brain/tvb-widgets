@@ -13,20 +13,25 @@ def test_add_datatype(caplog, mocker):
         """Mock plot drawing"""
         pass
 
-    mocker.patch('tvbwidgets.ui.threed_widget.CustomOutput.update_plot', mock_update_plot)
+    mocker.patch('tvbwidgets.ui.surface_widget.CustomOutput.update_plot', mock_update_plot)
 
     connectivity = Connectivity(centres=numpy.zeros((10, 3)))
-    widget = api.ThreeDWidget([connectivity])
+    widget = api.SurfaceWidget([connectivity])
     assert widget.output_plot.total_actors == 1
     assert len(widget.plot_controls.children) == 1
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
-        api.ThreeDWidget(None)
+        api.SurfaceWidget(None)
+        assert len(caplog.records) == 0
+
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG):
+        api.SurfaceWidget([10])
         assert caplog.records[0].levelname == 'WARNING'
         assert 'not supported' in caplog.text
 
-    widget = api.ThreeDWidget()
+    widget = api.SurfaceWidget()
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
@@ -61,7 +66,7 @@ def test_add_datatype(caplog, mocker):
 
     cortex = CorticalSurface(vertices=numpy.zeros((10, 3)), triangles=numpy.zeros((10, 3), dtype=int))
     reg_map = RegionMapping(array_data=numpy.zeros(10, dtype=int))
-    config = api.Config(name='Cortex')
+    config = api.SurfaceWidgetConfig(name='Cortex')
     config.add_region_mapping_as_cmap(reg_map)
     widget.add_datatype(cortex)
     assert widget.output_plot.total_actors == 4
