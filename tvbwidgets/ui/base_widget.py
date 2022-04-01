@@ -5,6 +5,7 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 from ipywidgets import DOMWidget
+from tvb.basic.neotraits.api import HasTraits
 
 from tvbwidgets.logger.builder import get_logger
 
@@ -19,3 +20,7 @@ class TVBWidget(object):
             return self
         self.logger.error("Not a valid widget! Try to overwrite get_widget or inherit DOMWidget!")
         raise RuntimeWarning("Not a valid widget!")
+
+    def add_datatype(self, datatype):
+        # type: (HasTraits) -> None
+        raise NotImplementedError
