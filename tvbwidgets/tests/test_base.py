@@ -42,12 +42,6 @@ def test_interpret():
     except ClientHttpError:
         pass
 
-    try:
-        api.SurfaceWidget()
-        raise RuntimeError("Expected to fail because EBRAINS token does not exist")
-    except ClientHttpError:
-        pass
-
 
 def test_add_datatype_not_implemented():
     widget = TVBWidget()
