@@ -83,13 +83,20 @@ class CustomOutput(Output):
 
 class ThreeDWidget(ipywidgets.HBox, TVBWidget):
 
-    def __init__(self):
+    def __init__(self, datatypes=None):
+        # type: (list[HasTraits]) -> None
         self.output_plot = CustomOutput()
         self.plot_controls = self.__prepare_plot_controls()
         self.surface_display_controls = VBox()
         vbox = VBox([self.surface_display_controls, self.output_plot])
 
         super().__init__([self.plot_controls, vbox], **{})
+
+        if not isinstance(datatypes, list):
+            self.logger.warning("Input not supported. Please provide a list of datatypes.")
+        else:
+            for datatype in datatypes:
+                self.add_datatype(datatype)
 
     def add_datatype(self, datatype, config=None):
         # type: (HasTraits, Config) -> None
@@ -110,7 +117,7 @@ class ThreeDWidget(ipywidgets.HBox, TVBWidget):
         elif isinstance(datatype, RegionMapping):
             self.logger.info("RegionMapping should be given as cmap in the config parameter!")
         else:
-            self.logger.info("Datatype not supported by this widget!")
+            self.logger.warning("Datatype not supported by this widget!")
 
     def __prepare_mesh(self, surface):
         # type: (Surface) -> PolyData

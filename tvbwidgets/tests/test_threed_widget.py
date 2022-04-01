@@ -9,6 +9,23 @@ from tvb.datatypes.surfaces import FaceSurface, CorticalSurface
 
 
 def test_add_datatype(caplog, mocker):
+    def mock_update_plot(self):
+        """Mock plot drawing"""
+        pass
+
+    mocker.patch('tvbwidgets.ui.threed_widget.CustomOutput.update_plot', mock_update_plot)
+
+    connectivity = Connectivity(centres=numpy.zeros((10, 3)))
+    widget = api.ThreeDWidget([connectivity])
+    assert widget.output_plot.total_actors == 1
+    assert len(widget.plot_controls.children) == 1
+
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG):
+        api.ThreeDWidget(None)
+        assert caplog.records[0].levelname == 'WARNING'
+        assert 'not supported' in caplog.text
+
     widget = api.ThreeDWidget()
 
     caplog.clear()
@@ -24,16 +41,9 @@ def test_add_datatype(caplog, mocker):
 
     caplog.clear()
     widget.add_datatype(10)
-    assert caplog.records[0].levelname == 'INFO'
+    assert caplog.records[0].levelname == 'WARNING'
     assert 'not supported' in caplog.text
 
-    def mock_update_plot(self):
-        """Mock plot drawing"""
-        pass
-
-    mocker.patch('tvbwidgets.ui.threed_widget.CustomOutput.update_plot', mock_update_plot)
-
-    connectivity = Connectivity(centres=numpy.zeros((10, 3)))
     widget.add_datatype(connectivity)
     assert widget.output_plot.total_actors == 1
     assert len(widget.plot_controls.children) == 1
