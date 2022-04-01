@@ -73,7 +73,7 @@ class CustomOutput(Output):
         self.plotter.add_actor(actor)
 
     def hide_actor(self, actor):
-        self.plotter.renderer.hide_actor(actor, render=False)
+        self.plotter.renderer.remove_actor(actor, render=False)
 
     def update_plot(self):
         with self:
