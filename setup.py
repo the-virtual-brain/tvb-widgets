@@ -11,7 +11,10 @@ import setuptools
 
 TEAM = "Juelich SDL Neuroscience, INS - Marseille, Codemart"
 
-REQUIRED_PACKAGES = ["ebrains_drive", "ipygany", "ipywidgets", "pyvista", "tvb-library"]
+REQUIRED_PACKAGES = ["colorcet", "ebrains_drive", "ipywidgets", "pythreejs", "pyvista", "tvb-library"]
+
+REQUIRED_EXTRA_EXAMPLES = ["tvb-data"]
+REQUIRED_EXTRA_TESTS = ["pytest", "pytest-mock"]
 
 with open(os.path.join(os.path.dirname(__file__), 'README.md')) as fd:
     DESCRIPTION = fd.read()
@@ -22,6 +25,7 @@ setuptools.setup(name='tvb-widgets',
                  setup_requires=['setuptools_scm'],
                  include_package_data=True,
                  install_requires=REQUIRED_PACKAGES,
+                 extras_require={"tests": REQUIRED_EXTRA_TESTS, "examples": REQUIRED_EXTRA_EXAMPLES},
                  description='GUI widgets for EBRAINS showcases',
                  long_description=DESCRIPTION,
                  license="GPL-3.0-or-later",
