@@ -17,146 +17,118 @@ from tvbwidgets.core.ini_parser import parse_ini_file
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
-class ABCBuilder(ABC):
-    """ Blueprint for builder of TS Widget """
+class ABCDataWrapper(ABC):
+    """ Wrap any TimeSeries for TSWidget to read/parse uniformly"""
+
+    @property
+    def data_shape(self):
+        # type: () -> list
+        return []
 
     @abstractmethod
-    def _configure_ch_names(self, ts_widget):
-        # type: (TimeSeriesWidget) -> None
+    def get_channels_info(self):
+        # type: () -> (list, list, list)
         pass
 
     @abstractmethod
-    def _configure_displayed_period(self, ts_widget):
-        # type: (TimeSeriesWidget) -> None
+    def get_ts_period(self):
+        # type: () -> float
         pass
 
     @abstractmethod
-    def _configure_ch_order(self, ts_widget):
-        # type: (TimeSeriesWidget) -> None
+    def get_ts_sample_rate(self):
+        # type: () -> float
         pass
 
     @abstractmethod
-    def _configure_ch_types(self, ts_widget):
-        # type: (TimeSeriesWidget) -> None
+    def build_raw(self, np_slice=None):
+        # type: (tuple) -> mne.io.RawArray
         pass
 
-    @abstractmethod
-    def _create_raw(self, ts_widget):
-        # type: (TimeSeriesWidget) -> None
-        pass
 
-    def populate_widget(self, ts_widget):
-        # type: (TimeSeriesWidget) -> None
-        self._configure_ch_names(ts_widget)
-        self._configure_displayed_period(ts_widget)
-        self._configure_ch_order(ts_widget)
-        self._configure_ch_types(ts_widget)
-        self._create_raw(ts_widget)
-
-        ts_widget.create_checkboxes()
-
-
-class BuilderFromTVB(ABCBuilder):
-    """ Builder of TS Widget using TVB TimeSeries as input """
+class WrapperTVB(ABCDataWrapper):
+    """ Wrap TVB Timeseries object for tsWidget"""
 
     def __init__(self, data):
         # type: (TimeSeries) -> None
         self.data = data
+        self.ch_names = []
 
-    # ====================================== CONFIGURATION =============================================================
-    def _configure_ch_names(self, ts_widget):
+    @property
+    def data_shape(self):
+        # type: () -> list
+        return self.data.shape
+
+    def get_channels_info(self):
+        # type: () -> (list, list, list)
+        no_channels = self.data.shape[2]  # number of channels is on axis 2
         # TODO here we can use the Connectivity region names from the
-        no_channels = self.data.shape[2]  # number of channels is on axis 2
-        ts_widget.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
+        ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
+        ch_order = list(range(no_channels))  # the order should be the order in which they are provided
+        ch_types = ['misc' for _ in ch_names]
+        self.ch_names = ch_names
+        return ch_names, ch_order, ch_types
 
-    def _configure_displayed_period(self, ts_widget):
-        total_period = self.data.summary_info()['Length']
-        ts_widget.displayed_period = total_period / 10  # chose to display a tenth of the total duration
+    def get_ts_period(self):
+        # type: () -> float
+        displayed_period = self.data.sample_period * self.data.shape[0] / 10
+        return displayed_period
 
-    def _configure_ch_order(self, ts_widget):
-        no_channels = self.data.shape[2]  # number of channels is on axis 2
-        ts_widget.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
+    def get_ts_sample_rate(self):
+        # type: () -> float
+        return self.data.sample_rate
 
-    def _configure_ch_types(self, ts_widget):
-        types = ['misc' for _ in ts_widget.ch_names]
-        ts_widget.ch_types = types
-
-    # ======================================= RAW OBJECT ===============================================================
-    # TODO: maybe this should remain inside TSWidget class, as it is used (with small modifications) when changing the
-    #       state variable/mode as well?
-    def _create_raw(self, ts_widget):
-        # create Info object for Raw object
-        raw_info = mne.create_info(ts_widget.ch_names, sfreq=self.data.sample_rate)
-
-        data_for_raw = self.data.data[:, 0, :, 0]  # plot is drawn for first time
-
+    def build_raw(self, np_slice=None):
+        # type: (tuple) -> mne.io.RawArray
+        if np_slice is None:
+            np_slice = (slice(None), slice(0, 1), slice(None), slice(0, 1))
+        raw_info = mne.create_info(self.ch_names, sfreq=self.data.sample_rate)
+        data_for_raw = self.data.data[np_slice].squeeze()
         data_for_raw = np.swapaxes(data_for_raw, 0, 1)
         raw = mne.io.RawArray(data_for_raw, raw_info)
-        ts_widget.raw = raw
-
-    # ======================================== TS WIDGET ===============================================================
-    def create_ts_widget(self):
-        self.configure_ch_names()
-        self.configure_displayed_period()
-        self.configure_ch_order()
-        self.configure_ch_types()
-        self.create_raw()
-
-        self.ts_widget.create_checkboxes()
-        self.ts_widget.sample_freq = self.data.sample_rate
-        self.ts_widget.data = self.data.data          # set data to the data attribute from TVB TS
-        return self.ts_widget
+        return raw
 
 
-# TODO: finish builder from np array
-# TODO: should we consider also Pandas as possible input ?
-class BuilderFromNumpy(ABCBuilder):
-    """ Builder of TS Widget using numpy arrays as input """
+class WrapperNumpy(ABCDataWrapper):
+    """ Wrap a numpy array for tsWidget """
 
-    def __init__(self, data, sample_freq):
+    def __init__(self, data, sample_rate, channel_names=None):
         self.data = data
-        self.sample_freq = sample_freq
-    # ====================================== CONFIGURATION =============================================================
-    def configure_ch_names(self):
+        self.sample_rate = sample_rate
+        self.ch_names = channel_names or []
+
+    @property
+    def data_shape(self):
+        # type: () -> list
+        return self.data.shape
+
+    def get_channels_info(self):
+        # type: () -> (list, list, list)
         no_channels = self.data.shape[2]  # number of channels is on axis 2
-        self.ts_widget.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
+        if (self.ch_names is None) or len(self.ch_names) != no_channels:
+            self.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
+        ch_order = list(range(no_channels))  # the order should be the order in which they are provided
+        ch_types = ['misc' for _ in self.ch_names]
+        return self.ch_names, ch_order, ch_types
 
-    def configure_displayed_period(self):
-        sample_period = 1 / self.sample_freq
-        time_points = self.data.shape[0]    # assumes time points are on axis 0
-        total_period = sample_period * time_points
-        self.ts_widget.displayed_period = total_period / 10  # chose to display a tenth of the total duration
+    def get_ts_period(self):
+        # type: () -> float
+        sample_period = 1 / self.sample_rate
+        time_points = self.data.shape[0]  # assumes time points are on axis 0
+        displayed_period = sample_period * time_points
+        return displayed_period
 
-    def configure_ch_order(self):
-        no_channels = self.data.shape[2]  # number of channels is on axis 2
-        self.ts_widget.ch_order = list(range(no_channels))  # the order should be the order in which they are provided
+    def get_ts_sample_rate(self):
+        # type: () -> float
+        return self.sample_rate
 
-    def configure_ch_types(self):
-        types = ['misc' for _ in self.ts_widget.ch_names]
-        self.ts_widget.ch_types = types
-
-    # ======================================= RAW OBJECT ===============================================================
-    def create_raw(self):
-        # create Info object for Raw object
-        raw_info = mne.create_info(self.ts_widget.ch_names, sfreq=self.sample_freq)
-
-        data_for_raw = self.data[:, 0, :, 0]  # plot is drawn for first time
-
+    def build_raw(self, np_slice=slice(None)):
+        # type: (tuple) -> mne.io.RawArray
+        raw_info = mne.create_info(self.ch_names, sfreq=self.sample_rate)
+        data_for_raw = self.data[np_slice].squeeze()
         data_for_raw = np.swapaxes(data_for_raw, 0, 1)
         raw = mne.io.RawArray(data_for_raw, raw_info)
-        self.ts_widget.raw = raw
-
-    # ======================================== TS WIDGET ===============================================================
-    def create_ts_widget(self):
-        self.configure_ch_names()
-        self.configure_displayed_period()
-        self.configure_ch_order()
-        self.configure_ch_types()
-        self.create_raw()
-
-        self.ts_widget.create_checkboxes()
-        self.ts_widget.sample_freq = self.sample_freq
-        return self.ts_widget
+        return raw
 
 
 class TimeSeriesWidget(widgets.VBox, TVBWidget):
@@ -164,138 +136,63 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.logger.error("Initializing TS Widget")
-        self.fig = None
+        self.logger.info("Initializing TS Widget")
 
-        # data
+        self.fig = None
         self.data = None
         self.ch_names = []
         self.ch_order = []
         self.ch_types = []
         self.displayed_period = 0
         self.no_channels = 30
-        self.selected_state_var = 0
-        self.selected_mode = 0
         self.raw = None
         self.sample_freq = 0
 
         # UI elements
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
-
-        # buttons region
-        self.select_all_btn = widgets.Button(description="Select all")
-        self.select_all_btn.on_click(self.select_all)
-        self.unselect_all_btn = widgets.Button(description="Unselect all")
-        self.unselect_all_btn.on_click(self.unselect_all)
-
-        # instructions region
-        self.instr_list = []
-        self.create_instructions()
-        self.instr_region = widgets.HBox(children=self.instr_list)
-        self.instr_accordion = widgets.Accordion(children=[self.instr_region], selected_index=None)
-        self.instr_accordion.set_title(0, 'Keyboard shortcuts')
-
-        # select dimensions region
-        self.create_state_var_selection()
-        self.state_var_accordion = widgets.Accordion(children=[self.state_var_radio_btn], selected_index=None)
-        self.state_var_accordion.set_title(0, 'State variable')
-        self.create_mode_selection()
-        self.mode_accordion = widgets.Accordion(children=[self.mode_radio_btn], selected_index=None)
-        self.mode_accordion.set_title(0, 'Mode')
-
-        self.selection_buttons = widgets.HBox(children=[self.select_all_btn, self.unselect_all_btn])
-        self.dropdown_region = widgets.HBox(children=[self.state_var_accordion, self.mode_accordion,
-                                                      self.instr_accordion])
-
+        self.instr_area = self._create_instructions_region()
+        self.title_area = widgets.HBox(children=[self.instr_area])
         # checkboxes region
         self.checkboxes = dict()
-        self.checkboxes_list = []
 
     def add_datatype(self, timeseries_tvb):
         # type: (TimeSeries) -> None
-        builder = BuilderFromTVB(timeseries_tvb)
-        builder.populate_widget(self)
+        data_wrapper = WrapperTVB(timeseries_tvb)
+        self._populate_from_data_wrapper(data_wrapper)
+
+    def _populate_from_data_wrapper(self, data_wrapper):
+        # type: (ABCDataWrapper) -> None
+        self.data = data_wrapper
+        self.sample_freq = data_wrapper.get_ts_sample_rate()
+        self.displayed_period = data_wrapper.get_ts_period()
+        self.ch_names, self.ch_order, self.ch_types = data_wrapper.get_channels_info()
+        self.raw = self.data.build_raw()
+        channels_area = self._create_checkboxes(data_wrapper)
+        self.title_area = widgets.HBox(children=[channels_area, self.instr_area])
 
     def add_data_array(self, numpy_array, sample_freq):
         # type: (np.array, float) -> None
-        builder = BuilderFromNumpy(numpy_array, sample_freq)
-        builder.populate_widget(self)
-
-    # ========================================== BUTTONS ===============================================================
-    # buttons methods
-    def unselect_all(self, btn):
-        for cb_name in self.checkboxes:
-            self.checkboxes[cb_name].value = False
-
-    def select_all(self, btn):
-        for cb_name in self.checkboxes:
-            self.checkboxes[cb_name].value = True
+        data_wrapper = WrapperNumpy(numpy_array, sample_freq)
+        self._populate_from_data_wrapper(data_wrapper)
 
     # ===================================== INSTRUCTIONS DROPDOWN ======================================================
-    def create_instructions(self):
+    @staticmethod
+    def _create_instructions_region():
+        instr_list, key_list, val_list = [], [], []
         help_text = parse_ini_file(os.path.join(os.path.dirname(__file__), "ts_widget_help.ini"))
-        key_list = []
-        val_list = []
+
         for key, value in help_text.items():
             key_label = widgets.Label(value=key)
             val_label = widgets.Label(value=value)
-
             key_list.append(key_label)
             val_list.append(val_label)
 
-        self.instr_list.append(widgets.VBox(children=key_list))
-        self.instr_list.append(widgets.VBox(children=val_list))
-
-    # ====================================== DIMENSIONS SELECTION ======================================================
-    def create_state_var_selection(self):
-        no_state_vars = self.data.shape[1]
-        state_vars = [i for i in range(no_state_vars)]
-        self.state_var_radio_btn = widgets.RadioButtons(options=state_vars, layout={'width': 'max-content'})
-        self.state_var_radio_btn.observe(self.state_var_update, names=['value'])
-
-    def create_mode_selection(self):
-        no_modes = self.data.shape[3]
-        modes = [i for i in range(no_modes)]
-        self.mode_radio_btn = widgets.RadioButtons(options=modes, layout={'width': 'max-content'})
-        self.mode_radio_btn.observe(self.mode_update, names=['value'])
-
-    def mode_update(self, s):
-        selected = self.mode_radio_btn.value
-        self.selected_mode = selected
-        self.dimensions_selection_update()
-
-    def state_var_update(self, s):
-        selected = self.state_var_radio_btn.value
-        self.selected_state_var = selected
-        self.dimensions_selection_update()
-
-    def update_data_for_plot(self):
-        # create Info object for Raw object
-        self.logger.error("Updating data for plot")
-        raw_info = mne.create_info(self.ch_names, sfreq=self.sample_freq)
-
-        state_var = self.selected_state_var
-        mode = self.selected_mode
-        data_for_raw = self.data[:, state_var, :, mode]
-
-        data_for_raw = np.swapaxes(data_for_raw, 0, 1)
-        raw = mne.io.RawArray(data_for_raw, raw_info)
-        self.raw = raw
-
-    def dimensions_selection_update(self):
-        # there should not be any need to update anything else besides self.raw
-        self.update_data_for_plot()
-        self.fig = self.raw.plot(duration=self.displayed_period, n_channels=self.no_channels, clipping=None,
-                                 show=False)
-        self.fig.set_size_inches(11, 7)
-
-        with self.output:
-            self.output.clear_output(wait=True)
-            display(self.fig.canvas)
-
-        # refresh the checkboxes if they were unselected
-        for cb_name in self.checkboxes:
-            self.checkboxes[cb_name].value = True
+        instr_list.append(widgets.VBox(children=key_list))
+        instr_list.append(widgets.VBox(children=val_list))
+        instr_region = widgets.HBox(children=instr_list)
+        instr_accordion = widgets.Accordion(children=[instr_region], selected_index=None)
+        instr_accordion.set_title(0, 'Keyboard shortcuts')
+        return instr_accordion
 
     # =========================================== PLOT =================================================================
     def get_widget(self):
@@ -314,9 +211,10 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         # display the plot
         with plt.ioff():
             # create the plot
-            self.fig = self.raw.plot(duration=self.displayed_period, n_channels=self.no_channels, clipping=None,
-                                     show=False)
-            self.fig.set_size_inches(11, 7)
+            self.fig = self.raw.plot(duration=self.displayed_period,
+                                     n_channels=self.no_channels,
+                                     clipping=None, show=False)
+            self.fig.set_size_inches(11, 5)
             # self.fig.figure.canvas.set_window_title('TimeSeries plot')
             self.fig.mne.ch_order = self.ch_order
             self.fig.mne.ch_types = np.array(self.ch_types)
@@ -328,36 +226,88 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             with self.output:
                 display(self.fig.canvas)
 
-        items = [self.channels_accordion, self.dropdown_region, self.output]
-        grid = widgets.GridBox(items)
+        grid = widgets.VBox([self.output, self.title_area])
         return grid
 
-    # ======================================== CHECKBOXES ==============================================================
-    def create_checkboxes(self):
-        """ This will be called from builder, because it needs the initializations done by it"""
-        checkboxes_stack = []
-        labels = self.ch_names
-        cb_per_col = math.ceil(len(labels) / 8)  # number of checkboxes in a column; should always display 8 cols
+    # ======================================== CHANNELS  ==============================================================
+    def _unselect_all(self, btn):
+        for cb_name in self.checkboxes:
+            self.checkboxes[cb_name].value = False
+
+    def _select_all(self, btn):
+        for cb_name in self.checkboxes:
+            self.checkboxes[cb_name].value = True
+
+    def _create_checkboxes(self, array_wrapper):
+        # type: (ABCDataWrapper) -> widgets.Accordion
+        checkboxes_list, checkboxes_stack = [], []
+        labels = array_wrapper.get_channels_info()[0]
+        cb_per_col = math.ceil(len(labels) / 7)  # number of checkboxes in a column; should always display 7 cols
         for i, label in enumerate(labels):
-            self.checkboxes[label] = widgets.Checkbox(value=True,
-                                                      description=str(label),
-                                                      disabled=False,
-                                                      indent=False)
-            self.checkboxes[label].observe(self.update_ts, names="value", type="change")
+            self.checkboxes[label] = widgets.Checkbox(value=True, description=str(label),
+                                                      disabled=False, indent=False)
+            self.checkboxes[label].observe(self._update_ts, names="value", type="change")
             if i and i % cb_per_col == 0:
-                self.checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
+                checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
                 checkboxes_stack = []
             checkboxes_stack.append(self.checkboxes[label])
-        self.checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
+        checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
+        checkboxes_region = widgets.HBox(children=checkboxes_list, layout={'width': '400px',
+                                                                           'height': 'max-content'})
 
-        self.checkboxes_region = widgets.HBox(children=self.checkboxes_list,
-                                              layout=widgets.Layout(height='250px'))
-        self.channels_region = widgets.VBox(children=[self.checkboxes_region, self.selection_buttons])
-        self.channels_accordion = widgets.Accordion(children=[self.channels_region], selected_index=None,
-                                                    layout=widgets.Layout(width='40%'))
-        self.channels_accordion.set_title(0, 'Channels')
+        # buttons region
+        select_all_btn = widgets.Button(description="Select all")
+        select_all_btn.on_click(self._select_all)
+        unselect_all_btn = widgets.Button(description="Unselect all")
+        unselect_all_btn.on_click(self._unselect_all)
 
-    def update_ts(self, val):
+        # select dimensions region
+        sv_area, sv_radio_btn = self._create_selection("State Variable", 1)
+        mode_area, modes_radio_btn = self._create_selection("Mode", 3)
+        self.radio_buttons = [sv_radio_btn, modes_radio_btn]
+
+        channels_region = widgets.VBox(children=[checkboxes_region,
+                                                 widgets.HBox([select_all_btn, unselect_all_btn,
+                                                               sv_area, mode_area])])
+        channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
+                                          layout=widgets.Layout(width='50%'))
+        channels_area.set_title(0, 'Channels')
+        return channels_area
+
+    def _create_selection(self, title="Mode", shape_pos=3):
+
+        if self.data is None or len(self.data.data_shape) <= shape_pos:
+            return None, None
+
+        no_dims = self.data.data_shape[shape_pos]
+        dim_options = [i for i in range(no_dims)]
+        sel_radio_btn = widgets.RadioButtons(options=dim_options, layout={'width': 'max-content'})
+        sel_radio_btn.observe(self._dimensions_selection_update, names=['value'])
+        accordion = widgets.Accordion(children=[sel_radio_btn], selected_index=None)
+        accordion.set_title(0, title)
+        return accordion, sel_radio_btn
+
+    def _dimensions_selection_update(self, v):
+        # update self.raw and linked parts
+        sel1 = self.radio_buttons[0].value
+        sel2 = self.radio_buttons[1].value
+        new_slice = (slice(None), slice(sel1, sel1 + 1), slice(None), slice(sel2, sel2 + 1))
+        self.logger.info("New slice " + str(new_slice))
+        self.raw = self.data.build_raw(new_slice)
+        self.fig = self.raw.plot(duration=self.displayed_period,
+                                 n_channels=self.no_channels,
+                                 clipping=None, show=False)
+        self.fig.set_size_inches(11, 5)
+
+        with self.output:
+            self.output.clear_output(wait=True)
+            display(self.fig.canvas)
+
+        # refresh the checkboxes if they were unselected
+        for cb_name in self.checkboxes:
+            self.checkboxes[cb_name].value = True
+
+    def _update_ts(self, val):
         ch_names = list(self.fig.mne.ch_names)
 
         # check if newly checked option is before current ch_start in the channels list
@@ -381,7 +331,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         if not picks:
             self.fig.mne.picks = picks
             self.fig.mne.n_channels = 0
-            self.update_fig()
+            self._update_fig()
             return
 
         # if not enough values are checked, force the plot to display less channels
@@ -397,7 +347,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         ch_start = self.fig.mne.ch_start
         ch_start_number = self.fig.mne.ch_order[ch_start]
         if ch_start_number not in ch_order_filtered:  # if first channel was unchecked
-            ch_start = self.get_next_checked_channel(ch_start, ch_order_filtered, list(self.fig.mne.ch_order))
+            ch_start = self._get_next_checked_channel(ch_start, ch_order_filtered, list(self.fig.mne.ch_order))
 
         self.fig.mne.ch_start = ch_start
         ch_start_number = self.fig.mne.ch_order[self.fig.mne.ch_start]
@@ -408,10 +358,10 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         ch_start_index = list(self.fig.mne.ch_order).index(new_picks[0])
         self.fig.mne.ch_start = ch_start_index
 
-        self.update_fig()
+        self._update_fig()
 
     @staticmethod
-    def get_next_checked_channel(ch_start, checked_list, ch_order):
+    def _get_next_checked_channel(ch_start, checked_list, ch_order):
         for _ in range(len(ch_order)):
             ch_start += 1
             new_ch_start_number = ch_order[ch_start]  # get the number representation of next first channel
@@ -419,7 +369,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                 break
         return ch_start
 
-    def update_fig(self):
+    def _update_fig(self):
         self.fig._update_trace_offsets()
         self.fig._update_vscroll()
         try:
