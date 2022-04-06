@@ -4,16 +4,18 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
-import ipywidgets as widgets
+
+import os
 import math
-import matplotlib.pyplot as plt
 import mne
 import numpy as np
-import os
+import ipywidgets as widgets
+import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 from IPython.core.display_functions import display
 from tvb.datatypes.time_series import TimeSeries
 from tvbwidgets.core.ini_parser import parse_ini_file
+from tvbwidgets.core.exceptions import InvalidInputException
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
@@ -22,8 +24,8 @@ class ABCDataWrapper(ABC):
 
     @property
     def data_shape(self):
-        # type: () -> list
-        return []
+        # type: () -> tuple
+        return ()
 
     @abstractmethod
     def get_channels_info(self):
@@ -51,19 +53,27 @@ class WrapperTVB(ABCDataWrapper):
 
     def __init__(self, data):
         # type: (TimeSeries) -> None
+        if data is None or not isinstance(data, TimeSeries):
+            raise InvalidInputException("Not a valid TVB TS " + str(data))
         self.data = data
         self.ch_names = []
 
     @property
     def data_shape(self):
-        # type: () -> list
+        # type: () -> tuple
         return self.data.shape
 
     def get_channels_info(self):
         # type: () -> (list, list, list)
         no_channels = self.data.shape[2]  # number of channels is on axis 2
-        # TODO here we can use the Connectivity region names from the
-        ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
+
+        if hasattr(self.data, "connectivity"):
+            ch_names = self.data.connectivity.region_labels.tolist()
+        elif hasattr(self.data, "sensors"):
+            ch_names = self.data.sensors.labels.tolist()
+        else:
+            ch_names = ['signal-%d' % i for i in range(no_channels)]
+
         ch_order = list(range(no_channels))  # the order should be the order in which they are provided
         ch_types = ['misc' for _ in ch_names]
         self.ch_names = ch_names
@@ -93,20 +103,24 @@ class WrapperNumpy(ABCDataWrapper):
     """ Wrap a numpy array for tsWidget """
 
     def __init__(self, data, sample_rate, channel_names=None):
+        # type: (np.ndarray, float, list) -> None
+        if data is None or not isinstance(data, np.ndarray) or not len(data.shape) > 1:
+            raise InvalidInputException("Not a valid numpy array %s \n "
+                                        "It should be numpy.ndarray, at least 2D up to 4D" % str(data))
         self.data = data
         self.sample_rate = sample_rate
         self.ch_names = channel_names or []
 
     @property
     def data_shape(self):
-        # type: () -> list
+        # type: () -> tuple
         return self.data.shape
 
     def get_channels_info(self):
         # type: () -> (list, list, list)
         no_channels = self.data.shape[2]  # number of channels is on axis 2
         if (self.ch_names is None) or len(self.ch_names) != no_channels:
-            self.ch_names = [str(ch) for ch in list(range(no_channels))]  # list should contain str
+            self.ch_names = ['signal-%d' % i for i in range(no_channels)]
         ch_order = list(range(no_channels))  # the order should be the order in which they are provided
         ch_types = ['misc' for _ in self.ch_names]
         return self.ch_names, ch_order, ch_types
@@ -158,6 +172,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def add_datatype(self, timeseries_tvb):
         # type: (TimeSeries) -> None
         data_wrapper = WrapperTVB(timeseries_tvb)
+        self.logger.debug("Adding TVB TS for display...")
         self._populate_from_data_wrapper(data_wrapper)
 
     def _populate_from_data_wrapper(self, data_wrapper):
@@ -190,7 +205,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         instr_list.append(widgets.VBox(children=key_list))
         instr_list.append(widgets.VBox(children=val_list))
         instr_region = widgets.HBox(children=instr_list)
-        instr_accordion = widgets.Accordion(children=[instr_region], selected_index=None)
+        instr_accordion = widgets.Accordion(children=[instr_region], selected_index=None,
+                                            layout=widgets.Layout(width='40%'))
         instr_accordion.set_title(0, 'Keyboard shortcuts')
         return instr_accordion
 
@@ -226,15 +242,18 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             with self.output:
                 display(self.fig.canvas)
 
-        grid = widgets.VBox([self.output, self.title_area])
+        grid = widgets.VBox([self.output, self.title_area], layout={'border': '2px solid lightgray',
+                                                                    'padding': '10px'})
         return grid
 
     # ======================================== CHANNELS  ==============================================================
     def _unselect_all(self, btn):
+        self.logger.debug("Unselect all was called!")
         for cb_name in self.checkboxes:
             self.checkboxes[cb_name].value = False
 
     def _select_all(self, btn):
+        self.logger.debug("Select all was called!")
         for cb_name in self.checkboxes:
             self.checkboxes[cb_name].value = True
 
@@ -309,6 +328,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
     def _update_ts(self, val):
         ch_names = list(self.fig.mne.ch_names)
+        self.logger.debug("Update_ts is called for channels " + str(ch_names))
 
         # check if newly checked option is before current ch_start in the channels list
         if val['old'] == False and val['new'] == True:
