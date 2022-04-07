@@ -102,14 +102,21 @@ class WrapperTVB(ABCDataWrapper):
 class WrapperNumpy(ABCDataWrapper):
     """ Wrap a numpy array for tsWidget """
 
-    def __init__(self, data, sample_rate, channel_names=None):
-        # type: (np.ndarray, float, list) -> None
+    def __init__(self, data, sample_rate, channel_names=None, ch_idx=2):
+        # type: (np.ndarray, float, list, int) -> None
+        """
+        :param data: Numpy array 2D up to 4D #TODO accommodate all dims?
+        :param sample_rate: float
+        :param channel_names: optional names for channels
+        :param ch_idx: Channels Index from the max 4D of the data. We assume time is on 0
+        """
         if data is None or not isinstance(data, np.ndarray) or not len(data.shape) > 1:
             raise InvalidInputException("Not a valid numpy array %s \n "
                                         "It should be numpy.ndarray, at least 2D up to 4D" % str(data))
         self.data = data
         self.sample_rate = sample_rate
         self.ch_names = channel_names or []
+        self.ch_idx = ch_idx
 
     @property
     def data_shape(self):
@@ -118,7 +125,7 @@ class WrapperNumpy(ABCDataWrapper):
 
     def get_channels_info(self):
         # type: () -> (list, list, list)
-        no_channels = self.data.shape[2]  # number of channels is on axis 2
+        no_channels = self.data.shape[self.ch_idx]
         if (self.ch_names is None) or len(self.ch_names) != no_channels:
             self.ch_names = ['signal-%d' % i for i in range(no_channels)]
         ch_order = list(range(no_channels))  # the order should be the order in which they are provided
@@ -128,7 +135,7 @@ class WrapperNumpy(ABCDataWrapper):
     def get_ts_period(self):
         # type: () -> float
         sample_period = 1 / self.sample_rate
-        time_points = self.data.shape[0]  # assumes time points are on axis 0
+        time_points = self.data.shape[0]
         displayed_period = sample_period * time_points
         return displayed_period
 
@@ -138,6 +145,7 @@ class WrapperNumpy(ABCDataWrapper):
 
     def build_raw(self, np_slice=slice(None)):
         # type: (tuple) -> mne.io.RawArray
+        # TODO default slice not ok
         raw_info = mne.create_info(self.ch_names, sfreq=self.sample_rate)
         data_for_raw = self.data[np_slice].squeeze()
         data_for_raw = np.swapaxes(data_for_raw, 0, 1)
@@ -185,9 +193,9 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         channels_area = self._create_checkboxes(data_wrapper)
         self.title_area = widgets.HBox(children=[channels_area, self.instr_area])
 
-    def add_data_array(self, numpy_array, sample_freq):
-        # type: (np.array, float) -> None
-        data_wrapper = WrapperNumpy(numpy_array, sample_freq)
+    def add_data_array(self, numpy_array, sample_freq, ch_idx):
+        # type: (np.array, float, int) -> None
+        data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
         self._populate_from_data_wrapper(data_wrapper)
 
     # ===================================== INSTRUCTIONS DROPDOWN ======================================================
@@ -263,7 +271,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         labels = array_wrapper.get_channels_info()[0]
         cb_per_col = math.ceil(len(labels) / 7)  # number of checkboxes in a column; should always display 7 cols
         for i, label in enumerate(labels):
-            self.checkboxes[label] = widgets.Checkbox(value=True, description=str(label),
+            self.checkboxes[label] = widgets.Checkbox(value=True, description=label,
                                                       disabled=False, indent=False)
             self.checkboxes[label].observe(self._update_ts, names="value", type="change")
             if i and i % cb_per_col == 0:
@@ -271,7 +279,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                 checkboxes_stack = []
             checkboxes_stack.append(self.checkboxes[label])
         checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
-        checkboxes_region = widgets.HBox(children=checkboxes_list, layout={'width': '400px',
+        checkboxes_region = widgets.HBox(children=checkboxes_list, layout={'width': '540px',
                                                                            'height': 'max-content'})
 
         # buttons region
@@ -281,13 +289,17 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         unselect_all_btn.on_click(self._unselect_all)
 
         # select dimensions region
+        # TODO position for Sv and mode should come from Wrapper
         sv_area, sv_radio_btn = self._create_selection("State Variable", 1)
         mode_area, modes_radio_btn = self._create_selection("Mode", 3)
         self.radio_buttons = [sv_radio_btn, modes_radio_btn]
 
-        channels_region = widgets.VBox(children=[checkboxes_region,
-                                                 widgets.HBox([select_all_btn, unselect_all_btn,
-                                                               sv_area, mode_area])])
+        actions = [select_all_btn, unselect_all_btn]
+        if sv_area is not None:
+            actions.append(sv_area)
+        if mode_area is not None:
+            actions.append(mode_area)
+        channels_region = widgets.VBox(children=[checkboxes_region, widgets.HBox(actions)])
         channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
                                           layout=widgets.Layout(width='50%'))
         channels_area.set_title(0, 'Channels')
@@ -302,7 +314,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         dim_options = [i for i in range(no_dims)]
         sel_radio_btn = widgets.RadioButtons(options=dim_options, layout={'width': 'max-content'})
         sel_radio_btn.observe(self._dimensions_selection_update, names=['value'])
-        accordion = widgets.Accordion(children=[sel_radio_btn], selected_index=None)
+        accordion = widgets.Accordion(children=[sel_radio_btn], selected_index=None, layout={'width': '30%'})
         accordion.set_title(0, title)
         return accordion, sel_radio_btn
 
@@ -310,6 +322,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         # update self.raw and linked parts
         sel1 = self.radio_buttons[0].value
         sel2 = self.radio_buttons[1].value
+        # TODO delegate to wrapper slice build
         new_slice = (slice(None), slice(sel1, sel1 + 1), slice(None), slice(sel2, sel2 + 1))
         self.logger.info("New slice " + str(new_slice))
         self.raw = self.data.build_raw(new_slice)
