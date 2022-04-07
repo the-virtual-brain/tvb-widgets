@@ -15,6 +15,9 @@ def test_add_datatype(caplog, mocker):
 
     mocker.patch('tvbwidgets.ui.surface_widget.CustomOutput.update_plot', mock_update_plot)
 
+    logger = logging.getLogger('tvbwidgets')
+    logger.propagate = True
+
     connectivity = Connectivity(centres=numpy.zeros((10, 3)))
     widget = api.SurfaceWidget([connectivity])
     assert widget.output_plot.total_actors == 1
@@ -80,3 +83,5 @@ def test_add_datatype(caplog, mocker):
         widget.add_datatype(connectivity)
     assert caplog.records[0].levelname == 'INFO'
     assert 'reached the maximum' in caplog.text
+
+    logger.propagate = False
