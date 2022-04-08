@@ -47,6 +47,11 @@ class ABCDataWrapper(ABC):
         # type: (tuple) -> mne.io.RawArray
         pass
 
+    @abstractmethod
+    def get_update_slice(self, sel1, sel2):
+        # type: (int, int) -> tuple
+        pass
+
 
 class WrapperTVB(ABCDataWrapper):
     """ Wrap TVB Timeseries object for tsWidget"""
@@ -91,12 +96,17 @@ class WrapperTVB(ABCDataWrapper):
     def build_raw(self, np_slice=None):
         # type: (tuple) -> mne.io.RawArray
         if np_slice is None:
-            np_slice = (slice(None), slice(0, 1), slice(None), slice(0, 1))
+            np_slice = self.get_update_slice()
         raw_info = mne.create_info(self.ch_names, sfreq=self.data.sample_rate)
         data_for_raw = self.data.data[np_slice].squeeze()
         data_for_raw = np.swapaxes(data_for_raw, 0, 1)
         raw = mne.io.RawArray(data_for_raw, raw_info)
         return raw
+
+    def get_update_slice(self, sel1=0, sel2=0):
+        # type: (int, int) -> tuple
+        new_slice = (slice(None), slice(sel1, sel1 + 1), slice(None), slice(sel2, sel2 + 1))
+        return new_slice
 
 
 class WrapperNumpy(ABCDataWrapper):
@@ -105,7 +115,7 @@ class WrapperNumpy(ABCDataWrapper):
     def __init__(self, data, sample_rate, channel_names=None, ch_idx=2):
         # type: (np.ndarray, float, list, int) -> None
         """
-        :param data: Numpy array 2D up to 4D #TODO accommodate all dims?
+        :param data: Numpy array 2D up to 4D
         :param sample_rate: float
         :param channel_names: optional names for channels
         :param ch_idx: Channels Index from the max 4D of the data. We assume time is on 0
@@ -143,14 +153,28 @@ class WrapperNumpy(ABCDataWrapper):
         # type: () -> float
         return self.sample_rate
 
-    def build_raw(self, np_slice=slice(None)):
+    def build_raw(self, np_slice=None):
         # type: (tuple) -> mne.io.RawArray
-        # TODO default slice not ok
+        if np_slice is None:
+            np_slice = self.get_update_slice()
         raw_info = mne.create_info(self.ch_names, sfreq=self.sample_rate)
-        data_for_raw = self.data[np_slice].squeeze()
+        data_for_raw = self.data[np_slice]
+        data_for_raw = data_for_raw.squeeze()
         data_for_raw = np.swapaxes(data_for_raw, 0, 1)
         raw = mne.io.RawArray(data_for_raw, raw_info)
         return raw
+
+    def get_update_slice(self, sel1=0, sel2=0):
+        # type: (int, int) -> tuple
+        sel2 = sel2 if sel2 is not None else 0
+        no_dim = len(self.data_shape)
+        dim_to_slice_dict = {
+            2: (slice(None), slice(None)),
+            3: (slice(None), slice(sel1, sel1+1), slice(None)),
+            4: (slice(None), slice(sel1, sel1+1), slice(None), slice(sel2, sel2+1))
+        }
+        new_slice = dim_to_slice_dict[no_dim]
+        return new_slice
 
 
 class TimeSeriesWidget(widgets.VBox, TVBWidget):
@@ -289,7 +313,6 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         unselect_all_btn.on_click(self._unselect_all)
 
         # select dimensions region
-        # TODO position for Sv and mode should come from Wrapper
         sv_area, sv_radio_btn = self._create_selection("State Variable", 1)
         mode_area, modes_radio_btn = self._create_selection("Mode", 3)
         self.radio_buttons = [sv_radio_btn, modes_radio_btn]
@@ -321,9 +344,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def _dimensions_selection_update(self, v):
         # update self.raw and linked parts
         sel1 = self.radio_buttons[0].value
-        sel2 = self.radio_buttons[1].value
-        # TODO delegate to wrapper slice build
-        new_slice = (slice(None), slice(sel1, sel1 + 1), slice(None), slice(sel2, sel2 + 1))
+        sel2 = self.radio_buttons[1].value if self.radio_buttons[1] else None  # condition needed for 3d-arrays
+        new_slice = self.data.get_update_slice(sel1, sel2)
         self.logger.info("New slice " + str(new_slice))
         self.raw = self.data.build_raw(new_slice)
         self.fig = self.raw.plot(duration=self.displayed_period,
