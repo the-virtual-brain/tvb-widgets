@@ -330,7 +330,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
     def _create_selection(self, title="Mode", shape_pos=3):
 
-        if self.data is None or len(self.data.data_shape) <= shape_pos:
+        if self.data is None or len(self.data.data_shape) <= max(2, shape_pos):
             return None, None
 
         no_dims = self.data.data_shape[shape_pos]
