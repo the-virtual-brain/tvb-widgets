@@ -56,21 +56,21 @@ class CustomOutput(Output):
     def add_mesh(self, mesh, config=CONFIG):
         if config.cmap is None or config.scalars is None:
             actor = self.plotter.add_mesh(mesh, name=config.name, style=config.style, color=config.color,
-                                          lighting=config.light)
+                                          lighting=config.light, render=False)
         else:
             actor = self.plotter.add_mesh(mesh, name=config.name, style=config.style, scalars=config.scalars,
-                                          cmap=config.cmap, lighting=config.light)
+                                          cmap=config.cmap, lighting=config.light, render=False)
         self.total_actors += 1
         return actor
 
     def add_points(self, points, config=CONFIG):
         actor = self.plotter.add_points(points, name=config.name, color=config.color,
-                                        point_size=config.size)
+                                        point_size=config.size, render=False)
         self.total_actors += 1
         return actor
 
     def display_actor(self, actor):
-        self.plotter.add_actor(actor)
+        self.plotter.renderer.add_actor(actor, render=False)
 
     def hide_actor(self, actor):
         self.plotter.renderer.remove_actor(actor, render=False)
