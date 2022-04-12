@@ -9,7 +9,7 @@ import os
 import ipywidgets
 import ebrains_drive
 from ebrains_drive.exceptions import DoesNotExist
-from tvbwidgets.auth import get_current_token
+from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.ui.base_widget import TVBWidget
 
 

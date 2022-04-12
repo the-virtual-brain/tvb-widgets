@@ -7,7 +7,7 @@
 from ipywidgets import DOMWidget
 from tvb.basic.neotraits.api import HasTraits
 
-from tvbwidgets.logger.builder import get_logger
+from tvbwidgets.core.logger.builder import get_logger
 
 
 class TVBWidget(object):

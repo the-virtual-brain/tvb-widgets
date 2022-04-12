@@ -8,7 +8,7 @@
 import json
 from pathlib import Path
 from pkg_resources import get_distribution, DistributionNotFound
-from .logger.builder import get_logger
+from .core.logger.builder import get_logger
 
 LOGGER = get_logger(__name__)
 

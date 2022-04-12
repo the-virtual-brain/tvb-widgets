@@ -10,7 +10,8 @@ import setuptools
 import shutil
 from pathlib import Path
 
-REQUIRED_PACKAGES = ["colorcet", "ebrains_drive", "ipywidgets", "pythreejs", "pyvista", "tvb-library"]
+REQUIRED_PACKAGES = ["colorcet", "ebrains_drive", "ipywidgets", "mne==0.24.1",
+                     "pythreejs", "pyvista", "tvb-library"]
 
 REQUIRED_EXTRA_EXAMPLES = ["tvb-data"]
 REQUIRED_EXTRA_TESTS = ["pytest", "pytest-mock"]
