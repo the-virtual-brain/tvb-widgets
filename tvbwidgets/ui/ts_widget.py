@@ -54,7 +54,7 @@ class ABCDataWrapper(ABC):
 
 
 class WrapperTVB(ABCDataWrapper):
-    """ Wrap TVB Timeseries object for tsWidget"""
+    """ Wrap TVB TimeSeries object for tsWidget"""
 
     def __init__(self, data):
         # type: (TimeSeries) -> None
@@ -170,8 +170,8 @@ class WrapperNumpy(ABCDataWrapper):
         no_dim = len(self.data_shape)
         dim_to_slice_dict = {
             2: (slice(None), slice(None)),
-            3: (slice(None), slice(sel1, sel1+1), slice(None)),
-            4: (slice(None), slice(sel1, sel1+1), slice(None), slice(sel2, sel2+1))
+            3: (slice(None), slice(sel1, sel1 + 1), slice(None)),
+            4: (slice(None), slice(sel1, sel1 + 1), slice(None), slice(sel2, sel2 + 1))
         }
         new_slice = dim_to_slice_dict[no_dim]
         return new_slice
@@ -181,8 +181,6 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     """ Actual TimeSeries Widget """
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.logger.info("Initializing TS Widget")
 
         self.fig = None
         self.data = None
@@ -194,16 +192,17 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.raw = None
         self.sample_freq = 0
 
-        # UI elements
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
         self.instr_area = self._create_instructions_region()
         self.title_area = widgets.HBox(children=[self.instr_area])
-        # checkboxes region
-        self.checkboxes = dict()
 
-    def add_datatype(self, timeseries_tvb):
+        self.checkboxes = dict()
+        super().__init__([self.output, self.title_area], layout=self.DEFAULT_BORDER)
+        self.logger.info("TimeSeries Widget initialized")
+
+    def add_datatype(self, ts_tvb):
         # type: (TimeSeries) -> None
-        data_wrapper = WrapperTVB(timeseries_tvb)
+        data_wrapper = WrapperTVB(ts_tvb)
         self.logger.debug("Adding TVB TS for display...")
         self._populate_from_data_wrapper(data_wrapper)
 
@@ -215,7 +214,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.ch_names, self.ch_order, self.ch_types = data_wrapper.get_channels_info()
         self.raw = self.data.build_raw()
         channels_area = self._create_checkboxes(data_wrapper)
-        self.title_area = widgets.HBox(children=[channels_area, self.instr_area])
+        self.title_area.children += (channels_area,)
+        self._redraw()
 
     def add_data_array(self, numpy_array, sample_freq, ch_idx):
         # type: (np.array, float, int) -> None
@@ -243,8 +243,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         return instr_accordion
 
     # =========================================== PLOT =================================================================
-    def get_widget(self):
-        def update_on_plot_interaction(event):
+    def _redraw(self):
+        def update_on_plot_interaction(_):
             """
             Function that updates the checkboxes when the user navigates through the plot
             using either the mouse or the keyboard
@@ -274,17 +274,13 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             with self.output:
                 display(self.fig.canvas)
 
-        grid = widgets.VBox([self.output, self.title_area], layout={'border': '2px solid lightgray',
-                                                                    'padding': '10px'})
-        return grid
-
     # ======================================== CHANNELS  ==============================================================
-    def _unselect_all(self, btn):
+    def _unselect_all(self, _):
         self.logger.debug("Unselect all was called!")
         for cb_name in self.checkboxes:
             self.checkboxes[cb_name].value = False
 
-    def _select_all(self, btn):
+    def _select_all(self, _):
         self.logger.debug("Select all was called!")
         for cb_name in self.checkboxes:
             self.checkboxes[cb_name].value = True
@@ -307,13 +303,13 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                                                                            'height': 'max-content'})
 
         # buttons region
-        select_all_btn = widgets.Button(description="Select all")
+        select_all_btn = widgets.Button(description="Select all", layout=self.BUTTON_STYLE)
         select_all_btn.on_click(self._select_all)
-        unselect_all_btn = widgets.Button(description="Unselect all")
+        unselect_all_btn = widgets.Button(description="Unselect all", layout=self.BUTTON_STYLE)
         unselect_all_btn.on_click(self._unselect_all)
 
         # select dimensions region
-        sv_area, sv_radio_btn = self._create_selection("State Variable", 1)
+        sv_area, sv_radio_btn = self._create_selection("State Var.", 1)
         mode_area, modes_radio_btn = self._create_selection("Mode", 3)
         self.radio_buttons = [sv_radio_btn, modes_radio_btn]
 
@@ -341,7 +337,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         accordion.set_title(0, title)
         return accordion, sel_radio_btn
 
-    def _dimensions_selection_update(self, v):
+    def _dimensions_selection_update(self, _):
         # update self.raw and linked parts
         sel1 = self.radio_buttons[0].value
         sel2 = self.radio_buttons[1].value if self.radio_buttons[1] else None  # condition needed for 3d-arrays
@@ -366,7 +362,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.logger.debug("Update_ts is called for channels " + str(ch_names))
 
         # check if newly checked option is before current ch_start in the channels list
-        if val['old'] == False and val['new'] == True:
+        if (val['old'] is False) and (val['new'] is True):
             ch_name = val['owner'].description
             ch_number = ch_names.index(ch_name)
             ch_changed_index = list(self.fig.mne.ch_order).index(ch_number)
