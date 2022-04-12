@@ -100,7 +100,7 @@ class WrapperTVB(ABCDataWrapper):
         raw_info = mne.create_info(self.ch_names, sfreq=self.data.sample_rate)
         data_for_raw = self.data.data[np_slice].squeeze()
         data_for_raw = np.swapaxes(data_for_raw, 0, 1)
-        raw = mne.io.RawArray(data_for_raw, raw_info)
+        raw = mne.io.RawArray(data_for_raw, raw_info, first_samp=self.data.start_time * self.data.sample_rate)
         return raw
 
     def get_update_slice(self, sel1=0, sel2=0):
@@ -203,11 +203,14 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def add_datatype(self, ts_tvb):
         # type: (TimeSeries) -> None
         data_wrapper = WrapperTVB(ts_tvb)
-        self.logger.debug("Adding TVB TS for display...")
+        self.logger.debug("Adding TVB TS for display..." + str(ts_tvb))
         self._populate_from_data_wrapper(data_wrapper)
 
     def _populate_from_data_wrapper(self, data_wrapper):
         # type: (ABCDataWrapper) -> None
+        if self.data is not None:
+            raise InvalidInputException("TSWidget is not yet capable to display more than one TS!")
+
         self.data = data_wrapper
         self.sample_freq = data_wrapper.get_ts_sample_rate()
         self.displayed_period = data_wrapper.get_ts_period()
@@ -260,7 +263,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         with plt.ioff():
             # create the plot
             self.fig = self.raw.plot(duration=self.displayed_period,
-                                     n_channels=self.no_channels,
+                                     n_channels=self.no_channels, show_first_samp=True,
                                      clipping=None, show=False)
             self.fig.set_size_inches(11, 5)
             # self.fig.figure.canvas.set_window_title('TimeSeries plot')
