@@ -27,3 +27,12 @@ class StorageWidget(ipywidgets.Tab, TVBWidget):
 
     def get_file_content(self, file_name):
         return self.api.get_file_content(file_name)
+
+    def get_selected_file_content(self):
+        filename = self.api.get_selected_file()
+        file = self.api.get_fileobj(filename)
+        return file.get_content()
+
+    def get_selected_file_name(self):
+        filename = self.api.get_selected_file()
+        return filename

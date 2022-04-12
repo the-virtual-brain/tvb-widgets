@@ -13,12 +13,15 @@ from ipywidgets import Output, VBox
 from pyvista import PolyData
 
 from tvb.basic.neotraits.api import HasTraits
+from tvb.basic.readers import ReaderException
 from tvb.datatypes.connectivity import Connectivity
 from tvb.datatypes.region_mapping import RegionMapping
 from tvb.datatypes.sensors import Sensors
 from tvb.datatypes.surfaces import Surface
 
+from tvbwidgets.core.file_readers import DatatypeReader
 from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.storage_widget import StorageWidget
 
 pyvista.set_jupyter_backend('pythreejs')
 
@@ -33,11 +36,25 @@ class SurfaceWidgetConfig:
         self.size = size
         self.cmap = cmap
         self.scalars = scalars
+        self.widget = None
 
     def add_region_mapping_as_cmap(self, region_mapping):
         # type: (RegionMapping) -> None
         self.scalars = region_mapping.array_data
         self.cmap = 'fire'
+
+    def get_widget(self):
+        name_input = ipywidgets.Text(value=self.name, description='Name:', disabled=False)
+        color_input = ipywidgets.ColorPicker(concise=False, description='Color:', value='white', disabled=False)
+        self.widget = ipywidgets.VBox([name_input, color_input])
+        return self.widget
+
+    def update_values_from_widget(self):
+        # TODO: add validation on fields
+        if self.widget is not None:
+            # TODO: make this nicer
+            self.name = self.widget.children[0].value
+            self.color = self.widget.children[1].value
 
 
 class CustomOutput(Output):
@@ -212,3 +229,92 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
 
         hbox_cortex_controls = ipywidgets.HBox([surface_type, surface_opacity])
         self.surface_display_controls.children += hbox_cortex_controls,
+
+
+class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
+    # TODO: Keep this separate class? Select a directory? Support more formats other than txt and zip?
+
+    def __init__(self):
+        self.storage_widget = StorageWidget()
+
+        config = SurfaceWidgetConfig()
+        config_widget = config.get_widget()
+
+        surface_button = ipywidgets.Button(description='View surface')
+        surface_text = ipywidgets.Label()
+        sensors_button = ipywidgets.Button(description='View sensors')
+        sensors_text = ipywidgets.Label()
+        connectivity_button = ipywidgets.Button(description='View connectivity')
+        connectivity_text = ipywidgets.Label()
+
+        self.buttons = ipywidgets.VBox([ipywidgets.HBox([surface_button, surface_text]),
+                                        ipywidgets.HBox([sensors_button, sensors_text]),
+                                        ipywidgets.HBox([connectivity_button, connectivity_text])])
+        self.menu = ipywidgets.HBox([config_widget, self.buttons])
+        self.surface_widget = SurfaceWidget()
+
+        super().__init__([self.storage_widget, self.menu, self.surface_widget], **{})
+
+        def add_surface_datatype(change):
+            file_name = self.storage_widget.get_selected_file_name()
+            if not file_name.endswith('.zip'):
+                msg = "Only ZIP files are supported for surfaces!"
+                surface_text.value = msg
+                self.logger.error(msg)
+
+            content_bytes = self.storage_widget.get_selected_file_content()
+
+            try:
+                surface = DatatypeReader().read_surface_from_zip_bytes(content_bytes)
+                surface_text.value = ''
+                config.update_values_from_widget()
+                self.add_datatype(surface, config)
+            except ReaderException:
+                msg = "Cannot read a surface from the chosen file!"
+                surface_text.value = msg
+                self.logger.error(msg)
+
+        def add_sensors_datatype(change):
+            file_name = self.storage_widget.get_selected_file_name()
+            if not file_name.endswith('.txt'):
+                msg = "Only TXT files are supported for sensors!"
+                sensors_text.value = msg
+                self.logger.error(msg)
+
+            content_bytes = self.storage_widget.get_selected_file_content()
+
+            try:
+                sensors = DatatypeReader().read_sensors_from_txt_bytes(content_bytes)
+                sensors_text.value = ''
+                config.update_values_from_widget()
+                self.add_datatype(sensors, config)
+            except Exception:
+                msg = "Cannot read sensors from the chosen file!"
+                sensors_text.value = msg
+                self.logger.error(msg)
+
+        def add_connectivity_datatype(change):
+            file_name = self.storage_widget.get_selected_file_name()
+            if not file_name.endswith('.zip'):
+                msg = "Only ZIP files are supported for connectivities!"
+                connectivity_text.value = msg
+                self.logger.error(msg)
+            content_bytes = self.storage_widget.get_selected_file_content()
+
+            try:
+                conn = DatatypeReader().read_connectivity_from_zip_bytes(content_bytes)
+                connectivity_text.value = ''
+                config.update_values_from_widget()
+                self.add_datatype(conn, config)
+            except ReaderException:
+                msg = "Cannot read a connectivity from the chosen file!"
+                connectivity_text.value = msg
+                self.logger.error(msg)
+
+        surface_button.on_click(add_surface_datatype)
+        sensors_button.on_click(add_sensors_datatype)
+        connectivity_button.on_click(add_connectivity_datatype)
+
+    def add_datatype(self, datatype, config=None):
+        # type: (HasTraits, SurfaceWidgetConfig) -> None
+        self.surface_widget.add_datatype(datatype, config)

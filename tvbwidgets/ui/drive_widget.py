@@ -14,6 +14,7 @@ from tvbwidgets.ui.base_widget import TVBWidget
 
 
 class DriveWidget(ipywidgets.VBox, TVBWidget):
+    # TODO: better UI for browsing files
     ROOT = "/"
 
     def __init__(self, **kwargs):
@@ -29,9 +30,7 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
         self.dirs_dropdown = ipywidgets.Dropdown()
 
         files_label = ipywidgets.Label("Files in folder")
-        self.files_list = ipywidgets.Textarea(disabled=True,
-                                              layout={'width': '300',
-                                                      'height': '200'})
+        self.files_list = ipywidgets.Select(options=[], disabled=False)
 
         self._update_dirs_for_chosen_repo()
 
@@ -56,6 +55,11 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
     def get_chosen_dir(self):
         return self.dirs_dropdown.value
 
+    def get_fileobj(self, filename):
+        repo_obj = self.get_chosen_repo()
+        file_obj = repo_obj.get_file(filename)
+        return file_obj
+
     def _update_dirs_for_chosen_repo(self):
         selected_repo = self.get_chosen_repo()
         selected_dir = self.ROOT
@@ -79,7 +83,7 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
         self.logger.debug("Update Files called with {} and {}".format(selected_repo, selected_dir))
         files_list = []
         self._gather_files(selected_repo, selected_dir, files_list)
-        self.files_list.value = '\n'.join(files_list)
+        self.files_list.options = files_list
 
     def _gather_files(self, repo, sub_folder, files_list):
         try:
@@ -103,6 +107,10 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
         file_content = ref_file.get_content()
 
         return file_content
+
+    def get_selected_file(self):
+        # TODO: keep folder in filename?
+        return self.files_list.value
 
 
 class DriveUploadWidget(ipywidgets.HBox, TVBWidget):
