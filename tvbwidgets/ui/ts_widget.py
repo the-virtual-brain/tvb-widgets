@@ -120,7 +120,7 @@ class WrapperNumpy(ABCDataWrapper):
         :param channel_names: optional names for channels
         :param ch_idx: Channels Index from the max 4D of the data. We assume time is on 0
         """
-        if data is None or not isinstance(data, np.ndarray) or not len(data.shape) > 1:
+        if data is None or not isinstance(data, np.ndarray) or len(data.shape) <= 1:
             raise InvalidInputException("Not a valid numpy array %s \n "
                                         "It should be numpy.ndarray, at least 2D up to 4D" % str(data))
         self.data = data

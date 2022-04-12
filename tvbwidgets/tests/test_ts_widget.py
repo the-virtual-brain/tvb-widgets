@@ -1,9 +1,14 @@
-import logging
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2023, TVB Widgets Team
+#
 
-import numpy as np
 import pytest
+import logging
+import numpy as np
 from ipywidgets import Checkbox
-
 from tvbwidgets.tests.ts_generator import generate_ts_with_mode_and_sv
 from tvbwidgets.ui.ts_widget import TimeSeriesWidget, WrapperTVB
 
@@ -110,7 +115,7 @@ def test_create_checkboxes(tsw_tvb_data):
 
 def test_get_widget(tsw_tvb_data):
     tsw_tvb_data.get_widget()
-    assert type(tsw_tvb_data) is not None
+    assert type(tsw_tvb_data) == TimeSeriesWidget
 
 
 def test_update_ts(caplog, tsw_tvb_data):
