@@ -21,6 +21,8 @@ from tvbwidgets.ui.base_widget import TVBWidget
 
 class ABCDataWrapper(ABC):
     """ Wrap any TimeSeries for TSWidget to read/parse uniformly"""
+    extra_dimensions = {1: ("State var.", None),
+                        3: ("Mode", None)}
 
     @property
     def data_shape(self):
@@ -62,6 +64,11 @@ class WrapperTVB(ABCDataWrapper):
             raise InvalidInputException("Not a valid TVB TS " + str(data))
         self.data = data
         self.ch_names = []
+        variables_labels = data.variables_labels
+        if variables_labels is not None and variables_labels != []:
+            sv_options = [(variables_labels[idx], idx) for idx in range(len(variables_labels))]
+            self.extra_dimensions = ABCDataWrapper.extra_dimensions.copy()
+            self.extra_dimensions[1] = ("State var.", sv_options)
 
     @property
     def data_shape(self):
@@ -203,7 +210,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def add_datatype(self, ts_tvb):
         # type: (TimeSeries) -> None
         data_wrapper = WrapperTVB(ts_tvb)
-        self.logger.debug("Adding TVB TS for display..." + str(ts_tvb))
+        self.logger.debug("Adding TVB TS for display...")
         self._populate_from_data_wrapper(data_wrapper)
 
     def _populate_from_data_wrapper(self, data_wrapper):
@@ -310,30 +317,30 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         select_all_btn.on_click(self._select_all)
         unselect_all_btn = widgets.Button(description="Unselect all", layout=self.BUTTON_STYLE)
         unselect_all_btn.on_click(self._unselect_all)
+        actions = [select_all_btn, unselect_all_btn]
 
         # select dimensions region
-        sv_area, sv_radio_btn = self._create_selection("State Var.", 1)
-        mode_area, modes_radio_btn = self._create_selection("Mode", 3)
-        self.radio_buttons = [sv_radio_btn, modes_radio_btn]
+        self.radio_buttons = []
+        for idx, info in array_wrapper.extra_dimensions.items():
+            extra_area, extra_radio_btn = self._create_selection(info[0], idx, dim_options=info[1])
+            self.radio_buttons.append(extra_radio_btn)
+            if extra_area is not None:
+                actions.append(extra_area)
 
-        actions = [select_all_btn, unselect_all_btn]
-        if sv_area is not None:
-            actions.append(sv_area)
-        if mode_area is not None:
-            actions.append(mode_area)
         channels_region = widgets.VBox(children=[checkboxes_region, widgets.HBox(actions)])
         channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
                                           layout=widgets.Layout(width='50%'))
         channels_area.set_title(0, 'Channels')
         return channels_area
 
-    def _create_selection(self, title="Mode", shape_pos=3):
+    def _create_selection(self, title="Mode", shape_pos=3, dim_options=None):
 
         if self.data is None or len(self.data.data_shape) <= max(2, shape_pos):
             return None, None
 
         no_dims = self.data.data_shape[shape_pos]
-        dim_options = [i for i in range(no_dims)]
+        if dim_options is None or dim_options == []:
+            dim_options = [i for i in range(no_dims)]
         sel_radio_btn = widgets.RadioButtons(options=dim_options, layout={'width': 'max-content'})
         sel_radio_btn.observe(self._dimensions_selection_update, names=['value'])
         accordion = widgets.Accordion(children=[sel_radio_btn], selected_index=None, layout={'width': '30%'})

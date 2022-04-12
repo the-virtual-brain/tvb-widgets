@@ -49,6 +49,11 @@ def generate_ts_with_stimulus(length=5e3, cutoff=1e3):
                                                      start_time=tavg_time[cut_idx] / 1000.0,
                                                      sample_period=sim.monitors[0].period / 1000.0,
                                                      sample_period_unit="s")
+    # Fill the State Var names
+    state_variable_dimension_name = tsr.labels_ordering[1]
+    selected_vois = [sim.model.variables_of_interest[idx] for idx in sim.monitors[0].voi]
+    tsr.labels_dimensions[state_variable_dimension_name] = selected_vois
+
     tsr.configure()
     return tsr
 
@@ -79,5 +84,10 @@ def generate_ts_with_mode_and_sv(length=5e3, cutoff=500):
                                        start_time=time_array[cut_idx] / 1000.0,
                                        sample_period=monitor.period / 1000,
                                        sample_period_unit="s")
+    # Fill the State Var names
+    state_variable_dimension_name = tsr.labels_ordering[1]
+    selected_vois = [jrm.variables_of_interest[idx] for idx in monitor.voi]
+    tsr.labels_dimensions[state_variable_dimension_name] = selected_vois
+
     tsr.configure()
     return tsr
