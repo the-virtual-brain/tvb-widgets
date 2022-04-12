@@ -244,7 +244,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         # Generate Output
         out = widgets.interactive_output(plotter, self.params)
 
-        vbox = widgets.VBox([ui, out])
+        vbox = widgets.VBox([ui, out], layout=self.DEFAULT_BORDER)
 
         # # Display Output
         # display(ui, out)

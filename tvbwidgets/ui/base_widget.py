@@ -4,13 +4,15 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+
 from ipywidgets import DOMWidget
 from tvb.basic.neotraits.api import HasTraits
-
 from tvbwidgets.core.logger.builder import get_logger
 
 
 class TVBWidget(object):
+    DEFAULT_BORDER = {'border': '2px solid lightgray',
+                      'padding': '10px'}
 
     def __init__(self, **kwargs):
         self.logger = get_logger(self.__class__.__module__)
