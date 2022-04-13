@@ -19,3 +19,9 @@ class InvalidInputException(WidgetsException):
     """
     To be thrown when an invalid input is received.
     """
+
+
+class InvalidFileException(WidgetsException):
+    """
+    To be thrown if an invalid filename is used.
+    """

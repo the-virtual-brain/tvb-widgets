@@ -32,7 +32,8 @@ class TXTReader(object):
 
 class DatatypeReader(object):
 
-    def read_surface_from_zip_bytes(self, content_bytes):
+    @staticmethod
+    def read_surface_from_zip_bytes(content_bytes):
         reader = ZipReader(BytesIO(content_bytes))
 
         # TODO: duplicated from tvb-library
@@ -44,7 +45,8 @@ class DatatypeReader(object):
 
         return result
 
-    def read_sensors_from_txt_bytes(self, content_bytes):
+    @staticmethod
+    def read_sensors_from_txt_bytes(content_bytes):
         reader = TXTReader()
 
         result = Sensors()
@@ -54,7 +56,8 @@ class DatatypeReader(object):
 
         return result
 
-    def read_connectivity_from_zip_bytes(self, content_bytes):
+    @staticmethod
+    def read_connectivity_from_zip_bytes(content_bytes):
         reader = ZipReader(BytesIO(content_bytes))
 
         # TODO: duplicated from tvb-library

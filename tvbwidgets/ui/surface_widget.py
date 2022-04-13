@@ -9,7 +9,6 @@ import ipywidgets
 import numpy
 import pyvista
 
-from ipywidgets import Output, VBox
 from pyvista import PolyData
 
 from tvb.basic.neotraits.api import HasTraits
@@ -19,6 +18,7 @@ from tvb.datatypes.region_mapping import RegionMapping
 from tvb.datatypes.sensors import Sensors
 from tvb.datatypes.surfaces import Surface
 
+from tvbwidgets.core.exceptions import InvalidFileException
 from tvbwidgets.core.file_readers import DatatypeReader
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.storage_widget import StorageWidget
@@ -43,21 +43,8 @@ class SurfaceWidgetConfig:
         self.scalars = region_mapping.array_data
         self.cmap = 'fire'
 
-    def get_widget(self):
-        name_input = ipywidgets.Text(value=self.name, description='Name:', disabled=False)
-        color_input = ipywidgets.ColorPicker(concise=False, description='Color:', value='white', disabled=False)
-        self.widget = ipywidgets.VBox([name_input, color_input])
-        return self.widget
 
-    def update_values_from_widget(self):
-        # TODO: add validation on fields
-        if self.widget is not None:
-            # TODO: make this nicer
-            self.name = self.widget.children[0].value
-            self.color = self.widget.children[1].value
-
-
-class CustomOutput(Output):
+class CustomOutput(ipywidgets.Output):
     CONFIG = SurfaceWidgetConfig()
     MAX_ACTORS = 10
 
@@ -103,11 +90,9 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
     def __init__(self, datatypes=None):
         # type: (list[HasTraits]) -> None
         self.output_plot = CustomOutput()
-        self.plot_controls = self.__prepare_plot_controls()
-        self.surface_display_controls = VBox()
-        vbox = VBox([self.surface_display_controls, self.output_plot])
+        self.plot_controls = ipywidgets.Accordion(layout=ipywidgets.Layout(width='380px'))
 
-        super().__init__([self.plot_controls, vbox], layout=self.DEFAULT_BORDER)
+        super().__init__([self.plot_controls, self.output_plot], layout=self.DEFAULT_BORDER)
 
         if datatypes is not None:
             if not isinstance(datatypes, list):
@@ -161,14 +146,12 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
         mesh = self.__prepare_mesh(surface)
         mesh_actor = self.output_plot.add_mesh(mesh, config)
 
-        def toggle_surface(change):
-            self.__toggle_actor(change, mesh_actor)
+        controls_vbox = self._prepare_generic_controls(mesh_actor, config)
 
-        checkbox = ipywidgets.Checkbox(description="Toggle " + config.name, value=True)
-        checkbox.observe(toggle_surface, names=['value'])
-        self.plot_controls.children += checkbox,
-        self.__prepare_surface_controls(mesh_actor, config)
+        extra_controls = self.__prepare_surface_controls(mesh_actor)
+        controls_vbox.children += extra_controls
 
+        self.plot_controls.children += controls_vbox,
         self.output_plot.update_plot()
 
     def __draw_connectivity_actor(self, connectivity, config):
@@ -176,7 +159,12 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
         if config is None:
             config = SurfaceWidgetConfig(color='Green')
 
-        self.output_plot.add_points(connectivity.centres, config)
+        conn_actor = self.output_plot.add_points(connectivity.centres, config)
+        controls_vbox = self._prepare_generic_controls(conn_actor, config)
+        extra_controls = self.__prepare_points_controls(conn_actor, config)
+        controls_vbox.children += extra_controls
+
+        self.plot_controls.children += controls_vbox,
         self.output_plot.update_plot()
 
     def __draw_sensors_actor(self, sensors, config):
@@ -185,25 +173,54 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
             config = SurfaceWidgetConfig(name='Sensors', color='Pink', size=1000)
 
         sensors_actor = self.output_plot.add_points(sensors.locations, config)
+        controls_vbox = self._prepare_generic_controls(sensors_actor, config)
+        extra_controls = self.__prepare_points_controls(sensors_actor, config)
+        controls_vbox.children += extra_controls
 
-        def toggle_sensors(change):
-            self.__toggle_actor(change, sensors_actor)
-
-        checkbox = ipywidgets.Checkbox(description="Toggle " + config.name, value=True)
-        checkbox.observe(toggle_sensors, names=['value'])
-        self.plot_controls.children += checkbox,
-
+        self.plot_controls.children += controls_vbox,
         self.output_plot.update_plot()
 
-    def __prepare_plot_controls(self):
-        label = ipywidgets.Label('Display controls: ')
-        hbox_checkboxes = ipywidgets.VBox((label,))
-        return hbox_checkboxes
+    def _prepare_generic_controls(self, actor, config):
+        toggle_prefix = "Toggle "
+        title_suffix = " Controls"
 
-    def __prepare_surface_controls(self, actor, config):
-        surface_type = ipywidgets.ToggleButtons(options=['Surface', 'Wireframe', 'Points'],
-                                                description=config.name + ' controls:', disabled=False)
-        surface_type.style.description_width = '150px'
+        idx = self.output_plot.total_actors - 1
+        self.plot_controls.set_title(idx, config.name + title_suffix)
+
+        def toggle_actor(change):
+            self.__toggle_actor(change, actor)
+
+        toggle_input = ipywidgets.Checkbox(description=toggle_prefix + config.name, value=True)
+        toggle_input.observe(toggle_actor, names=['value'])
+
+        def on_name_change(change):
+            value = change['new']
+            config.name = value
+            toggle_input.description = toggle_prefix + config.name
+            self.plot_controls.set_title(idx, config.name + title_suffix)
+
+        name_input = ipywidgets.Text(value=config.name, description='Name: ', disabled=False,
+                                     layout=ipywidgets.Layout(width='250px'))
+        name_input.observe(on_name_change, names='value')
+
+        def on_color_change(change):
+            value = change['new']
+            rgb = pyvista.Color(value).float_rgb
+            actor.GetProperty().SetColor(rgb[0], rgb[1], rgb[2])
+            self.output_plot.update_plot()
+
+        color_input = ipywidgets.ColorPicker(concise=False, description='Color: ', value=config.color, disabled=False,
+                                             layout=ipywidgets.Layout(width='250px'))
+        color_input.observe(on_color_change, names='value')
+
+        controls_vbox = ipywidgets.VBox([toggle_input, name_input, color_input])
+
+        return controls_vbox
+
+    def __prepare_surface_controls(self, actor):
+        surface_type = ipywidgets.ToggleButtons(options=['Surface', 'Wireframe', 'Points'], disabled=False,
+                                                layout=ipywidgets.Layout(margin='0px 0px 0px 25px'))
+        surface_type.style.button_width = '70px'
 
         def toggle_cortex_type(change):
             if change['new'] == 'Wireframe':
@@ -218,7 +235,8 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
 
         surface_opacity = ipywidgets.FloatSlider(value=1, min=0, max=1.0, step=0.1, description='Opacity:',
                                                  disabled=False, continuous_update=False, orientation='horizontal',
-                                                 readout=True, readout_format='.1f')
+                                                 readout=True, readout_format='.1f',
+                                                 layout=ipywidgets.Layout(width='330px'))
 
         def on_opacity_change(change):
             value = change['new']
@@ -227,89 +245,45 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
 
         surface_opacity.observe(on_opacity_change, names='value')
 
-        hbox_cortex_controls = ipywidgets.HBox([surface_type, surface_opacity])
-        self.surface_display_controls.children += hbox_cortex_controls,
+        return surface_opacity, surface_type
+
+    def __prepare_points_controls(self, actor, config):
+        def on_size_change(change):
+            value = change['new']
+            actor.GetProperty().SetPointSize(value)
+            self.output_plot.update_plot()
+
+        size_input = ipywidgets.IntText(value=config.size, description='Size: ', disabled=False,
+                                        layout=ipywidgets.Layout(width='250px'))
+        size_input.observe(on_size_change, names='value')
+
+        return size_input,
 
 
 class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
-    # TODO: Keep this separate class? Select a directory? Support more formats other than txt and zip?
+    # TODO: Keep this separate class? Select a directory? Handle other types of exceptions?
 
     def __init__(self):
         self.storage_widget = StorageWidget()
 
-        config = SurfaceWidgetConfig()
-        config_widget = config.get_widget()
-
         surface_button = ipywidgets.Button(description='View surface')
-        surface_text = ipywidgets.Label()
         sensors_button = ipywidgets.Button(description='View sensors')
-        sensors_text = ipywidgets.Label()
         connectivity_button = ipywidgets.Button(description='View connectivity')
-        connectivity_text = ipywidgets.Label()
-
-        self.buttons = ipywidgets.VBox([ipywidgets.HBox([surface_button, surface_text]),
-                                        ipywidgets.HBox([sensors_button, sensors_text]),
-                                        ipywidgets.HBox([connectivity_button, connectivity_text])])
-        self.menu = ipywidgets.HBox([config_widget, self.buttons])
+        self.buttons = ipywidgets.HBox([surface_button, sensors_button, connectivity_button],
+                                       layout=ipywidgets.Layout(margin="0px 0px 0px 20px"))
+        self.message_label = ipywidgets.Label()
         self.surface_widget = SurfaceWidget()
 
-        super().__init__([self.storage_widget, self.menu, self.surface_widget], **{})
+        super().__init__([self.storage_widget, self.buttons, self.message_label, self.surface_widget], **{})
 
-        def add_surface_datatype(change):
-            file_name = self.storage_widget.get_selected_file_name()
-            if not file_name.endswith('.zip'):
-                msg = "Only ZIP files are supported for surfaces!"
-                surface_text.value = msg
-                self.logger.error(msg)
+        def add_surface_datatype(_):
+            self.load_selected_file(DatatypeReader.read_surface_from_zip_bytes)
 
-            content_bytes = self.storage_widget.get_selected_file_content()
+        def add_sensors_datatype(_):
+            self.load_selected_file(DatatypeReader.read_sensors_from_txt_bytes, '.txt')
 
-            try:
-                surface = DatatypeReader().read_surface_from_zip_bytes(content_bytes)
-                surface_text.value = ''
-                config.update_values_from_widget()
-                self.add_datatype(surface, config)
-            except ReaderException:
-                msg = "Cannot read a surface from the chosen file!"
-                surface_text.value = msg
-                self.logger.error(msg)
-
-        def add_sensors_datatype(change):
-            file_name = self.storage_widget.get_selected_file_name()
-            if not file_name.endswith('.txt'):
-                msg = "Only TXT files are supported for sensors!"
-                sensors_text.value = msg
-                self.logger.error(msg)
-
-            content_bytes = self.storage_widget.get_selected_file_content()
-
-            try:
-                sensors = DatatypeReader().read_sensors_from_txt_bytes(content_bytes)
-                sensors_text.value = ''
-                config.update_values_from_widget()
-                self.add_datatype(sensors, config)
-            except Exception:
-                msg = "Cannot read sensors from the chosen file!"
-                sensors_text.value = msg
-                self.logger.error(msg)
-
-        def add_connectivity_datatype(change):
-            file_name = self.storage_widget.get_selected_file_name()
-            if not file_name.endswith('.zip'):
-                msg = "Only ZIP files are supported for connectivities!"
-                connectivity_text.value = msg
-                self.logger.error(msg)
-            content_bytes = self.storage_widget.get_selected_file_content()
-
-            try:
-                conn = DatatypeReader().read_connectivity_from_zip_bytes(content_bytes)
-                connectivity_text.value = ''
-                config.update_values_from_widget()
-                self.add_datatype(conn, config)
-            except ReaderException:
-                msg = "Cannot read a connectivity from the chosen file!"
-                connectivity_text.value = msg
-                self.logger.error(msg)
+        def add_connectivity_datatype(_):
+            self.load_selected_file(DatatypeReader.read_connectivity_from_zip_bytes)
 
         surface_button.on_click(add_surface_datatype)
         sensors_button.on_click(add_sensors_datatype)
@@ -318,3 +292,34 @@ class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
     def add_datatype(self, datatype, config=None):
         # type: (HasTraits, SurfaceWidgetConfig) -> None
         self.surface_widget.add_datatype(datatype, config)
+
+    def validate_file(self, file_name, accepted_suffix):
+        if file_name is None:
+            raise InvalidFileException("Please select a file!")
+
+        if not file_name.endswith(accepted_suffix):
+            raise InvalidFileException(f"Only {accepted_suffix} files are supported for this data type!")
+
+    def load_selected_file(self, load_method, accepted_suffix='.zip'):
+        # type: (callable, str) -> None
+        file_name = self.storage_widget.get_selected_file_name()
+        msg = ''
+
+        try:
+            self.validate_file(file_name, accepted_suffix)
+        except InvalidFileException as e:
+            msg = e.message
+            return
+        finally:
+            self.message_label.value = msg
+
+        content_bytes = self.storage_widget.get_selected_file_content()
+
+        try:
+            surface = load_method(content_bytes)
+            self.add_datatype(surface)
+        except ReaderException:
+            msg = "The selected file does not contain all necessary data to load this data type!"
+            return
+        finally:
+            self.message_label.value = msg
