@@ -66,7 +66,6 @@ def test_add_datatype(caplog, mocker):
     widget.add_datatype(face)
     assert widget.output_plot.total_actors == 2
     assert len(widget.plot_controls.children) == 2
-    assert len(widget.surface_display_controls.children) == 1
 
     seeg = SensorsInternal(locations=numpy.zeros((10, 3)))
     widget.add_datatype(seeg)
@@ -80,7 +79,6 @@ def test_add_datatype(caplog, mocker):
     widget.add_datatype(cortex)
     assert widget.output_plot.total_actors == 4
     assert len(widget.plot_controls.children) == 4
-    assert len(widget.surface_display_controls.children) == 2
 
     left_spots = widget.output_plot.MAX_ACTORS - widget.output_plot.total_actors
 

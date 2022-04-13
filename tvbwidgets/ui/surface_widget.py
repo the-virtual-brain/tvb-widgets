@@ -261,7 +261,7 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
 
 
 class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
-    # TODO: Keep this separate class? Select a directory? Handle other types of exceptions?
+    # TODO: Keep this separate class? Handle other types of exceptions
 
     def __init__(self):
         self.storage_widget = StorageWidget()

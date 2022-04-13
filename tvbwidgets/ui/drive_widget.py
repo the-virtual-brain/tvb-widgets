@@ -14,7 +14,7 @@ from tvbwidgets.ui.base_widget import TVBWidget
 
 
 class DriveWidget(ipywidgets.VBox, TVBWidget):
-    # TODO: better UI for browsing files
+    # TODO: improve UI for browsing files
     ROOT = "/"
 
     def __init__(self, **kwargs):
