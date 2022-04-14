@@ -24,6 +24,7 @@ class ABCDataWrapper(ABC):
     extra_dimensions = {1: ("State var.", None),
                         3: ("Mode", None)}
     CHANNEL_TYPE = "bio"
+    MAX_DISPLAYED_TIMEPOINTS = 3000
 
     @property
     def data_shape(self):
@@ -94,7 +95,10 @@ class WrapperTVB(ABCDataWrapper):
 
     def get_ts_period(self):
         # type: () -> float
-        displayed_period = self.data.sample_period * self.data.shape[0] / 10
+        time_points = self.data_shape[0]
+        displayed_time_points = time_points if time_points < ABCDataWrapper.MAX_DISPLAYED_TIMEPOINTS \
+            else ABCDataWrapper.MAX_DISPLAYED_TIMEPOINTS
+        displayed_period = self.data.sample_period * displayed_time_points
         return displayed_period
 
     def get_ts_sample_rate(self):
@@ -154,7 +158,9 @@ class WrapperNumpy(ABCDataWrapper):
         # type: () -> float
         sample_period = 1 / self.sample_rate
         time_points = self.data.shape[0]
-        displayed_period = sample_period * time_points
+        displayed_time_points = time_points if time_points < ABCDataWrapper.MAX_DISPLAYED_TIMEPOINTS \
+            else ABCDataWrapper.MAX_DISPLAYED_TIMEPOINTS
+        displayed_period = sample_period * displayed_time_points
         return displayed_period
 
     def get_ts_sample_rate(self):
