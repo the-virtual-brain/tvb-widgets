@@ -271,19 +271,19 @@ class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
         connectivity_button = ipywidgets.Button(description='View connectivity')
         self.buttons = ipywidgets.HBox([surface_button, sensors_button, connectivity_button],
                                        layout=ipywidgets.Layout(margin="0px 0px 0px 20px"))
-        self.message_label = ipywidgets.Label()
+        self.message_label = ipywidgets.HTML(layout=ipywidgets.Layout(height='25px'))
         self.surface_widget = SurfaceWidget()
 
         super().__init__([self.storage_widget, self.buttons, self.message_label, self.surface_widget], **{})
 
         def add_surface_datatype(_):
-            self.load_selected_file(DatatypeReader.read_surface_from_zip_bytes)
+            self.__load_selected_file(DatatypeReader.read_surface_from_zip_bytes)
 
         def add_sensors_datatype(_):
-            self.load_selected_file(DatatypeReader.read_sensors_from_txt_bytes, '.txt')
+            self.__load_selected_file(DatatypeReader.read_sensors_from_txt_bytes, '.txt')
 
         def add_connectivity_datatype(_):
-            self.load_selected_file(DatatypeReader.read_connectivity_from_zip_bytes)
+            self.__load_selected_file(DatatypeReader.read_connectivity_from_zip_bytes)
 
         surface_button.on_click(add_surface_datatype)
         sensors_button.on_click(add_sensors_datatype)
@@ -293,26 +293,30 @@ class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
         # type: (HasTraits, SurfaceWidgetConfig) -> None
         self.surface_widget.add_datatype(datatype, config)
 
-    def validate_file(self, file_name, accepted_suffix):
+    def __display_message(self, msg):
+        label_template = '<span style="color:{1};">{0}</span>'
+        self.message_label.value = label_template.format(msg, 'red')
+
+    def __validate_file(self, file_name, accepted_suffix):
         if file_name is None:
             raise InvalidFileException("Please select a file!")
 
         if not file_name.endswith(accepted_suffix):
             raise InvalidFileException(f"Only {accepted_suffix} files are supported for this data type!")
 
-    def load_selected_file(self, load_method, accepted_suffix='.zip'):
+    def __load_selected_file(self, load_method, accepted_suffix='.zip'):
         # type: (callable, str) -> None
         file_name = self.storage_widget.get_selected_file_name()
         msg = ''
 
         try:
-            self.validate_file(file_name, accepted_suffix)
+            self.__validate_file(file_name, accepted_suffix)
         except InvalidFileException as e:
             msg = e.message
             self.logger.error(f"{e}")
             return
         finally:
-            self.message_label.value = msg
+            self.__display_message(msg)
 
         content_bytes = self.storage_widget.get_selected_file_content()
 
@@ -328,4 +332,4 @@ class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
             self.logger.error(f"{e}")
             return
         finally:
-            self.message_label.value = msg
+            self.__display_message(msg)

@@ -31,12 +31,12 @@ class TXTReader(object):
 
 
 class DatatypeReader(object):
+    # TODO: duplicated readers from tvb-library
 
     @staticmethod
     def read_surface_from_zip_bytes(content_bytes):
         reader = ZipReader(BytesIO(content_bytes))
 
-        # TODO: duplicated from tvb-library
         result = Surface()
         result.vertices = reader.read_array_from_file("vertices.txt")
         result.vertex_normals = reader.read_array_from_file("normals.txt")
@@ -60,7 +60,6 @@ class DatatypeReader(object):
     def read_connectivity_from_zip_bytes(content_bytes):
         reader = ZipReader(BytesIO(content_bytes))
 
-        # TODO: duplicated from tvb-library
         result = Connectivity()
         result.weights = reader.read_array_from_file("weights")
         if reader.has_file_like("centres"):
