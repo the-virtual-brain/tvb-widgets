@@ -19,7 +19,6 @@ from tvb.datatypes.sensors import Sensors
 from tvb.datatypes.surfaces import Surface
 
 from tvbwidgets.core.exceptions import InvalidFileException
-from tvbwidgets.core.file_readers import DatatypeReader
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.storage_widget import StorageWidget
 
@@ -120,7 +119,7 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
         elif isinstance(datatype, RegionMapping):
             self.logger.info("RegionMapping should be given as cmap in the config parameter!")
         else:
-            self.logger.warning("Datatype not supported by this widget!")
+            self.logger.warning(f"Datatype {type(datatype)} not supported by this widget!")
 
     def __prepare_mesh(self, surface):
         # type: (Surface) -> PolyData
@@ -277,13 +276,13 @@ class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
         super().__init__([self.storage_widget, self.buttons, self.message_label, self.surface_widget], **{})
 
         def add_surface_datatype(_):
-            self.__load_selected_file(DatatypeReader.read_surface_from_zip_bytes)
+            self.__load_selected_file(Surface)
 
         def add_sensors_datatype(_):
-            self.__load_selected_file(DatatypeReader.read_sensors_from_txt_bytes, '.txt')
+            self.__load_selected_file(Sensors, '.txt')
 
         def add_connectivity_datatype(_):
-            self.__load_selected_file(DatatypeReader.read_connectivity_from_zip_bytes)
+            self.__load_selected_file(Connectivity)
 
         surface_button.on_click(add_surface_datatype)
         sensors_button.on_click(add_sensors_datatype)
@@ -304,8 +303,7 @@ class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
         if not file_name.endswith(accepted_suffix):
             raise InvalidFileException(f"Only {accepted_suffix} files are supported for this data type!")
 
-    def __load_selected_file(self, load_method, accepted_suffix='.zip'):
-        # type: (callable, str) -> None
+    def __load_selected_file(self, datatype_cls, accepted_suffix='.zip'):
         file_name = self.storage_widget.get_selected_file_name()
         msg = ''
 
@@ -321,8 +319,9 @@ class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
         content_bytes = self.storage_widget.get_selected_file_content()
 
         try:
-            surface = load_method(content_bytes)
-            self.add_datatype(surface)
+            datatype = datatype_cls.from_bytes_stream(content_bytes)
+            datatype.configure()
+            self.add_datatype(datatype)
         except ReaderException as e:
             msg = "The selected file does not contain all necessary data to load this data type! Please check the logs!"
             self.logger.error(f"{e}")
