@@ -25,22 +25,22 @@ def test_add_datatype(caplog, mocker):
     logger.propagate = True
 
     connectivity = Connectivity(centres=numpy.zeros((10, 3)))
-    widget = api.SurfaceWidget([connectivity])
+    widget = api.SurfaceWidgetBase([connectivity])
     assert widget.output_plot.total_actors == 1
     assert len(widget.plot_controls.children) == 1
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
-        api.SurfaceWidget(None)
+        api.SurfaceWidgetBase(None)
         assert len(caplog.records) == 0
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
-        api.SurfaceWidget([10])
+        api.SurfaceWidgetBase([10])
         assert caplog.records[0].levelname == 'WARNING'
         assert 'not supported' in caplog.text
 
-    widget = api.SurfaceWidget()
+    widget = api.SurfaceWidgetBase()
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):

@@ -84,7 +84,7 @@ class CustomOutput(ipywidgets.Output):
             self.plotter.show()
 
 
-class SurfaceWidget(ipywidgets.HBox, TVBWidget):
+class SurfaceWidgetBase(ipywidgets.HBox, TVBWidget):
 
     def __init__(self, datatypes=None):
         # type: (list[HasTraits]) -> None
@@ -259,8 +259,7 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
         return size_input,
 
 
-class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
-    # TODO: Keep this separate class?
+class SurfaceWidget(ipywidgets.VBox, TVBWidget):
 
     def __init__(self):
         self.storage_widget = StorageWidget()
@@ -271,7 +270,7 @@ class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
         self.buttons = ipywidgets.HBox([surface_button, sensors_button, connectivity_button],
                                        layout=ipywidgets.Layout(margin="0px 0px 0px 20px"))
         self.message_label = ipywidgets.HTML(layout=ipywidgets.Layout(height='25px'))
-        self.surface_widget = SurfaceWidget()
+        self.surface_widget = SurfaceWidgetBase()
 
         super().__init__([self.storage_widget, self.buttons, self.message_label, self.surface_widget], **{})
 
