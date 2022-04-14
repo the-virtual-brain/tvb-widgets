@@ -261,7 +261,7 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
 
 
 class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
-    # TODO: Keep this separate class? Handle other types of exceptions
+    # TODO: Keep this separate class?
 
     def __init__(self):
         self.storage_widget = StorageWidget()
@@ -309,6 +309,7 @@ class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
             self.validate_file(file_name, accepted_suffix)
         except InvalidFileException as e:
             msg = e.message
+            self.logger.error(f"{e}")
             return
         finally:
             self.message_label.value = msg
@@ -318,8 +319,13 @@ class SurfaceWidgetMenu(ipywidgets.VBox, TVBWidget):
         try:
             surface = load_method(content_bytes)
             self.add_datatype(surface)
-        except ReaderException:
-            msg = "The selected file does not contain all necessary data to load this data type!"
+        except ReaderException as e:
+            msg = "The selected file does not contain all necessary data to load this data type! Please check the logs!"
+            self.logger.error(f"{e}")
+            return
+        except Exception as e:
+            msg = "Could not load data from this file! Please check the logs!"
+            self.logger.error(f"{e}")
             return
         finally:
             self.message_label.value = msg
