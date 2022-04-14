@@ -10,7 +10,51 @@ import logging
 import numpy as np
 from ipywidgets import Checkbox
 from tvbwidgets.tests.ts_generator import generate_ts_with_mode_and_sv
-from tvbwidgets.ui.ts_widget import TimeSeriesWidget, WrapperTVB
+from tvbwidgets.ui.ts_widget import TimeSeriesWidget, WrapperTVB, WrapperNumpy
+
+
+# =========================================== TEST WRAPPER NUMPY =======================================================
+@pytest.fixture
+def wrapper_np():
+    """ Returns an initialized Numpy wrapper with 3 dimensions """
+    numpy_array = np.random.rand(30000, 4, 50)
+    wrapper_np = WrapperNumpy(numpy_array, 0.01, ch_idx=2)
+    return wrapper_np
+
+
+def test_data_shape_wrapper_np(wrapper_np):
+    assert wrapper_np.data_shape == (30000, 4, 50)
+
+
+def test_get_channel_info_wrapper_np(wrapper_np):
+    ch_names, ch_order, ch_type = wrapper_np.get_channels_info()
+    assert len(ch_names) == len(ch_order) == len(ch_type) == 50
+
+
+def test_get_ts_period_wrapper_np(wrapper_np):
+    assert wrapper_np.get_ts_period() == 3000000
+
+
+def test_get_sample_rate_wrapper_np(wrapper_np):
+    assert wrapper_np.get_ts_sample_rate() == 0.01
+
+
+def test_build_raw_wrapper_np(wrapper_np):
+    wrapper_np.get_channels_info()  # need to init ch_names for wrapper
+
+    raw = wrapper_np.build_raw()
+    data = wrapper_np.data[:, 0, :].squeeze()
+    data = np.swapaxes(data, 0, 1)
+
+    assert np.array_equal(raw.get_data(), data)
+
+
+def test_get_update_slice_wrapper_np(wrapper_np):
+    sel1 = 1
+    new_slice = wrapper_np.get_update_slice(sel1)
+    data_with_slice = wrapper_np.data[new_slice].squeeze()
+    new_data = wrapper_np.data[:, sel1, :]
+    assert np.array_equal(data_with_slice, new_data)
 
 
 # ============================================ TEST WRAPPER TVB ========================================================
@@ -106,7 +150,7 @@ def test_create_selection(tsw_tvb_data):
 
 
 def test_create_checkboxes(tsw_tvb_data):
-    tsw_tvb_data.data.get_channels_info()     # need to initialize ch_names for wrapper
+    tsw_tvb_data.data.get_channels_info()  # need to initialize ch_names for wrapper
     channels_area = tsw_tvb_data._create_checkboxes(tsw_tvb_data.data)
     assert len(tsw_tvb_data.checkboxes) == 76
     assert len(tsw_tvb_data.radio_buttons) == 2
