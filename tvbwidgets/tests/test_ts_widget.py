@@ -32,7 +32,7 @@ def test_get_channel_info_wrapper_np(wrapper_np):
 
 
 def test_get_ts_period_wrapper_np(wrapper_np):
-    assert wrapper_np.get_ts_period() == 3000000
+    assert wrapper_np.get_ts_period() == 300000
 
 
 def test_get_sample_rate_wrapper_np(wrapper_np):
