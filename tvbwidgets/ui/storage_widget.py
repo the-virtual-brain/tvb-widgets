@@ -18,7 +18,7 @@ class StorageWidget(ipywidgets.Tab, TVBWidget):
         tab3 = ipywidgets.VBox()
 
         super().__init__([tab1, tab2, tab3], selected_index=1,
-                         layout=ipywidgets.Layout(width='500px', height='250px'), **kwargs)
+                         layout=ipywidgets.Layout(width='550px', height='200px'), **kwargs)
 
         self.set_title(0, 'Current Selection')
         self.set_title(1, 'Drive')
@@ -26,14 +26,9 @@ class StorageWidget(ipywidgets.Tab, TVBWidget):
         # TODO uniform API for all tabs
         self.api = tab2
 
-    def get_file_content(self, file_name):
-        return self.api.get_file_content(file_name)
-
     def get_selected_file_content(self):
-        filename = self.api.get_selected_file()
-        file = self.api.get_fileobj(filename)
-        return file.get_content()
+        return self.api.get_selected_file_content()
 
     def get_selected_file_name(self):
-        filename = self.api.get_selected_file()
+        filename = self.api.get_selected_file_path()
         return filename
