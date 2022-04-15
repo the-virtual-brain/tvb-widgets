@@ -58,7 +58,7 @@ def test_get_update_slice_wrapper_np(wrapper_np):
 
 
 # ============================================ TEST WRAPPER TVB ========================================================
-@pytest.fixture
+@pytest.fixture(scope="module")
 def tsr_4d():
     """ Returns a TVB TS having SV and Mode """
     return generate_ts_with_mode_and_sv(length=1e3, cutoff=100)
