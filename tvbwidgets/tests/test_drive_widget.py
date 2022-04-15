@@ -6,6 +6,7 @@ from ebrains_drive.repo import Repo
 
 from tvbwidgets.core.auth import CLB_AUTH
 from tvbwidgets.ui.drive_widget import DriveWidget
+from tvbwidgets.ui.storage_widget import StorageWidget
 
 DUMMY_FILENAME = '/dummy_file.txt'
 DUMMY_DIR = '/dummy_dir'
@@ -97,3 +98,25 @@ def test_drive_widget(mocker):
 
     with pytest.raises(AttributeError):
         assert widget.get_selected_file_content()
+
+
+def test_storage_widget(mocker):
+    def mockk(token):
+        return MockDriveClient()
+
+    mocker.patch('ebrains_drive.connect', mockk)
+
+    if os.environ.get(CLB_AUTH):
+        os.environ.pop(CLB_AUTH)
+
+    with pytest.raises(RuntimeError):
+        StorageWidget()
+
+    os.environ[CLB_AUTH] = "test_auth_token"
+    widget = StorageWidget()
+
+    widget.api.repos_dropdown.value = widget.api.repos_dropdown.options[0][1]
+    widget.api.files_list.value = widget.api.files_list.options[1]
+
+    assert widget.get_selected_file_name() == DUMMY_FILENAME
+    assert widget.get_selected_file_content() == DUMMY_CONTENT
