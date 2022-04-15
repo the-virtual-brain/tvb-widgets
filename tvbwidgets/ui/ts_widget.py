@@ -23,7 +23,7 @@ class ABCDataWrapper(ABC):
     """ Wrap any TimeSeries for TSWidget to read/parse uniformly"""
     extra_dimensions = {1: ("State var.", None),
                         3: ("Mode", None)}
-    CHANNEL_TYPE = "bio"
+    CHANNEL_TYPE = "misc"
     MAX_DISPLAYED_TIMEPOINTS = 3000
 
     @property
