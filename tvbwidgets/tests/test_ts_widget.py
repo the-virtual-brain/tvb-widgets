@@ -27,7 +27,7 @@ def wrapper_tvb(tsr_4d):
 
 
 def test_data_shape_wrapper_tvb(wrapper_tvb):
-    assert wrapper_tvb.data_shape == (4096, 4, 76, 1)
+    assert wrapper_tvb.data_shape == (20000, 4, 76, 1)
 
 
 def test_get_channel_info_wrapper_tvb(wrapper_tvb):
@@ -36,7 +36,7 @@ def test_get_channel_info_wrapper_tvb(wrapper_tvb):
 
 
 def test_get_ts_period_wrapper_tvb(wrapper_tvb):
-    assert wrapper_tvb.get_ts_period() == 0.1024
+    assert wrapper_tvb.get_ts_period() == 0.5
 
 
 def test_get_sample_rate_wrapper_tvb(wrapper_tvb):
@@ -92,9 +92,9 @@ def test_populate_from_data_wrapper_tvb(tsw, wrapper_tvb):
 
     assert tsw.data == wrapper_tvb
     assert tsw.sample_freq == 4000
-    assert tsw.displayed_period == 0.1024
+    assert tsw.displayed_period == 0.5
     assert len(tsw.ch_names) == len(tsw.ch_order) == len(tsw.ch_types) == 76
-    assert tsw.raw.get_data().shape == (76, 4096)
+    assert tsw.raw.get_data().shape == (76, 20000)
 
 
 def test_create_selection(tsw_tvb_data):

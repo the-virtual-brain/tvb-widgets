@@ -90,7 +90,7 @@ class SurfaceWidget(ipywidgets.HBox, TVBWidget):
         self.surface_display_controls = VBox()
         vbox = VBox([self.surface_display_controls, self.output_plot])
 
-        super().__init__([self.plot_controls, vbox], **{})
+        super().__init__([self.plot_controls, vbox], layout=self.DEFAULT_BORDER)
 
         if datatypes is not None:
             if not isinstance(datatypes, list):
