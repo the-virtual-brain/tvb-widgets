@@ -6,12 +6,20 @@
 #
 
 import logging
+import os
 import numpy
+import pytest
+
 import tvbwidgets.api as api
 from tvb.datatypes.connectivity import Connectivity
 from tvb.datatypes.region_mapping import RegionMapping
-from tvb.datatypes.sensors import SensorsInternal
-from tvb.datatypes.surfaces import FaceSurface, CorticalSurface
+from tvb.datatypes.sensors import SensorsInternal, Sensors
+from tvb.datatypes.surfaces import FaceSurface, CorticalSurface, Surface
+
+from tvbwidgets.core.auth import CLB_AUTH
+from tvbwidgets.core.exceptions import InvalidFileException
+from tvbwidgets.tests.test_drive_widget import MockDriveClient
+from tvbwidgets.ui.surface_widget import SurfaceWidget
 
 NOT_SUPPORTED = 'not supported'
 
@@ -97,3 +105,39 @@ def test_add_datatype(caplog, mocker):
     assert 'reached the maximum' in caplog.text
 
     logger.propagate = False
+
+
+def test_surface_widget(mocker):
+    def mockk(token):
+        return MockDriveClient()
+
+    mocker.patch('ebrains_drive.connect', mockk)
+
+    if os.environ.get(CLB_AUTH):
+        os.environ.pop(CLB_AUTH)
+
+    with pytest.raises(RuntimeError):
+        SurfaceWidget()
+
+    os.environ[CLB_AUTH] = "test_auth_token"
+    widget = SurfaceWidget()
+
+    assert len(widget.buttons.children) == 3
+
+    with pytest.raises(InvalidFileException):
+        widget._SurfaceWidget__validate_file(None, None)
+
+    with pytest.raises(InvalidFileException):
+        widget._SurfaceWidget__validate_file('abc.txt', '.zip')
+
+    widget._SurfaceWidget__display_message('ABC')
+    assert widget.message_label.value == SurfaceWidget.MSG_TEMPLATE.format('ABC', SurfaceWidget.MSG_COLOR)
+
+    widget.storage_widget.api.repos_dropdown.value = widget.storage_widget.api.repos_dropdown.options[0][1]
+    widget.storage_widget.api.files_list.value = widget.storage_widget.api.files_list.options[1]
+
+    widget._SurfaceWidget__load_selected_file(Surface)
+    assert 'Only .zip' in widget.message_label.value
+
+    widget._SurfaceWidget__load_selected_file(Sensors, '.txt')
+    assert 'Could not load' in widget.message_label.value

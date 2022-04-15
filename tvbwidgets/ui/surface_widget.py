@@ -260,6 +260,8 @@ class SurfaceWidgetBase(ipywidgets.HBox, TVBWidget):
 
 
 class SurfaceWidget(ipywidgets.VBox, TVBWidget):
+    MSG_TEMPLATE = '<span style="color:{1};">{0}</span>'
+    MSG_COLOR = 'red'
 
     def __init__(self):
         self.storage_widget = StorageWidget()
@@ -292,8 +294,7 @@ class SurfaceWidget(ipywidgets.VBox, TVBWidget):
         self.surface_widget.add_datatype(datatype, config)
 
     def __display_message(self, msg):
-        label_template = '<span style="color:{1};">{0}</span>'
-        self.message_label.value = label_template.format(msg, 'red')
+        self.message_label.value = self.MSG_TEMPLATE.format(msg, self.MSG_COLOR)
 
     def __validate_file(self, file_name, accepted_suffix):
         if file_name is None:
