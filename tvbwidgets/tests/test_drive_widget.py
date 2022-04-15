@@ -4,6 +4,7 @@ import pytest
 from ebrains_drive.files import SeafFile, SeafDir
 from ebrains_drive.repo import Repo
 
+from tvbwidgets.core.auth import CLB_AUTH
 from tvbwidgets.ui.drive_widget import DriveWidget
 
 DUMMY_FILENAME = '/dummy_file.txt'
@@ -66,10 +67,13 @@ def test_drive_widget(mocker):
 
     mocker.patch('ebrains_drive.connect', mockk)
 
+    if os.environ.get(CLB_AUTH):
+        os.environ.pop(CLB_AUTH)
+
     with pytest.raises(RuntimeError):
         DriveWidget()
 
-    os.environ['CLB_AUTH'] = "test_auth_token"
+    os.environ[CLB_AUTH] = "test_auth_token"
     widget = DriveWidget()
 
     assert widget.get_chosen_repo() is None
