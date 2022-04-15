@@ -23,6 +23,7 @@ class ABCDataWrapper(ABC):
     """ Wrap any TimeSeries for TSWidget to read/parse uniformly"""
     extra_dimensions = {1: ("State var.", None),
                         3: ("Mode", None)}
+    CHANNEL_TYPE = "bio"
 
     @property
     def data_shape(self):
@@ -87,7 +88,7 @@ class WrapperTVB(ABCDataWrapper):
             ch_names = ['signal-%d' % i for i in range(no_channels)]
 
         ch_order = list(range(no_channels))  # the order should be the order in which they are provided
-        ch_types = ['misc' for _ in ch_names]
+        ch_types = [self.CHANNEL_TYPE for _ in ch_names]
         self.ch_names = ch_names
         return ch_names, ch_order, ch_types
 
@@ -146,7 +147,7 @@ class WrapperNumpy(ABCDataWrapper):
         if (self.ch_names is None) or len(self.ch_names) != no_channels:
             self.ch_names = ['signal-%d' % i for i in range(no_channels)]
         ch_order = list(range(no_channels))  # the order should be the order in which they are provided
-        ch_types = ['misc' for _ in self.ch_names]
+        ch_types = [self.CHANNEL_TYPE for _ in self.ch_names]
         return self.ch_names, ch_order, ch_types
 
     def get_ts_period(self):
