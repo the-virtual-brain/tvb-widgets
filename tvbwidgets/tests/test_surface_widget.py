@@ -13,6 +13,8 @@ from tvb.datatypes.region_mapping import RegionMapping
 from tvb.datatypes.sensors import SensorsInternal
 from tvb.datatypes.surfaces import FaceSurface, CorticalSurface
 
+NOT_SUPPORTED = 'not supported'
+
 
 def test_add_datatype(caplog, mocker):
     def mock_update_plot(self):
@@ -36,9 +38,15 @@ def test_add_datatype(caplog, mocker):
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
+        api.SurfaceWidgetBase('abc')
+        assert caplog.records[0].levelname == 'WARNING'
+        assert NOT_SUPPORTED in caplog.text
+
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG):
         api.SurfaceWidgetBase([10])
         assert caplog.records[0].levelname == 'WARNING'
-        assert 'not supported' in caplog.text
+        assert NOT_SUPPORTED in caplog.text
 
     widget = api.SurfaceWidgetBase()
 
@@ -56,7 +64,7 @@ def test_add_datatype(caplog, mocker):
     caplog.clear()
     widget.add_datatype(10)
     assert caplog.records[0].levelname == 'WARNING'
-    assert 'not supported' in caplog.text
+    assert NOT_SUPPORTED in caplog.text
 
     widget.add_datatype(connectivity)
     assert widget.output_plot.total_actors == 1
