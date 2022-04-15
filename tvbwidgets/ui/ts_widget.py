@@ -23,7 +23,7 @@ class ABCDataWrapper(ABC):
     """ Wrap any TimeSeries for TSWidget to read/parse uniformly"""
     extra_dimensions = {1: ("State var.", None),
                         3: ("Mode", None)}
-    CHANNEL_TYPE = "bio"
+    CHANNEL_TYPE = "misc"
     MAX_DISPLAYED_TIMEPOINTS = 3000
 
     @property
@@ -95,9 +95,7 @@ class WrapperTVB(ABCDataWrapper):
 
     def get_ts_period(self):
         # type: () -> float
-        time_points = self.data_shape[0]
-        displayed_time_points = time_points if time_points < ABCDataWrapper.MAX_DISPLAYED_TIMEPOINTS \
-            else ABCDataWrapper.MAX_DISPLAYED_TIMEPOINTS
+        displayed_time_points = min(self.data_shape[0], self.MAX_DISPLAYED_TIMEPOINTS)
         displayed_period = self.data.sample_period * displayed_time_points
         return displayed_period
 
@@ -157,9 +155,7 @@ class WrapperNumpy(ABCDataWrapper):
     def get_ts_period(self):
         # type: () -> float
         sample_period = 1 / self.sample_rate
-        time_points = self.data.shape[0]
-        displayed_time_points = time_points if time_points < ABCDataWrapper.MAX_DISPLAYED_TIMEPOINTS \
-            else ABCDataWrapper.MAX_DISPLAYED_TIMEPOINTS
+        displayed_time_points = min(self.data.shape[0], self.MAX_DISPLAYED_TIMEPOINTS)
         displayed_period = sample_period * displayed_time_points
         return displayed_period
 
