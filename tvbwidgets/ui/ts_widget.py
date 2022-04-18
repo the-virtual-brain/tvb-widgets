@@ -118,6 +118,12 @@ class WrapperTVB(ABCDataWrapper):
         new_slice = (slice(None), slice(sel1, sel1 + 1), slice(None), slice(sel2, sel2 + 1))
         return new_slice
 
+    def get_slice_for_timepoint(self, timepoint, channel, sel1=0, sel2=0):
+        # type: (int, int) -> tuple
+        new_slice = (
+        slice(timepoint, timepoint + 1), slice(sel1, sel1 + 1), slice(channel, channel + 1), slice(sel2, sel2 + 1))
+        return new_slice
+
 
 class WrapperNumpy(ABCDataWrapper):
     """ Wrap a numpy array for tsWidget """
@@ -203,11 +209,12 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.sample_freq = 0
 
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
+        self.annotation_area = self._create_annotation_area()
         self.instr_area = self._create_instructions_region()
         self.title_area = widgets.HBox(children=[self.instr_area])
 
         self.checkboxes = dict()
-        super().__init__([self.output, self.title_area], layout=self.DEFAULT_BORDER)
+        super().__init__([self.output, self.annotation_area, self.title_area], layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget initialized")
 
     def add_datatype(self, ts_tvb):
@@ -234,6 +241,14 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         # type: (np.array, float, int) -> None
         data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
         self._populate_from_data_wrapper(data_wrapper)
+
+    # ======================================== CHANNEL VALUE AREA ======================================================
+    @staticmethod
+    def _create_annotation_area():
+        title_label = widgets.Label(value='Channel(s) value:')
+        annot_area = widgets.VBox(children=[title_label],
+                                  layout=widgets.Layout(height='100px'))
+        return annot_area
 
     # ===================================== INSTRUCTIONS DROPDOWN ======================================================
     @staticmethod
@@ -269,6 +284,33 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                 if not cb.value:
                     cb.value = True
 
+        def hover(event):
+            self.annotation_area.children = [self.annotation_area.children[0]]
+            values = []
+            x = event.xdata
+            lines = self.fig.mne.traces
+            displayed_timepoints = min(self.data.data.shape[0], ABCDataWrapper.MAX_DISPLAYED_TIMEPOINTS)
+            time_per_tp = self.data.get_ts_period() / displayed_timepoints  # time unit displayed in 1 time point
+            if event.inaxes == self.fig.mne.ax_main:
+                for line in lines:
+                    if line.contains(event)[0]:
+                        line_index = lines.index(line)  # index among displayed channels, not all channels!
+                        ch_index = self.fig.mne.picks[line_index]  # actual channel index
+                        ch_name = self.fig.mne.ch_names[ch_index]
+                        tp_on_hover = round(x / time_per_tp)  # the timepoint we are hovering over
+
+                        sel1 = self.radio_buttons[0].value
+                        sel2 = self.radio_buttons[1].value if self.radio_buttons[1] else None
+                        new_slice = self.data.get_slice_for_timepoint(tp_on_hover, ch_index, sel1, sel2)
+
+                        ch_value = self.data.data.data[new_slice].squeeze().item(0)
+                        ch_value = round(ch_value, 4)
+                        val = f'Value of channel {ch_name} is: {ch_value}'
+                        values.append(val)
+                for v in values:
+                    val_label = widgets.Label(value=v)
+                    self.annotation_area.children += (val_label,)
+
         # display the plot
         with plt.ioff():
             # create the plot
@@ -283,6 +325,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             # add custom widget handling on keyboard and mouse events
             self.fig.canvas.mpl_connect('key_press_event', update_on_plot_interaction)
             self.fig.canvas.mpl_connect('button_press_event', update_on_plot_interaction)
+            self.fig.canvas.mpl_connect("motion_notify_event", hover)
 
             with self.output:
                 display(self.fig.canvas)
@@ -330,7 +373,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             if extra_area is not None:
                 actions.append(extra_area)
 
-        channels_region = widgets.VBox(children=[checkboxes_region, widgets.HBox(actions)])
+        channels_region = widgets.VBox(children=[widgets.HBox(actions), checkboxes_region])
         channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
                                           layout=widgets.Layout(width='50%'))
         channels_area.set_title(0, 'Channels')
