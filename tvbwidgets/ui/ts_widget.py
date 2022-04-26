@@ -297,9 +297,9 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
     # ======================================== CHANNEL VALUE AREA ======================================================
     def _create_annotation_area(self):
-        title_label = widgets.Label(value='Channel(s) value:')
+        title_label = widgets.Label(value='Channel values:')
         self.channel_val_area = widgets.VBox()
-        annot_area = widgets.VBox(children=[title_label, self.channel_val_area], layout=widgets.Layout(height='100px'))
+        annot_area = widgets.HBox(children=[title_label, self.channel_val_area], layout=widgets.Layout(height='100px'))
         return annot_area
 
     # ===================================== INSTRUCTIONS DROPDOWN ======================================================
@@ -351,7 +351,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                         ch_name = self.fig.mne.ch_names[ch_index]
 
                         ch_value = self.data.get_hover_channel_value(x, ch_index, sel1, sel2)
-                        label_val = f'Value of channel {ch_name} is: {ch_value}'
+                        label_val = f'{ch_name}: {ch_value}'
                         values.append(label_val)
                 for v in values:
                     val_label = widgets.Label(value=v)
@@ -485,6 +485,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             else:
                 not_picked.append(ch_number)
 
+        # for unselect all
         if not picks:
             self.fig.mne.picks = picks
             self.fig.mne.n_channels = 0
@@ -511,7 +512,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         ch_start_index = ch_order_filtered.index(ch_start_number)
 
         new_picks = np.array(ch_order_filtered[ch_start_index:(ch_start_index + self.fig.mne.n_channels)])
-        self.fig.mne.n_channels = len(new_picks)
+        self.fig.mne.n_channels = len(new_picks) # needed for WID-66
         self.fig.mne.picks = new_picks
         ch_start_index = list(self.fig.mne.ch_order).index(new_picks[0])
         self.fig.mne.ch_start = ch_start_index
