@@ -498,7 +498,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         else:
             self.fig.mne.n_channels = self.no_channels
 
-        # order list of checked channels according to self.fig.mne.ch_order
+        # order list of checked channels according to ordering rule (self.fig.mne.ch_order)
         ch_order_filtered = [x for x in self.fig.mne.ch_order if x not in not_picked]
 
         ch_start = self.fig.mne.ch_start
@@ -511,6 +511,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         ch_start_index = ch_order_filtered.index(ch_start_number)
 
         new_picks = np.array(ch_order_filtered[ch_start_index:(ch_start_index + self.fig.mne.n_channels)])
+        self.fig.mne.n_channels = len(new_picks)
         self.fig.mne.picks = new_picks
         ch_start_index = list(self.fig.mne.ch_order).index(new_picks[0])
         self.fig.mne.ch_start = ch_start_index
