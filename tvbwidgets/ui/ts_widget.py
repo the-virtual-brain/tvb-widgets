@@ -31,6 +31,11 @@ class ABCDataWrapper(ABC):
         # type: () -> tuple
         return ()
 
+    @property
+    def displayed_time_points(self):
+        # type: () -> int
+        return min(self.data_shape[0], self.MAX_DISPLAYED_TIMEPOINTS)
+
     @abstractmethod
     def get_channels_info(self):
         # type: () -> (list, list, list)
@@ -54,6 +59,16 @@ class ABCDataWrapper(ABC):
     @abstractmethod
     def get_update_slice(self, sel1, sel2):
         # type: (int, int) -> tuple
+        pass
+
+    @abstractmethod
+    def get_slice_for_time_point(self, time_point, channel, sel1=0, sel2=0):
+        # type: (int, int, int, int) -> tuple
+        pass
+
+    @abstractmethod
+    def get_hover_channel_value(self, x, ch_index, sel1, sel2):
+        # type: (float, int, int, int) -> float
         pass
 
 
@@ -95,8 +110,7 @@ class WrapperTVB(ABCDataWrapper):
 
     def get_ts_period(self):
         # type: () -> float
-        displayed_time_points = min(self.data_shape[0], self.MAX_DISPLAYED_TIMEPOINTS)
-        displayed_period = self.data.sample_period * displayed_time_points
+        displayed_period = self.data.sample_period * self.displayed_time_points
         return displayed_period
 
     def get_ts_sample_rate(self):
@@ -117,6 +131,25 @@ class WrapperTVB(ABCDataWrapper):
         # type: (int, int) -> tuple
         new_slice = (slice(None), slice(sel1, sel1 + 1), slice(None), slice(sel2, sel2 + 1))
         return new_slice
+
+    def get_slice_for_time_point(self, time_point, channel, sel1=0, sel2=0):
+        # type: (int, int, int, int) -> tuple
+        new_slice = (slice(time_point, time_point + 1), slice(sel1, sel1 + 1),
+                     slice(channel, channel + 1), slice(sel2, sel2 + 1))
+        return new_slice
+
+    def get_hover_channel_value(self, x, ch_index, sel1, sel2):
+        # type: (float, int, int, int) -> float
+        time_per_tp = self.get_ts_period() / self.displayed_time_points  # time unit displayed in 1 time point
+
+        # which time point to search in the time points array
+        tp_on_hover = round((x - self.data.start_time) / time_per_tp)
+        new_slice = self.get_slice_for_time_point(tp_on_hover, ch_index, sel1, sel2)
+
+        ch_value = self.data.data[new_slice].squeeze().item(0)
+        ch_value = round(ch_value, 4)
+
+        return ch_value
 
 
 class WrapperNumpy(ABCDataWrapper):
@@ -155,8 +188,7 @@ class WrapperNumpy(ABCDataWrapper):
     def get_ts_period(self):
         # type: () -> float
         sample_period = 1 / self.sample_rate
-        displayed_time_points = min(self.data.shape[0], self.MAX_DISPLAYED_TIMEPOINTS)
-        displayed_period = sample_period * displayed_time_points
+        displayed_period = sample_period * self.displayed_time_points
         return displayed_period
 
     def get_ts_sample_rate(self):
@@ -186,6 +218,33 @@ class WrapperNumpy(ABCDataWrapper):
         new_slice = dim_to_slice_dict[no_dim]
         return new_slice
 
+    def get_slice_for_time_point(self, time_point, channel, sel1=0, sel2=0):
+        # type: (int, int, int, int) -> tuple
+        sel1 = sel1 if sel1 is not None else 0
+        sel2 = sel2 if sel2 is not None else 0
+        no_dim = len(self.data_shape)
+        dim_to_slice_dict = {
+            2: (slice(time_point, time_point + 1), slice(channel, channel + 1)),
+            3: (slice(time_point, time_point + 1), slice(sel1, sel1 + 1), slice(channel, channel + 1)),
+            4: (slice(time_point, time_point + 1), slice(sel1, sel1 + 1),
+                slice(channel, channel + 1), slice(sel2, sel2 + 1))
+        }
+        new_slice = dim_to_slice_dict[no_dim]
+        return new_slice
+
+    def get_hover_channel_value(self, x, ch_index, sel1, sel2):
+        # type: (float, int, int, int) -> float
+        time_per_tp = self.get_ts_period() / self.displayed_time_points  # time unit displayed in 1 time point
+
+        # which time point to search in the time points array
+        tp_on_hover = round(x / time_per_tp)
+        new_slice = self.get_slice_for_time_point(tp_on_hover, ch_index, sel1, sel2)
+
+        ch_value = self.data[new_slice].squeeze().item(0)
+        ch_value = round(ch_value, 4)
+
+        return ch_value
+
 
 class TimeSeriesWidget(widgets.VBox, TVBWidget):
     """ Actual TimeSeries Widget """
@@ -203,11 +262,12 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.sample_freq = 0
 
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
-        self.instr_area = self._create_instructions_region()
-        self.title_area = widgets.HBox(children=[self.instr_area])
+        annotation_area = self._create_annotation_area()
+        instr_area = self._create_instructions_region()
+        self.title_area = widgets.HBox(children=[instr_area])
 
         self.checkboxes = dict()
-        super().__init__([self.output, self.title_area], layout=self.DEFAULT_BORDER)
+        super().__init__([self.output, annotation_area, self.title_area], layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget initialized")
 
     def add_datatype(self, ts_tvb):
@@ -234,6 +294,14 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         # type: (np.array, float, int) -> None
         data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
         self._populate_from_data_wrapper(data_wrapper)
+
+    # ======================================== CHANNEL VALUE AREA ======================================================
+    def _create_annotation_area(self):
+        title_label = widgets.Label(value='Channel values:')
+        self.channel_val_area = widgets.VBox()
+        annot_area = widgets.HBox(children=[title_label, self.channel_val_area], layout={'height': '70px',
+                                                                                         'padding': '0 0 0 100px'})
+        return annot_area
 
     # ===================================== INSTRUCTIONS DROPDOWN ======================================================
     @staticmethod
@@ -269,6 +337,27 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                 if not cb.value:
                     cb.value = True
 
+        def hover(event):
+            self.channel_val_area.children = []
+
+            values = []  # list of label values for channels we are hovering over
+            x = event.xdata  # time unit (s, ms) we are hovering over
+            lines = self.fig.mne.traces  # all currently visible channels
+            sel1, sel2 = self._get_selection_values()
+            if event.inaxes == self.fig.mne.ax_main:
+                for line in lines:
+                    if line.contains(event)[0]:
+                        line_index = lines.index(line)  # channel index among displayed channels
+                        ch_index = self.fig.mne.picks[line_index]  # channel index among all channels
+                        ch_name = self.fig.mne.ch_names[ch_index]
+
+                        ch_value = self.data.get_hover_channel_value(x, ch_index, sel1, sel2)
+                        label_val = f'{ch_name}: {ch_value}'
+                        values.append(label_val)
+                for v in values:
+                    val_label = widgets.Label(value=v)
+                    self.channel_val_area.children += (val_label,)
+
         # display the plot
         with plt.ioff():
             # create the plot
@@ -283,6 +372,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             # add custom widget handling on keyboard and mouse events
             self.fig.canvas.mpl_connect('key_press_event', update_on_plot_interaction)
             self.fig.canvas.mpl_connect('button_press_event', update_on_plot_interaction)
+            self.fig.canvas.mpl_connect("motion_notify_event", hover)
 
             with self.output:
                 display(self.fig.canvas)
@@ -330,7 +420,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             if extra_area is not None:
                 actions.append(extra_area)
 
-        channels_region = widgets.VBox(children=[checkboxes_region, widgets.HBox(actions)])
+        channels_region = widgets.VBox(children=[widgets.HBox(actions), checkboxes_region])
         channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
                                           layout=widgets.Layout(width='50%'))
         channels_area.set_title(0, 'Channels')
@@ -350,10 +440,14 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         accordion.set_title(0, title)
         return accordion, sel_radio_btn
 
+    def _get_selection_values(self):
+        sel1 = self.radio_buttons[0].value if self.radio_buttons[0] else None
+        sel2 = self.radio_buttons[1].value if self.radio_buttons[1] else None
+        return sel1, sel2
+
     def _dimensions_selection_update(self, _):
         # update self.raw and linked parts
-        sel1 = self.radio_buttons[0].value
-        sel2 = self.radio_buttons[1].value if self.radio_buttons[1] else None  # condition needed for 3d-arrays
+        sel1, sel2 = self._get_selection_values()
         new_slice = self.data.get_update_slice(sel1, sel2)
         self.logger.info("New slice " + str(new_slice))
         self.raw = self.data.build_raw(new_slice)
@@ -392,6 +486,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             else:
                 not_picked.append(ch_number)
 
+        # for unselect all
         if not picks:
             self.fig.mne.picks = picks
             self.fig.mne.n_channels = 0
@@ -405,7 +500,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         else:
             self.fig.mne.n_channels = self.no_channels
 
-        # order list of checked channels according to self.fig.mne.ch_order
+        # order list of checked channels according to ordering rule (self.fig.mne.ch_order)
         ch_order_filtered = [x for x in self.fig.mne.ch_order if x not in not_picked]
 
         ch_start = self.fig.mne.ch_start
@@ -418,6 +513,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         ch_start_index = ch_order_filtered.index(ch_start_number)
 
         new_picks = np.array(ch_order_filtered[ch_start_index:(ch_start_index + self.fig.mne.n_channels)])
+        self.fig.mne.n_channels = len(new_picks)  # needed for WID-66
         self.fig.mne.picks = new_picks
         ch_start_index = list(self.fig.mne.ch_order).index(new_picks[0])
         self.fig.mne.ch_start = ch_start_index
