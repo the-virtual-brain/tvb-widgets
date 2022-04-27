@@ -57,6 +57,20 @@ def test_get_update_slice_wrapper_np(wrapper_np):
     assert np.array_equal(data_with_slice, new_data)
 
 
+def test_get_hover_channel_value_wrapper_np(wrapper_np):
+    time_per_tp = 100
+    x = 2999900
+    x_int = round(x / time_per_tp)
+    ch_index = 0
+    sel1 = 0
+
+    ch_value = wrapper_np.get_hover_channel_value(x, ch_index, sel1, None)
+    val = wrapper_np.data[x_int, sel1, ch_index]
+    val = round(val, 4)
+
+    assert ch_value == val
+
+
 # ============================================ TEST WRAPPER TVB ========================================================
 @pytest.fixture(scope="module")
 def tsr_4d():
@@ -76,6 +90,7 @@ def test_build_wrapper_tvb(wrapper_tvb):
     ch_names, ch_order, ch_type = wrapper_tvb.get_channels_info()
     assert len(ch_names) == len(ch_order) == len(ch_type) == 76
 
+    assert wrapper_tvb.displayed_time_points == 3000
     assert wrapper_tvb.get_ts_period() == 0.75
     assert wrapper_tvb.get_ts_sample_rate() == 4000
 
@@ -94,6 +109,22 @@ def test_get_update_slice_wrapper_tvb(wrapper_tvb):
     new_data = wrapper_tvb.data.data[:, sel1, :, sel2]
 
     assert np.array_equal(data_with_slice, new_data)
+
+
+def test_get_hover_channel_value_wrapper_tvb(wrapper_tvb):
+    start_time = 0.100125
+    time_per_tp = 0.00025
+
+    x = 1.099
+    x_int = round((x - start_time) / time_per_tp)
+    ch_index = 6
+    sel1 = 0
+    sel2 = 0
+
+    ch_value = wrapper_tvb.get_hover_channel_value(x, ch_index, sel1, sel2)
+    val = wrapper_tvb.data.data[x_int, sel1, ch_index, sel2]
+    val = round(val, 4)
+    assert ch_value == val
 
 
 # ============================================= TEST TS WIDGET =========================================================
