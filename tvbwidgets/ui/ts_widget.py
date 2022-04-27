@@ -224,10 +224,10 @@ class WrapperNumpy(ABCDataWrapper):
         sel2 = sel2 if sel2 is not None else 0
         no_dim = len(self.data_shape)
         dim_to_slice_dict = {
-            2: (slice(time_point, time_point+1), slice(channel, channel+1)),
-            3: (slice(time_point, time_point+1), slice(sel1, sel1 + 1), slice(channel, channel+1)),
-            4: (slice(time_point, time_point+1), slice(sel1, sel1 + 1),
-                slice(channel, channel+1), slice(sel2, sel2 + 1))
+            2: (slice(time_point, time_point + 1), slice(channel, channel + 1)),
+            3: (slice(time_point, time_point + 1), slice(sel1, sel1 + 1), slice(channel, channel + 1)),
+            4: (slice(time_point, time_point + 1), slice(sel1, sel1 + 1),
+                slice(channel, channel + 1), slice(sel2, sel2 + 1))
         }
         new_slice = dim_to_slice_dict[no_dim]
         return new_slice
@@ -262,12 +262,12 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.sample_freq = 0
 
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
-        self.annotation_area = self._create_annotation_area()
-        self.instr_area = self._create_instructions_region()
-        self.title_area = widgets.HBox(children=[self.instr_area])
+        annotation_area = self._create_annotation_area()
+        instr_area = self._create_instructions_region()
+        self.title_area = widgets.HBox(children=[instr_area])
 
         self.checkboxes = dict()
-        super().__init__([self.output, self.annotation_area, self.title_area], layout=self.DEFAULT_BORDER)
+        super().__init__([self.output, annotation_area, self.title_area], layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget initialized")
 
     def add_datatype(self, ts_tvb):
@@ -299,7 +299,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def _create_annotation_area(self):
         title_label = widgets.Label(value='Channel values:')
         self.channel_val_area = widgets.VBox()
-        annot_area = widgets.HBox(children=[title_label, self.channel_val_area], layout=widgets.Layout(height='100px'))
+        annot_area = widgets.HBox(children=[title_label, self.channel_val_area], layout={'height': '70px',
+                                                                                         'padding': '0 0 0 100px'})
         return annot_area
 
     # ===================================== INSTRUCTIONS DROPDOWN ======================================================
@@ -355,7 +356,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                         values.append(label_val)
                 for v in values:
                     val_label = widgets.Label(value=v)
-                    self.channel_val_area.children +=(val_label,)
+                    self.channel_val_area.children += (val_label,)
 
         # display the plot
         with plt.ioff():
@@ -512,7 +513,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         ch_start_index = ch_order_filtered.index(ch_start_number)
 
         new_picks = np.array(ch_order_filtered[ch_start_index:(ch_start_index + self.fig.mne.n_channels)])
-        self.fig.mne.n_channels = len(new_picks) # needed for WID-66
+        self.fig.mne.n_channels = len(new_picks)  # needed for WID-66
         self.fig.mne.picks = new_picks
         ch_start_index = list(self.fig.mne.ch_order).index(new_picks[0])
         self.fig.mne.ch_start = ch_start_index
