@@ -9,100 +9,87 @@ import os
 import ipywidgets
 import ebrains_drive
 from ebrains_drive.exceptions import DoesNotExist
+
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
 class DriveWidget(ipywidgets.VBox, TVBWidget):
-    ROOT = "/"
+    ROOT = '/'
+    PARENT_DIR = '..'
+    DIR_ICON = '\U0001F4C1'
 
     def __init__(self, **kwargs):
         bearer_token = get_current_token()
         self.client = ebrains_drive.connect(token=bearer_token)
 
-        repos_label = ipywidgets.Label("Repository")
         all_repos = self.client.repos.list_repos()
         dropdown_options = [(repo.name, repo) for repo in all_repos]
-        self.repos_dropdown = ipywidgets.Dropdown(options=dropdown_options)
 
-        dirs_label = ipywidgets.Label("Directories in repository")
-        self.dirs_dropdown = ipywidgets.Dropdown()
+        layout = ipywidgets.Layout(width='400px')
+        self.repos_dropdown = ipywidgets.Dropdown(description='Repository', value=None, options=dropdown_options,
+                                                  layout=layout)
+        self.files_list = ipywidgets.Select(description='Files', value=None, disabled=False, layout=layout)
 
-        files_label = ipywidgets.Label("Files in folder")
-        self.files_list = ipywidgets.Textarea(disabled=True,
-                                              layout={'width': '300',
-                                                      'height': '200'})
+        self.repos_dropdown.observe(self.select_repo, names='value')
+        self.files_list.observe(self.select_dir, names='value')
 
-        self._update_dirs_for_chosen_repo()
+        self._parent_dir = None
+        self._map_names_to_files = dict()
 
-        def search_dirs(change):
-            if change['type'] == 'change' and change['name'] == 'value':
-                self._update_dirs_for_chosen_repo()
-
-        def search_files(change):
-            if change['type'] == 'change' and change['name'] == 'value':
-                self.update_files_for_chosen_repo()
-
-        self.repos_dropdown.observe(search_dirs)
-        self.dirs_dropdown.observe(search_files)
-
-        super().__init__([ipywidgets.HBox([repos_label, self.repos_dropdown]),
-                          ipywidgets.HBox([dirs_label, self.dirs_dropdown]),
-                          ipywidgets.HBox([files_label, self.files_list])], **kwargs)
+        super().__init__([self.repos_dropdown, self.files_list], **kwargs)
 
     def get_chosen_repo(self):
         return self.repos_dropdown.value
 
-    def get_chosen_dir(self):
-        return self.dirs_dropdown.value
+    def get_selected_file_path(self):
+        file = self._map_names_to_files.get(self.files_list.value)
+        if file is None:
+            return file
+        return file.path
 
-    def _update_dirs_for_chosen_repo(self):
+    def get_selected_file_content(self):
+        repo_obj = self.get_chosen_repo()
+        file_obj = repo_obj.get_file(self.get_selected_file_path())
+        return file_obj.get_content()
+
+    def select_repo(self, _):
+        self.update_files_for_chosen_dir(self.ROOT)
+
+    def select_dir(self, _):
+        current_selection = self._map_names_to_files.get(self.files_list.value)
+        if not current_selection or not current_selection.isdir:
+            return
+        self.update_files_for_chosen_dir(self.ROOT + current_selection.name)
+
+    def update_files_for_chosen_dir(self, selected_dir):
+        self.files_list.unobserve(self.select_dir, names='value')
+
         selected_repo = self.get_chosen_repo()
-        selected_dir = self.ROOT
-        dirs_list = [selected_dir]
-
-        try:
-            dir_obj = selected_repo.get_dir(selected_dir)
-            files_in_repository = dir_obj.ls(force_refresh=True)
-
-            for file in files_in_repository:
-                if hasattr(file, "entries"):
-                    dirs_list.append(os.path.join(selected_dir, file.name))
-        except DoesNotExist:
-            self.logger.error("Folder {} could not be accessed".format(selected_dir))
-
-        self.dirs_dropdown.options = dirs_list
-
-    def update_files_for_chosen_repo(self):
-        selected_repo = self.get_chosen_repo()
-        selected_dir = self.get_chosen_dir() or self.ROOT
         self.logger.debug("Update Files called with {} and {}".format(selected_repo, selected_dir))
-        files_list = []
-        self._gather_files(selected_repo, selected_dir, files_list)
-        self.files_list.value = '\n'.join(files_list)
+        self._gather_files(selected_repo, selected_dir)
+        self.files_list.options = list(self._map_names_to_files.keys())
+        self.files_list.value = None
 
-    def _gather_files(self, repo, sub_folder, files_list):
+        self.files_list.observe(self.select_dir, names='value')
+
+    def _gather_files(self, repo, sub_folder):
+        dir_icon = self.DIR_ICON
+        self._map_names_to_files = {self.PARENT_DIR: self._parent_dir}
+
         try:
             dir_obj = repo.get_dir(sub_folder)
+            self._parent_dir = repo.get_dir(os.path.dirname(dir_obj.path))
+
             files_in_repository = dir_obj.ls(force_refresh=True)
 
             for file in files_in_repository:
-                if hasattr(file, "entries"):
-                    self._gather_files(repo, self.ROOT + file.name, files_list)
-                else:
-                    files_list.append(os.path.join(sub_folder, file.name))
+                filename = file.name
+                if file.isdir:
+                    filename = dir_icon + filename
+                self._map_names_to_files.update({filename: file})
         except DoesNotExist:
             self.logger.error("Folder {} could not be accessed".format(sub_folder))
-
-    def get_file_content(self, filename):
-        chosen_repo = self.get_chosen_repo()
-        chosen_dir = self.dirs_dropdown.value
-
-        file_path = os.path.join(chosen_dir, filename)
-        ref_file = chosen_repo.get_file(file_path)
-        file_content = ref_file.get_content()
-
-        return file_content
 
 
 class DriveUploadWidget(ipywidgets.HBox, TVBWidget):

@@ -9,14 +9,14 @@ import os
 import pytest
 import tvbwidgets.api as api
 from ebrains_drive.exceptions import ClientHttpError
-from tvbwidgets.core.auth import get_current_token
+from tvbwidgets.core.auth import get_current_token, CLB_AUTH
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvb.simulator.lab import models, integrators
 
 
 def test_auth():
     token = "Bla-bla-42"
-    os.environ["CLB_AUTH"] = token
+    os.environ[CLB_AUTH] = token
     assert get_current_token() == token
 
 
