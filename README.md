@@ -15,6 +15,8 @@ possible. In order to support the usability of the showcases, as well as future
 EBRAINS workflows, we develop here a set of modular graphic solutions which 
 can be easily deployed in the EBRAINS Collaboratory within the JupyterLab. 
 
+This module is also documented in EBRAINS here: https://wiki.ebrains.eu/bin/view/Collabs/tvb-widgets
+
 These graphic user interface components enable:
  1. Easy setup of models and region specific or cohort simulations. This includes single simulations as well as parameter explorations.
  2. Selection of Data sources and their links to models. This will exploit the backend data access functionality to be developed new in TVB.
