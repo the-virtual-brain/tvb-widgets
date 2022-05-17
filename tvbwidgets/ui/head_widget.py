@@ -25,7 +25,7 @@ from tvbwidgets.ui.storage_widget import StorageWidget
 pyvista.set_jupyter_backend('pythreejs')
 
 
-class SurfaceWidgetConfig:
+class HeadWidgetConfig:
 
     def __init__(self, name='Actor', style='Surface', color='White', light=True, size=1500, cmap=None, scalars=None):
         self.name = name
@@ -44,7 +44,7 @@ class SurfaceWidgetConfig:
 
 
 class CustomOutput(ipywidgets.Output):
-    CONFIG = SurfaceWidgetConfig()
+    CONFIG = HeadWidgetConfig()
     MAX_ACTORS = 10
 
     def __init__(self, **kwargs):
@@ -84,7 +84,7 @@ class CustomOutput(ipywidgets.Output):
             self.plotter.show()
 
 
-class SurfaceWidgetBase(ipywidgets.HBox, TVBWidget):
+class HeadWidgetBase(ipywidgets.HBox, TVBWidget):
 
     def __init__(self, datatypes=None):
         # type: (list[HasTraits]) -> None
@@ -101,7 +101,7 @@ class SurfaceWidgetBase(ipywidgets.HBox, TVBWidget):
                     self.add_datatype(datatype)
 
     def add_datatype(self, datatype, config=None):
-        # type: (HasTraits, SurfaceWidgetConfig) -> None
+        # type: (HasTraits, HeadWidgetConfig) -> None
         if datatype is None:
             self.logger.info("The provided datatype is None!")
             return
@@ -138,9 +138,9 @@ class SurfaceWidgetBase(ipywidgets.HBox, TVBWidget):
             self.output_plot.update_plot()
 
     def __draw_mesh_actor(self, surface, config):
-        # type: (Surface, SurfaceWidgetConfig) -> None
+        # type: (Surface, HeadWidgetConfig) -> None
         if config is None:
-            config = SurfaceWidgetConfig(name='Surface')
+            config = HeadWidgetConfig(name='Surface')
 
         mesh = self.__prepare_mesh(surface)
         mesh_actor = self.output_plot.add_mesh(mesh, config)
@@ -154,9 +154,9 @@ class SurfaceWidgetBase(ipywidgets.HBox, TVBWidget):
         self.output_plot.update_plot()
 
     def __draw_connectivity_actor(self, connectivity, config):
-        # type: (Connectivity, SurfaceWidgetConfig) -> None
+        # type: (Connectivity, HeadWidgetConfig) -> None
         if config is None:
-            config = SurfaceWidgetConfig(color='Green')
+            config = HeadWidgetConfig(color='Green')
 
         conn_actor = self.output_plot.add_points(connectivity.centres, config)
         controls_vbox = self._prepare_generic_controls(conn_actor, config)
@@ -167,9 +167,9 @@ class SurfaceWidgetBase(ipywidgets.HBox, TVBWidget):
         self.output_plot.update_plot()
 
     def __draw_sensors_actor(self, sensors, config):
-        # type: (Sensors, SurfaceWidgetConfig) -> None
+        # type: (Sensors, HeadWidgetConfig) -> None
         if config is None:
-            config = SurfaceWidgetConfig(name='Sensors', color='Pink', size=1000)
+            config = HeadWidgetConfig(name='Sensors', color='Pink', size=1000)
 
         sensors_actor = self.output_plot.add_points(sensors.locations, config)
         controls_vbox = self._prepare_generic_controls(sensors_actor, config)
@@ -259,7 +259,7 @@ class SurfaceWidgetBase(ipywidgets.HBox, TVBWidget):
         return size_input,
 
 
-class SurfaceWidget(ipywidgets.VBox, TVBWidget):
+class HeadWidget(ipywidgets.VBox, TVBWidget):
     MSG_TEMPLATE = '<span style="color:{1};">{0}</span>'
     MSG_COLOR = 'red'
 
@@ -272,9 +272,9 @@ class SurfaceWidget(ipywidgets.VBox, TVBWidget):
         self.buttons = ipywidgets.HBox([surface_button, sensors_button, connectivity_button],
                                        layout=ipywidgets.Layout(margin="0px 0px 0px 20px"))
         self.message_label = ipywidgets.HTML(layout=ipywidgets.Layout(height='25px'))
-        self.surface_widget = SurfaceWidgetBase()
+        self.head_widget = HeadWidgetBase()
 
-        super().__init__([self.storage_widget, self.buttons, self.message_label, self.surface_widget], **{})
+        super().__init__([self.storage_widget, self.buttons, self.message_label, self.head_widget], **{})
 
         def add_surface_datatype(_):
             self.__load_selected_file(Surface)
@@ -290,8 +290,8 @@ class SurfaceWidget(ipywidgets.VBox, TVBWidget):
         connectivity_button.on_click(add_connectivity_datatype)
 
     def add_datatype(self, datatype, config=None):
-        # type: (HasTraits, SurfaceWidgetConfig) -> None
-        self.surface_widget.add_datatype(datatype, config)
+        # type: (HasTraits, HeadWidgetConfig) -> None
+        self.head_widget.add_datatype(datatype, config)
 
     def __display_message(self, msg):
         self.message_label.value = self.MSG_TEMPLATE.format(msg, self.MSG_COLOR)
