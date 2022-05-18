@@ -12,8 +12,9 @@ import numpy as np
 import math
 
 
-def generate_ts_with_stimulus(length=5e3, cutoff=1e3):
-    conn = connectivity.Connectivity.from_file()
+def generate_ts_with_stimulus(length=5e3, cutoff=1e3, conn=None):
+    if conn is None:
+        conn = _generate_connectivity(76)
 
     weighting = np.zeros((76,))
     weighting[[14, 52, 11, 49]] = 0.1
@@ -58,8 +59,9 @@ def generate_ts_with_stimulus(length=5e3, cutoff=1e3):
     return tsr
 
 
-def generate_ts_with_mode_and_sv(length=5e3, cutoff=500):
-    conn = connectivity.Connectivity.from_file()
+def generate_ts_with_mode_and_sv(length=5e3, cutoff=500, conn=None):
+    if conn is None:
+        conn = _generate_connectivity(76)
     jrm = models.JansenRit(mu=np.array([0.]), v0=np.array([6.]))
     monitor = monitors.TemporalAverage(period=2 ** -2)
 
@@ -91,3 +93,12 @@ def generate_ts_with_mode_and_sv(length=5e3, cutoff=500):
 
     tsr.configure()
     return tsr
+
+
+def _generate_connectivity(no_of_regions):
+    labels = np.array(['sig ' + str(i) for i in range(no_of_regions)])
+    conn = connectivity.Connectivity(centres=np.random.rand(no_of_regions, 3),
+                                     region_labels=labels,
+                                     weights=np.random.rand(no_of_regions, no_of_regions),
+                                     tract_lengths=np.random.rand(no_of_regions, no_of_regions))
+    return conn

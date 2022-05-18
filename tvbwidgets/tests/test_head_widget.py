@@ -19,7 +19,7 @@ from tvb.datatypes.surfaces import FaceSurface, CorticalSurface, Surface
 from tvbwidgets.core.auth import CLB_AUTH
 from tvbwidgets.core.exceptions import InvalidFileException
 from tvbwidgets.tests.test_drive_widget import MockDriveClient
-from tvbwidgets.ui.surface_widget import SurfaceWidget
+from tvbwidgets.ui.head_widget import HeadWidget
 
 NOT_SUPPORTED = 'not supported'
 
@@ -29,34 +29,34 @@ def test_add_datatype(caplog, mocker):
         """Mock plot drawing"""
         pass
 
-    mocker.patch('tvbwidgets.ui.surface_widget.CustomOutput.update_plot', mock_update_plot)
+    mocker.patch('tvbwidgets.ui.head_widget.CustomOutput.update_plot', mock_update_plot)
 
     logger = logging.getLogger('tvbwidgets')
     logger.propagate = True
 
     connectivity = Connectivity(centres=numpy.zeros((10, 3)))
-    widget = api.SurfaceWidgetBase([connectivity])
+    widget = api.HeadWidgetBase([connectivity])
     assert widget.output_plot.total_actors == 1
     assert len(widget.plot_controls.children) == 1
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
-        api.SurfaceWidgetBase(None)
+        api.HeadWidgetBase(None)
         assert len(caplog.records) == 0
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
-        api.SurfaceWidgetBase('abc')
+        api.HeadWidgetBase('abc')
         assert caplog.records[0].levelname == 'WARNING'
         assert NOT_SUPPORTED in caplog.text
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
-        api.SurfaceWidgetBase([10])
+        api.HeadWidgetBase([10])
         assert caplog.records[0].levelname == 'WARNING'
         assert NOT_SUPPORTED in caplog.text
 
-    widget = api.SurfaceWidgetBase()
+    widget = api.HeadWidgetBase()
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
@@ -90,7 +90,7 @@ def test_add_datatype(caplog, mocker):
 
     cortex = CorticalSurface(vertices=numpy.zeros((10, 3)), triangles=numpy.zeros((10, 3), dtype=int))
     reg_map = RegionMapping(array_data=numpy.zeros(10, dtype=int))
-    config = api.SurfaceWidgetConfig(name='Cortex')
+    config = api.HeadWidgetConfig(name='Cortex')
     config.add_region_mapping_as_cmap(reg_map)
     widget.add_datatype(cortex)
     assert widget.output_plot.total_actors == 4
@@ -107,7 +107,7 @@ def test_add_datatype(caplog, mocker):
     logger.propagate = False
 
 
-def test_surface_widget(mocker):
+def test_head_widget(mocker):
     def mockk(token):
         return MockDriveClient()
 
@@ -117,27 +117,27 @@ def test_surface_widget(mocker):
         os.environ.pop(CLB_AUTH)
 
     with pytest.raises(RuntimeError):
-        SurfaceWidget()
+        HeadWidget()
 
     os.environ[CLB_AUTH] = "test_auth_token"
-    widget = SurfaceWidget()
+    widget = HeadWidget()
 
     assert len(widget.buttons.children) == 3
 
     with pytest.raises(InvalidFileException):
-        widget._SurfaceWidget__validate_file(None, None)
+        widget._HeadWidget__validate_file(None, None)
 
     with pytest.raises(InvalidFileException):
-        widget._SurfaceWidget__validate_file('abc.txt', '.zip')
+        widget._HeadWidget__validate_file('abc.txt', '.zip')
 
-    widget._SurfaceWidget__display_message('ABC')
-    assert widget.message_label.value == SurfaceWidget.MSG_TEMPLATE.format('ABC', SurfaceWidget.MSG_COLOR)
+    widget._HeadWidget__display_message('ABC')
+    assert widget.message_label.value == HeadWidget.MSG_TEMPLATE.format('ABC', HeadWidget.MSG_COLOR)
 
     widget.storage_widget.api.repos_dropdown.value = widget.storage_widget.api.repos_dropdown.options[0][1]
     widget.storage_widget.api.files_list.value = widget.storage_widget.api.files_list.options[1]
 
-    widget._SurfaceWidget__load_selected_file(Surface)
+    widget._HeadWidget__load_selected_file(Surface)
     assert 'Only .zip' in widget.message_label.value
 
-    widget._SurfaceWidget__load_selected_file(Sensors, '.txt')
+    widget._HeadWidget__load_selected_file(Sensors, '.txt')
     assert 'Could not load' in widget.message_label.value
