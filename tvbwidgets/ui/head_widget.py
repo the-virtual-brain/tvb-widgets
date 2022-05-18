@@ -4,6 +4,7 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+import bz2
 
 import ipywidgets
 import numpy
@@ -280,7 +281,7 @@ class HeadWidget(ipywidgets.VBox, TVBWidget):
             self.__load_selected_file(Surface)
 
         def add_sensors_datatype(_):
-            self.__load_selected_file(Sensors, '.txt')
+            self.__load_selected_file(Sensors, ('.txt', '.txt.bz2'))
 
         def add_connectivity_datatype(_):
             self.__load_selected_file(Connectivity)
@@ -301,9 +302,10 @@ class HeadWidget(ipywidgets.VBox, TVBWidget):
             raise InvalidFileException("Please select a file!")
 
         if not file_name.endswith(accepted_suffix):
-            raise InvalidFileException(f"Only {accepted_suffix} files are supported for this data type!")
+            raise InvalidFileException(
+                f"Only {' or '.join(ext for ext in accepted_suffix)} files are supported for this data type!")
 
-    def __load_selected_file(self, datatype_cls, accepted_suffix='.zip'):
+    def __load_selected_file(self, datatype_cls, accepted_suffix=('.zip',)):
         file_name = self.storage_widget.get_selected_file_name()
         msg = ''
 
@@ -317,6 +319,11 @@ class HeadWidget(ipywidgets.VBox, TVBWidget):
             self.__display_message(msg)
 
         content_bytes = self.storage_widget.get_selected_file_content()
+
+        # TODO: this should move inside tvb-library in the next release
+        if file_name.endswith('.txt.bz2'):
+            decompressor = bz2.BZ2Decompressor()
+            content_bytes = decompressor.decompress(content_bytes)
 
         try:
             datatype = datatype_cls.from_bytes_stream(content_bytes)
