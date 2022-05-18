@@ -140,7 +140,7 @@ class HeadWidgetBase(ipywidgets.HBox, TVBWidget):
     def __draw_mesh_actor(self, surface, config):
         # type: (Surface, HeadWidgetConfig) -> None
         if config is None:
-            config = HeadWidgetConfig(name='Surface')
+            config = HeadWidgetConfig(name='Surface-' + str(surface.number_of_vertices))
 
         mesh = self.__prepare_mesh(surface)
         mesh_actor = self.output_plot.add_mesh(mesh, config)
@@ -156,7 +156,7 @@ class HeadWidgetBase(ipywidgets.HBox, TVBWidget):
     def __draw_connectivity_actor(self, connectivity, config):
         # type: (Connectivity, HeadWidgetConfig) -> None
         if config is None:
-            config = HeadWidgetConfig(color='Green')
+            config = HeadWidgetConfig(name='Connectivity-' + str(connectivity.number_of_regions), color='Green')
 
         conn_actor = self.output_plot.add_points(connectivity.centres, config)
         controls_vbox = self._prepare_generic_controls(conn_actor, config)
@@ -169,7 +169,7 @@ class HeadWidgetBase(ipywidgets.HBox, TVBWidget):
     def __draw_sensors_actor(self, sensors, config):
         # type: (Sensors, HeadWidgetConfig) -> None
         if config is None:
-            config = HeadWidgetConfig(name='Sensors', color='Pink', size=1000)
+            config = HeadWidgetConfig(name='Sensors-' + str(sensors.number_of_sensors), color='Pink', size=1000)
 
         sensors_actor = self.output_plot.add_points(sensors.locations, config)
         controls_vbox = self._prepare_generic_controls(sensors_actor, config)
