@@ -15,6 +15,8 @@ LOGGER = get_logger(__name__)
 
 def get_current_token():
     try:
+        from clb_nb_utils import oauth as clb_oauth
+
         bearer_token = clb_oauth.get_token()
         return bearer_token
 
