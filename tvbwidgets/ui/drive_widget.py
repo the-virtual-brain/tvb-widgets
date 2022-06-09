@@ -9,7 +9,6 @@ import os
 import ipywidgets
 import ebrains_drive
 from ebrains_drive.exceptions import DoesNotExist
-
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.ui.base_widget import TVBWidget
 
@@ -20,15 +19,20 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
     DIR_ICON = '\U0001F4C1'
 
     def __init__(self, **kwargs):
+        TVBWidget.__init__(self, **kwargs)
         bearer_token = get_current_token()
         self.client = ebrains_drive.connect(token=bearer_token)
 
-        all_repos = self.client.repos.list_repos()
+        try:
+            all_repos = self.client.repos.list_repos()
+        except Exception:
+            self.logger.error("Could not retrieve Repos from EBRAINS Drive!")
+            all_repos = []
         dropdown_options = [(repo.name, repo) for repo in all_repos]
 
         layout = ipywidgets.Layout(width='400px')
-        self.repos_dropdown = ipywidgets.Dropdown(description='Repository', value=None, options=dropdown_options,
-                                                  layout=layout)
+        self.repos_dropdown = ipywidgets.Dropdown(description='Repository', value=None,
+                                                  options=dropdown_options, layout=layout)
         self.files_list = ipywidgets.Select(description='Files', value=None, disabled=False, layout=layout)
 
         self.repos_dropdown.observe(self.select_repo, names='value')
@@ -37,7 +41,7 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
         self._parent_dir = None
         self._map_names_to_files = dict()
 
-        super().__init__([self.repos_dropdown, self.files_list], **kwargs)
+        ipywidgets.VBox.__init__(self, [self.repos_dropdown, self.files_list], **kwargs)
 
     def get_chosen_repo(self):
         return self.repos_dropdown.value
