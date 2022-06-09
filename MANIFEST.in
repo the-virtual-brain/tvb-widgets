@@ -1,3 +1,4 @@
 include LICENSE
+include tvbwidgets/ui/ts_widget_help.ini
 recursive-include tvbwidgets/core/logger *
 recursive-exclude tvbwidgets *.pyc
