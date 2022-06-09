@@ -8,7 +8,6 @@
 import os
 import pytest
 import tvbwidgets.api as api
-from ebrains_drive.exceptions import ClientHttpError
 from tvbwidgets.core.auth import get_current_token, CLB_AUTH
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvb.simulator.lab import models, integrators
@@ -29,7 +28,7 @@ def test_interpret():
     try:
         api.StorageWidget()
         raise RuntimeError("Expected to fail because EBRAINS token does not exist")
-    except ClientHttpError:
+    except RuntimeError:
         pass
 
 
