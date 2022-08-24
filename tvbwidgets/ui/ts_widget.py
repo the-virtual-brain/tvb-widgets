@@ -375,6 +375,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             self.fig.canvas.mpl_connect("motion_notify_event", hover)
 
             with self.output:
+                self.output.clear_output(wait=True)
                 display(self.fig.canvas)
 
     # ======================================== CHANNELS  ==============================================================
@@ -456,9 +457,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                                  clipping=None, show=False)
         self.fig.set_size_inches(11, 5)
 
-        with self.output:
-            self.output.clear_output(wait=True)
-            display(self.fig.canvas)
+        self._redraw()
 
         # refresh the checkboxes if they were unselected
         for cb_name in self.checkboxes:
