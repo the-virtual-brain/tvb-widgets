@@ -8,6 +8,7 @@
 import colorsys
 
 import ipywidgets as widgets
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import tvb.simulator.integrators as integrators_module
@@ -277,6 +278,9 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.add_sv_selector()
         self.add_mode_selector()
 
+        # add export button
+        self.add_export_button()
+
         # Trajectory Plotting
         self.add_traj_coords_text()
 
@@ -295,7 +299,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         # Widget Group 2
         self.sv_widgets = widgets.VBox([self.reset_sv_button] + list(self.sv_sliders.values()) +
                                        [self.traj_label, self.traj_x_box, self.traj_y_box,
-                                        self.plot_traj_button, self.traj_out, self.clear_traj_button],
+                                        self.plot_traj_button, self.traj_out, self.clear_traj_button,
+                                        self.export_config_name_input, self.export_json_button],
                                        layout=self.box_layout)
 
         # Widget Group 3
@@ -456,7 +461,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             if self.exclude_sliders is not None and param_name in self.exclude_sliders:
                 continue
             param_def = getattr(type(self.model), param_name)
-            if not isinstance(param_def, NArray) or not param_def.dtype == np.float:
+            if not isinstance(param_def, NArray) or param_def.dtype != np.float:
                 continue
             param_range = param_def.domain
             if param_range is None:
@@ -635,3 +640,92 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         """ Update integrator noise based on the noise slider value. """
 
         self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
+
+    def export_json_config(self, *args):
+        """
+        Exports model configuration in a JSON file. If the file already contains configurations
+        it appends a new configuration to the existing ones.
+        """
+        file_name = self._get_exported_file_name()
+        existing_config = self._read_existing_config()
+        with open(file_name, mode='w+') as config_file:
+            current_configuration = self._prepare_export_values()
+            config_name = self._get_exported_configuration_name(existing_config)
+            existing_config[config_name] = current_configuration
+            config_file.write(json.dumps(existing_config))
+            self.log.info(f'Saved configuration {config_name} to {file_name}')
+
+    def _read_existing_config(self) -> dict:
+        """
+        reads a json file with the name of the exported file
+         and returns the dict representing the json data
+        """
+        file_name = self._get_exported_file_name()
+        config = {}
+        try:
+            with open(file_name, 'r+') as config_file:
+                config = json.loads(config_file.read())
+        except FileNotFoundError:
+            pass
+        return config
+
+    def _get_exported_file_name(self) -> str:
+        """
+        returns the name of the file containing exported configurations
+        """
+        return 'model_config.json'
+
+    def _get_exported_configuration_name(self, existing_config: dict) -> str:
+        """
+        returns the name of the next configuration to be saved in the json file by
+        adding 1 to the number of saved configurations and appending the number to
+        the end of 'config_'
+        generic: 'config_<next_number>'
+        """
+        user_defined_name = self.export_config_name_input.value
+        if user_defined_name:
+            return user_defined_name
+
+        if not existing_config:
+            return 'config_1'
+        return f'config_{len(existing_config.keys()) + 1}'
+
+    def _prepare_export_values(self) -> dict:
+        """
+        exports all the serializable values of the self.param_sliders_values in the PhasePlaneWidget.
+        also serializes ndarray data by converting it to a list and adds the name of the current model
+        """
+        config = {'model': self.model.__class__.__name__}
+
+        for k, v in self.param_sliders.items():
+            if is_jsonable(v.value):
+                config[k] = v.value
+            elif isinstance(v.value, np.ndarray):
+                config[k] = v.tolist()
+
+        return config
+
+    def add_export_button(self):
+        """
+        adds the button to export model configuration
+        """
+        btn_tooltip = f'Exports current model configuration to {self._get_exported_file_name()} ' \
+                      f'in JSON format with the name given in the above input.'
+        self.export_json_button = widgets.Button(description='Export configuration to JSON',
+                                                 disabled=False,
+                                                 layout=self.button_layout,
+                                                 icon='file-export',
+                                                 tooltip=btn_tooltip)
+        self.export_config_name_input = widgets.Text(value='', required=True, placeholder='Configuration name')
+        self.export_json_button.on_click(self.export_json_config)
+
+
+def is_jsonable(x: any):
+    """
+    checks if an object is serializable
+    """
+    try:
+        json.dumps(x)
+        return True
+    except (TypeError, OverflowError):
+        return False
