@@ -6,16 +6,20 @@
 #
 
 import colorsys
+import os.path
 
 import ipywidgets as widgets
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+import re
 import tvb.simulator.integrators as integrators_module
 import tvb.simulator.models as models_module
 from tvb.basic.neotraits.api import HasTraits, Attr, NArray
 from tvb.simulator.lab import integrators
+from tvb.simulator.models import ModelsEnum
 
+from tvbwidgets.core.exceptions import InvalidFileException, ModelNotFoundError
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
@@ -280,6 +284,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         # add export button
         self.add_export_button()
+        self.add_serialize_button()
 
         # Trajectory Plotting
         self.add_traj_coords_text()
@@ -300,7 +305,9 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.sv_widgets = widgets.VBox([self.reset_sv_button] + list(self.sv_sliders.values()) +
                                        [self.traj_label, self.traj_x_box, self.traj_y_box,
                                         self.plot_traj_button, self.traj_out, self.clear_traj_button,
-                                        self.export_config_name_input, self.export_json_button],
+                                        self.export_config_name_input, self.export_json_button,
+                                        self.py_file_name_input, self.configuration_input,
+                                        self.serialize_py_code_button],
                                        layout=self.box_layout)
 
         # Widget Group 3
@@ -719,6 +726,90 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.export_config_name_input = widgets.Text(value='', required=True, placeholder='Configuration name')
         self.export_json_button.on_click(self.export_json_config)
 
+    def get_model_instance(self, config_name: str, config_file: str = None):
+        """
+        gets a model instance from a configuration with the key <config_name>
+        from a json file named <config_file>. If no name is provided for config file,
+        the default filename is used.
+        """
+        if config_file is None:
+            config_file = self._get_exported_file_name()
+        model_name, model_params = self._safe_get_model_params(config_file,
+                                                               model_config_key=config_name)
+        model_class = self._get_model_class(model_name)
+        return model_class(**model_params)
+
+    def serialize_model_creation(self, *_args):
+        created_file_name = self._get_py_file_name()
+        if os.path.exists(created_file_name):
+            self.log.warning(f'File {created_file_name} already exists. It\'s contents will be replaced!')
+        with open(created_file_name, 'w') as py_script:
+            script = self._generate_script()
+            py_script.write(script)
+        self.get_model_instance('config_1')
+
+    def _generate_script(self):
+        file_name = self._get_exported_file_name()
+        model, model_params = self._safe_get_model_params(file_name)
+        imports = 'from tvbwidgets.api import PhasePlaneWidget\nfrom numpy import array\n'
+        create_func = f'def get_instance():\n\tw = PhasePlaneWidget()\n\treturn ' \
+                      f'w.get_model_instance("{self.configuration_input.value}") '
+        return f'{imports}model_name = \'{model}\'\nmodel_params = {model_params}\n{create_func}'
+
+    def _safe_get_model_params(self, config_file_name: str, model_config_key: str = None):
+        """
+        returns the model name in a configuration and the model params
+        """
+        if not os.path.exists(config_file_name):
+            raise FileNotFoundError('There is no configuration file exported!')
+        saved_configs = self._read_existing_config()
+
+        if not saved_configs:
+            raise InvalidFileException(f'Could not find any configuration in {config_file_name}!')
+        if model_config_key is None:
+            model_config_key = self.configuration_input.value
+
+        if not model_config_key or model_config_key not in saved_configs.keys():
+            raise NameError(f'Configuration {model_config_key} could not be found!')
+        config = saved_configs[model_config_key]
+
+        model = config['model']
+        config.pop('model', None)
+        # convert values in config to np.array
+        for k, v in config.items():
+            config[k] = np.array(v)
+        return model, config
+
+    def _get_model_class(self, model_name: str):
+        models = ModelsEnum.get_base_model_subclasses()
+        try:
+            model_class = [m for m in models if m.__name__ == model_name][0]
+        except IndexError:
+            raise ModelNotFoundError(f'Model {model_name} can\'t be found or doesn\'t exist!')
+        return model_class
+
+    def _get_py_file_name(self):
+        file_name = self.py_file_name_input.value
+        if not file_name:
+            return 'default.py'
+        if not is_valid_file_name(file_name):
+            raise SyntaxError('Invalid file name!')
+        if not file_name.endswith('.py'):
+            file_name = f'{file_name}.py'
+        return file_name
+
+    def add_serialize_button(self):
+        btn_tooltip = 'Creates a .py file with code needed to generate a model instance'
+        self.py_file_name_input = widgets.Text(placeholder='.py file_name',
+                                               value='')
+        self.configuration_input = widgets.Text(placeholder='Saved configuration')
+        self.serialize_py_code_button = widgets.Button(description='Export model creation',
+                                                       disabled=False,
+                                                       layout=self.button_layout,
+                                                       icon='file-export',
+                                                       tooltip=btn_tooltip)
+        self.serialize_py_code_button.on_click(self.serialize_model_creation)
+
 
 def is_jsonable(x: any):
     """
@@ -729,3 +820,12 @@ def is_jsonable(x: any):
         return True
     except (TypeError, OverflowError):
         return False
+
+
+def is_valid_file_name(filename: str) -> bool:
+    """
+    checks if a string is valid python file name
+    returns even if the file doesn't end with .py
+    """
+    patterns = [re.compile(r'\w+.py'), re.compile(r'\w+')]
+    return any([re.match(p, filename) for p in patterns])
