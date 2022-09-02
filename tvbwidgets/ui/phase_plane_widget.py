@@ -648,6 +648,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
 
+    # JSON export
     def export_json_config(self, *args):
         """
         Exports model configuration in a JSON file. If the file already contains configurations
@@ -686,8 +687,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         """
         returns the name of the next configuration to be saved in the json file by
         adding 1 to the number of saved configurations and appending the number to
-        the end of 'config_'
-        generic: 'config_<next_number>'
+        the end of 'config_' or returns the value from user input export_config_name_input
+        generic: 'config_<next_number:int>'
         """
         user_defined_name = self.export_config_name_input.value
         if user_defined_name:
@@ -726,6 +727,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.export_config_name_input = widgets.Text(value='', required=True, placeholder='Configuration name')
         self.export_json_button.on_click(self.export_json_config)
 
+    # model instance and script
     def get_model_instance(self, config_name: str, config_file: str = None):
         """
         gets a model instance from a configuration with the key <config_name>
@@ -734,8 +736,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         """
         if config_file is None:
             config_file = self._get_exported_file_name()
-        model_name, model_params = self._safe_get_model_params(config_file,
-                                                               model_config_key=config_name)
+        model_name, model_params = self._get_model_params(config_file,
+                                                          model_config_key=config_name)
         model_class = self._get_model_class(model_name)
         return model_class(**model_params)
 
@@ -746,17 +748,22 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         with open(created_file_name, 'w') as py_script:
             script = self._generate_script()
             py_script.write(script)
-        self.get_model_instance('config_1')
 
     def _generate_script(self):
         file_name = self._get_exported_file_name()
-        model, model_params = self._safe_get_model_params(file_name)
-        imports = 'from tvbwidgets.api import PhasePlaneWidget\nfrom numpy import array\n'
-        create_func = f'def get_instance():\n\tw = PhasePlaneWidget()\n\treturn ' \
-                      f'w.get_model_instance("{self.configuration_input.value}") '
-        return f'{imports}model_name = \'{model}\'\nmodel_params = {model_params}\n{create_func}'
+        config_key = self.configuration_input.value
+        model, model_params = self._get_model_params(file_name, model_config_key=config_key)
+        imports = 'from numpy import array\n'
+        imports += 'from tvb.simulator.models import ModelsEnum\n\n'
+        script = f'json_file = "{file_name}"\nconfig_key = "{config_key}"\n'
+        script += f'model_params = {model_params}\n'
+        creator_func = f'def create_model_instance():\n'
+        creator_func += '\tmodels = ModelsEnum.get_base_model_subclasses()\n'
+        creator_func += f'\tmodel = [m for m in models if m.__name__ == "{model}"][0]\n'
+        creator_func += '\treturn model(**model_params)'
+        return f'{imports}{script}model_name = \'{model}\'\n\n{creator_func}'
 
-    def _safe_get_model_params(self, config_file_name: str, model_config_key: str = None):
+    def _get_model_params(self, config_file_name: str, model_config_key: str = None):
         """
         returns the model name in a configuration and the model params
         """
