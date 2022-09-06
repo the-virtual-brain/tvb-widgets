@@ -80,7 +80,7 @@ def test_python_export_with_user_defined_configuration_name():
         **{k: numpy.array(v) for k, v in SUP_HOPF_DEFAULT_PARAMS.items() if k != 'model'}))
     wid.get_widget()
     config_name = 'test_config name'
-    expected_instance_code = f'# {config_name}\nimport numpy\nfrom tvb.simulator.lab.models import *\nmodel_instance ' \
+    expected_instance_code = f'# {config_name}\nimport numpy\nfrom tvb.simulator.models import *\nmodel_instance ' \
                              f'= SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
     wid.config_name.value = config_name
     wid.export_type.value = 'Python script'
