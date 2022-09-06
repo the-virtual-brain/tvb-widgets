@@ -107,7 +107,7 @@ class JSONModelExporter(ABCModelExporter):
 
 class PythonCodeExporter(ABCModelExporter):
     file_name = 'model_instances.py'
-    models_import = 'tvb.simulator.lab.models'
+    models_import = 'tvb.simulator.models'
 
     def __init__(self, model_instance, keys: list[str]):
         super(PythonCodeExporter, self).__init__(model_instance, keys)
