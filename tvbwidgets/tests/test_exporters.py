@@ -6,17 +6,14 @@
 #
 import json
 import os
+
+import numpy
 import pytest
 import shutil
 import tempfile
 from tvbwidgets.exporters.model_exporters import is_jsonable, is_valid_file_name, JSONModelExporter
-from tvb.simulator.models import Generic2dOscillator, SupHopf
-
-SUP_HOPF_DEFAULT_PARAMS = {
-    'a': [-0.5],
-    'omega': [1],
-    'model': 'SupHopf'
-}
+from tvb.simulator.models.oscillator import Generic2dOscillator, SupHopf
+from tvbwidgets.tests.constants import SUP_HOPF_DEFAULT_PARAMS, OSCILLATOR_2d_DEFAULT_CONFIG
 
 
 def test_is_jsonable():
@@ -54,17 +51,55 @@ def temp_storage():
 class TestJSONModelExporter:
 
     @pytest.fixture(autouse=True)
-    def mock_phaseplane_filename(self, temp_storage, monkeypatch):
+    def mock_exported_filename(self, temp_storage, monkeypatch):
         _storage, file = temp_storage
         file_json_path = os.path.join(file, 'test_json.json')
         monkeypatch.setattr(JSONModelExporter, 'file_name', file_json_path)
 
-    def test_simple_sup_hopf_export(self):
-        model = SupHopf()
+    def _export_sup_hopf_default(self):
+        model = SupHopf(a=numpy.array(SUP_HOPF_DEFAULT_PARAMS['a']),
+                        omega=numpy.array(SUP_HOPF_DEFAULT_PARAMS['omega']))
         keys = ['a', 'omega']
         exporter = JSONModelExporter(model, keys)
         exporter.do_export()
+        return exporter
+
+    def test_simple_sup_hopf_export(self):
+        exporter = self._export_sup_hopf_default()
         with open(exporter.file_name, 'r') as file:
             json_content = json.loads(file.read())
             assert json_content[exporter.default_config_name + '1'] == SUP_HOPF_DEFAULT_PARAMS
 
+    def test_multiple_sup_hopf_exports(self):
+        exporter = self._export_sup_hopf_default()
+        exporter.do_export()
+        with open(exporter.file_name, 'r') as file:
+            json_content = json.loads(file.read())
+            assert len(json_content.keys()) == 2
+            assert json_content[exporter.default_config_name + '1'] == SUP_HOPF_DEFAULT_PARAMS
+            assert json_content[exporter.default_config_name + '2'] == SUP_HOPF_DEFAULT_PARAMS
+
+    def test_multiple_different_exports(self):
+        exporter = self._export_sup_hopf_default()
+        model_2 = SupHopf(a=numpy.array([-0.2]),
+                          omega=numpy.array(SUP_HOPF_DEFAULT_PARAMS['omega']))
+        exporter.model_instance = model_2
+        exporter.do_export()
+        with open(exporter.file_name, 'r') as file:
+            json_content = json.loads(file.read())
+            assert len(json_content.keys()) == 2
+            assert json_content[exporter.default_config_name + '1'] == SUP_HOPF_DEFAULT_PARAMS
+            copy_config = SUP_HOPF_DEFAULT_PARAMS.copy()
+            copy_config['a'] = [-0.2]
+            assert json_content[exporter.default_config_name + '2'] == copy_config
+
+    def test_multiple_exports_different_models(self):
+        exporter = self._export_sup_hopf_default()
+        generic_defaults = {key: numpy.array(value) for key, value in OSCILLATOR_2d_DEFAULT_CONFIG.items() if key != 'model'}
+        exporter.model_instance = Generic2dOscillator(**generic_defaults)
+        exporter.keys = generic_defaults.keys()
+        exporter.do_export()
+        with open(exporter.file_name, 'r') as file:
+            json_content = json.loads(file.read())
+            assert json_content[exporter.default_config_name + '1'] == SUP_HOPF_DEFAULT_PARAMS
+            assert json_content[exporter.default_config_name + '2'] == OSCILLATOR_2d_DEFAULT_CONFIG
