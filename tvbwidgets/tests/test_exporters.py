@@ -11,7 +11,7 @@ import numpy
 import pytest
 import shutil
 import tempfile
-from tvbwidgets.exporters.model_exporters import is_jsonable, is_valid_file_name, JSONModelExporter
+from tvbwidgets.exporters.model_exporters import is_jsonable, is_valid_file_name, JSONModelExporter, PythonCodeExporter
 from tvb.simulator.models.oscillator import Generic2dOscillator, SupHopf
 from tvbwidgets.tests.constants import SUP_HOPF_DEFAULT_PARAMS, OSCILLATOR_2d_DEFAULT_CONFIG
 
@@ -103,3 +103,36 @@ class TestJSONModelExporter:
             json_content = json.loads(file.read())
             assert json_content[exporter.default_config_name + '1'] == SUP_HOPF_DEFAULT_PARAMS
             assert json_content[exporter.default_config_name + '2'] == OSCILLATOR_2d_DEFAULT_CONFIG
+
+
+class TestPythonCodeExporter:
+    @pytest.fixture(autouse=True)
+    def mock_exported_filename(self, temp_storage, monkeypatch):
+        _storage, file = temp_storage
+        py_file_path = os.path.join(file, 'instances_test_python.py')
+        monkeypatch.setattr(PythonCodeExporter, 'file_name', py_file_path)
+
+    def test_simple_sup_hopf_python_export(self):
+        args = {k: numpy.array(v) for k, v in SUP_HOPF_DEFAULT_PARAMS.items() if k != 'model'}
+        model_instance = SupHopf(**args)
+        exporter = PythonCodeExporter(model_instance, args.keys())
+        exporter.do_export()
+        expected = '# default config\nimport numpy\nfrom tvb.simulator.lab.models import *\nmodel_instance = SupHopf(' \
+                   'a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+        with open(exporter.file_name, 'r') as file:
+            py_content = file.read()
+            assert py_content == expected
+
+    def test_multiple_sup_hopf_py_export(self):
+        args = {k: numpy.array(v) for k, v in SUP_HOPF_DEFAULT_PARAMS.items() if k != 'model'}
+        model_instance = SupHopf(**args)
+        exporter = PythonCodeExporter(model_instance, args.keys())
+        exporter.do_export()
+        exporter.do_export()
+        expected = '# default config\nimport numpy\nfrom tvb.simulator.lab.models import *\nmodel_instance = SupHopf(' \
+                   'a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+        expected += '# default config\nmodel_instance = SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+
+        with open(exporter.file_name, 'r') as file:
+            py_content = file.read()
+            assert py_content == expected
