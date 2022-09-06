@@ -20,6 +20,8 @@ from tvb.simulator.lab import integrators
 from tvb.simulator.models import ModelsEnum
 
 from tvbwidgets.core.exceptions import InvalidFileException, ModelNotFoundError
+from tvbwidgets.exporters.model_exporters import model_exporter_factory, is_valid_file_name, \
+    MODEL_CONFIGURATION_EXPORTS, JSONModelExporter
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
@@ -282,8 +284,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.add_sv_selector()
         self.add_mode_selector()
 
-        # add export button
-        self.add_export_button()
+        # # add export button
         self.add_serialize_button()
 
         # Trajectory Plotting
@@ -305,9 +306,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.sv_widgets = widgets.VBox([self.reset_sv_button] + list(self.sv_sliders.values()) +
                                        [self.traj_label, self.traj_x_box, self.traj_y_box,
                                         self.plot_traj_button, self.traj_out, self.clear_traj_button,
-                                        self.export_config_name_input, self.export_json_button,
-                                        self.py_file_name_input, self.configuration_input,
-                                        self.serialize_py_code_button],
+                                        self.export_model_section],
                                        layout=self.box_layout)
 
         # Widget Group 3
@@ -648,191 +647,29 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
 
-    # JSON export
-    def export_json_config(self, *args):
-        """
-        Exports model configuration in a JSON file. If the file already contains configurations
-        it appends a new configuration to the existing ones.
-        """
-        file_name = self._get_exported_file_name()
-        existing_config = self._read_existing_config()
-        with open(file_name, mode='w+') as config_file:
-            current_configuration = self._prepare_export_values()
-            config_name = self._get_exported_configuration_name(existing_config)
-            existing_config[config_name] = current_configuration
-            config_file.write(json.dumps(existing_config))
-            self.log.info(f'Saved configuration {config_name} to {file_name}')
-
-    def _read_existing_config(self) -> dict:
-        """
-        reads a json file with the name of the exported file
-         and returns the dict representing the json data
-        """
-        file_name = self._get_exported_file_name()
-        config = {}
-        try:
-            with open(file_name, 'r+') as config_file:
-                config = json.loads(config_file.read())
-        except FileNotFoundError:
-            pass
-        return config
-
-    def _get_exported_file_name(self) -> str:
-        """
-        returns the name of the file containing exported configurations
-        """
-        return 'model_config.json'
-
-    def _get_exported_configuration_name(self, existing_config: dict) -> str:
-        """
-        returns the name of the next configuration to be saved in the json file by
-        adding 1 to the number of saved configurations and appending the number to
-        the end of 'config_' or returns the value from user input export_config_name_input
-        generic: 'config_<next_number:int>'
-        """
-        user_defined_name = self.export_config_name_input.value
-        if user_defined_name:
-            return user_defined_name
-
-        if not existing_config:
-            return 'config_1'
-        return f'config_{len(existing_config.keys()) + 1}'
-
-    def _prepare_export_values(self) -> dict:
-        """
-        exports all the serializable values of the self.param_sliders_values in the PhasePlaneWidget.
-        also serializes ndarray data by converting it to a list and adds the name of the current model
-        """
-        config = {'model': self.model.__class__.__name__}
-
-        for k, v in self.param_sliders.items():
-            if is_jsonable(v.value):
-                config[k] = v.value
-            elif isinstance(v.value, np.ndarray):
-                config[k] = v.tolist()
-
-        return config
-
-    def add_export_button(self):
-        """
-        adds the button to export model configuration
-        """
-        btn_tooltip = f'Exports current model configuration to {self._get_exported_file_name()} ' \
-                      f'in JSON format with the name given in the above input.'
-        self.export_json_button = widgets.Button(description='Export configuration to JSON',
-                                                 disabled=False,
-                                                 layout=self.button_layout,
-                                                 icon='file-export',
-                                                 tooltip=btn_tooltip)
-        self.export_config_name_input = widgets.Text(value='', required=True, placeholder='Configuration name')
-        self.export_json_button.on_click(self.export_json_config)
-
-    # model instance and script
-    def get_model_instance(self, config_name: str, config_file: str = None):
-        """
-        gets a model instance from a configuration with the key <config_name>
-        from a json file named <config_file>. If no name is provided for config file,
-        the default filename is used.
-        """
-        if config_file is None:
-            config_file = self._get_exported_file_name()
-        model_name, model_params = self._get_model_params(config_file,
-                                                          model_config_key=config_name)
-        model_class = self._get_model_class(model_name)
-        return model_class(**model_params)
-
-    def serialize_model_creation(self, *_args):
-        created_file_name = self._get_py_file_name()
-        if os.path.exists(created_file_name):
-            self.log.warning(f'File {created_file_name} already exists. It\'s contents will be replaced!')
-        with open(created_file_name, 'w') as py_script:
-            script = self._generate_script()
-            py_script.write(script)
-
-    def _generate_script(self):
-        file_name = self._get_exported_file_name()
-        config_key = self.configuration_input.value
-        model, model_params = self._get_model_params(file_name, model_config_key=config_key)
-        imports = 'from numpy import array\n'
-        imports += 'from tvb.simulator.models import ModelsEnum\n\n'
-        script = f'json_file = "{file_name}"\nconfig_key = "{config_key}"\n'
-        script += f'model_params = {model_params}\n'
-        creator_func = f'def create_model_instance():\n'
-        creator_func += '\tmodels = ModelsEnum.get_base_model_subclasses()\n'
-        creator_func += f'\tmodel = [m for m in models if m.__name__ == "{model}"][0]\n'
-        creator_func += '\treturn model(**model_params)'
-        return f'{imports}{script}model_name = \'{model}\'\n\n{creator_func}'
-
-    def _get_model_params(self, config_file_name: str, model_config_key: str = None):
-        """
-        returns the model name in a configuration and the model params
-        """
-        if not os.path.exists(config_file_name):
-            raise FileNotFoundError('There is no configuration file exported!')
-        saved_configs = self._read_existing_config()
-
-        if not saved_configs:
-            raise InvalidFileException(f'Could not find any configuration in {config_file_name}!')
-        if model_config_key is None:
-            model_config_key = self.configuration_input.value
-
-        if not model_config_key or model_config_key not in saved_configs.keys():
-            raise NameError(f'Configuration {model_config_key} could not be found!')
-        config = saved_configs[model_config_key]
-
-        model = config['model']
-        config.pop('model', None)
-        # convert values in config to np.array
-        for k, v in config.items():
-            config[k] = np.array(v)
-        return model, config
-
-    def _get_model_class(self, model_name: str):
-        models = ModelsEnum.get_base_model_subclasses()
-        try:
-            model_class = [m for m in models if m.__name__ == model_name][0]
-        except IndexError:
-            raise ModelNotFoundError(f'Model {model_name} can\'t be found or doesn\'t exist!')
-        return model_class
-
-    def _get_py_file_name(self):
-        file_name = self.py_file_name_input.value
-        if not file_name:
-            return 'default.py'
-        if not is_valid_file_name(file_name):
-            raise SyntaxError('Invalid file name!')
-        if not file_name.endswith('.py'):
-            file_name = f'{file_name}.py'
-        return file_name
-
     def add_serialize_button(self):
-        btn_tooltip = 'Creates a .py file with code needed to generate a model instance'
-        self.py_file_name_input = widgets.Text(placeholder='.py file_name',
-                                               value='')
-        self.configuration_input = widgets.Text(placeholder='Saved configuration')
-        self.serialize_py_code_button = widgets.Button(description='Export model creation',
-                                                       disabled=False,
-                                                       layout=self.button_layout,
-                                                       icon='file-export',
-                                                       tooltip=btn_tooltip)
-        self.serialize_py_code_button.on_click(self.serialize_model_creation)
+        btn_tooltip = 'Creates a .py file with code needed to generate a model instance ' \
+                      'or a json file with model params'
+        export_types = [choice for choice in MODEL_CONFIGURATION_EXPORTS.keys()]
+        self.export_type = widgets.Dropdown(options=export_types,
+                                            value=export_types[0],
+                                            description='Export as:',
+                                            disabled=False
+                                            )
+        self.do_export_btn = widgets.Button(description='Export model configuration',
+                                            layout=self.button_layout,
+                                            icon='file-export',
+                                            tooltip=btn_tooltip,
+                                            disabled=False)
+        self.config_name = widgets.Text(placeholder='Config name', value='')
+        self.do_export_btn.on_click(self.export_model_configuration)
+        self.export_model_section = widgets.VBox((self.export_type, self.config_name, self.do_export_btn))
 
-
-def is_jsonable(x: any):
-    """
-    checks if an object is serializable
-    """
-    try:
-        json.dumps(x)
-        return True
-    except (TypeError, OverflowError):
-        return False
-
-
-def is_valid_file_name(filename: str) -> bool:
-    """
-    checks if a string is valid python file name
-    returns even if the file doesn't end with .py
-    """
-    patterns = [re.compile(r'\w+.py'), re.compile(r'\w+')]
-    return any([re.match(p, filename) for p in patterns])
+    def export_model_configuration(self, *_args):
+        export_type = self.export_type.value
+        model = self.model
+        keys = self.param_sliders.keys()
+        exporter = model_exporter_factory(export_type, model, keys)
+        if self.config_name.value.strip():
+            exporter.config_name = self.config_name.value
+        exporter.do_export()

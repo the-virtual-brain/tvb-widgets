@@ -9,24 +9,24 @@ import os
 import pytest
 import shutil
 import tempfile
-from tvbwidgets.ui.phase_plane_widget import PhasePlaneWidget, is_jsonable
+from tvbwidgets.ui.phase_plane_widget import PhasePlaneWidget
 from tvb.simulator.models.oscillator import Generic2dOscillator, SupHopf
 
 
 OSCILLATOR_2d_DEFAULT_CONFIG = {
     'model': 'Generic2dOscillator',
-    'tau': 1.00,
-    'I': 0.00,
-    'a': -2.00,
-    'b': -10.00,
-    'c': 0.00,
-    'd': 0.02,
-    'e': 3.00,
-    'f': 1.00,
-    'g': 0.00,
-    'alpha': 1.00,
-    'beta': 1.00,
-    'gamma': 1.00
+    'tau': [1.00],
+    'I': [0.00],
+    'a': [-2.00],
+    'b': [-10.00],
+    'c': [0.00],
+    'd': [0.02],
+    'e': [3.00],
+    'f': [1.00],
+    'g': [0.00],
+    'alpha': [1.00],
+    'beta': [1.00],
+    'gamma': [1.00]
 }
 
 
@@ -136,19 +136,3 @@ def test_with_suphopf_model():
         exported_config = json.loads(exported_json.read())
         assert default_config == exported_config['config_1']
         assert len(exported_config.keys()) == 1
-
-
-def test_is_jsonable():
-    """
-    tests that function works for serializable objects and fails for non-serializable objects
-    """
-    text = 'some text'
-    number = 123.123
-    some_list = [1, 1.23, -123]
-    some_dict = {'text': text, 'number': number, 'some_list': some_list}
-    assert is_jsonable(text)
-    assert is_jsonable(number)
-    assert is_jsonable(some_list)
-    assert is_jsonable(some_dict)
-    assert not is_jsonable(PhasePlaneWidget)
-    assert not is_jsonable(Generic2dOscillator())
