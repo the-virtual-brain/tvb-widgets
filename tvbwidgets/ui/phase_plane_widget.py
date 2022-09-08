@@ -38,7 +38,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         - The value of all parameters of the Model.
         - The extent of the axes.
         - A fixed value for the state-variables which aren't currently selected.
-        - The noise strength, if a stocahstic integrator is specified.
+        - The noise strength, if a stochastic integrator is specified.
 
     and dropdown lists for selecting:
         - Which state-variables to show on each axis.
@@ -589,9 +589,9 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.default_sv = self.sv_mean.repeat(self.model.number_of_modes, axis=2)
         self.no_coupling = np.zeros((self.model.nvar, 1, self.model.number_of_modes))
 
-    ##------------------------------------------------------------------------##
-    ##------------------- Functions for updating the figure ------------------##
-    ##------------------------------------------------------------------------##
+    # ------------------------------------------------------------------------#
+    # ------------------- Functions for updating the figure ------------------#
+    # ------------------------------------------------------------------------#
 
     def update_sl_x_range(self, val):
         """ Update the x_min slider's max value to be equal to the min value of x_max slider. """
@@ -666,6 +666,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.export_model_section = widgets.VBox((self.export_type, self.config_name, self.do_export_btn))
 
     def export_model_configuration(self, *_args):
+        # type: (any) -> None
+        """
+        on click handler for model configuration export
+        args are not used since the handlers are passed the buttons as args by default
+        """
         export_type = self.export_type.value
         model = self.model
         keys = self.param_sliders.keys()

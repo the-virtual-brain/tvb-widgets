@@ -13,7 +13,8 @@ MODEL_CONFIGURATION_EXPORTS = {
 }
 
 
-def is_valid_file_name(filename: str) -> bool:
+def is_valid_file_name(filename):
+    # type: (str) -> bool
     """
     checks if a string is valid python file name
     returns even if the file doesn't end with .py
@@ -24,7 +25,11 @@ def is_valid_file_name(filename: str) -> bool:
 
 class ABCModelExporter(abc.ABC):
     @abc.abstractmethod
-    def __init__(self, model_instance: Model, keys: list[str]):
+    def __init__(self, model_instance, keys):
+        # type: (Model, list[str]) -> None
+        """
+        Abstract constructor to be implemented in subclasses
+        """
         self.model_instance = model_instance
         self.keys = keys
         # name of the exported configuration is set
@@ -34,7 +39,9 @@ class ABCModelExporter(abc.ABC):
     @property
     @abc.abstractmethod
     def default_config_name(self):
+        # type: () -> str
         """
+        Abstract property to be implemented in subclasses representing
         default name of the configuration to be exported
         """
         pass
@@ -42,14 +49,17 @@ class ABCModelExporter(abc.ABC):
     @abc.abstractmethod
     def do_export(self):
         """
+        Abstract method to be implemented in subclasses
         implements export logic
         """
         pass
 
     @staticmethod
     def sanitize_property(prop: any) -> any:
+        # type: (any) -> any
         """
-        makes property safe for json serialization while allowing serialization of numpy arrays as lists
+        makes property safe for json serialization while allowing serialization
+        of numpy arrays as lists
         """
         if is_jsonable(prop):
             return prop
@@ -64,7 +74,8 @@ class JSONModelExporter(ABCModelExporter):
     """
     file_name = 'model_config.json'
 
-    def __init__(self, model_instance, keys: list[str]):
+    def __init__(self, model_instance, keys):
+        # type: (Model, list[str]) -> None
         super(JSONModelExporter, self).__init__(model_instance, keys)
 
     @property
@@ -72,15 +83,21 @@ class JSONModelExporter(ABCModelExporter):
         return 'default_config_key'
 
     def do_export(self):
+        """
+        exports model params and model name as json under the key config_name
+        if that is different to the default key or the default key plus length of the existing keys
+        in the json file + 1
+        """
         config_dict = self._read_existing_config()
         config_name = self.config_name if self.config_name != self.default_config_name else self.default_config_name + str(len(config_dict.keys()) + 1)
         config_dict[config_name] = self._prepare_export_values()
         with open(self.file_name, 'w') as f:
             f.write(json.dumps(config_dict))
 
-    def _read_existing_config(self) -> dict:
+    def _read_existing_config(self):
+        # type: () -> dict
         """
-        reads a json file and returns the dict representing the json data as dict or an empty dict
+        reads a json file and returns the dict representing the json data or an empty dict
         if the config file or data in it doesn't exist
         """
         file_name = self.file_name
@@ -93,6 +110,10 @@ class JSONModelExporter(ABCModelExporter):
         return config
 
     def _prepare_export_values(self):
+        # type: () -> dict
+        """
+        returns a json safe dict containing the model params from the exporter keys
+        """
         values = {}
         model_dict = self.model_instance.__dict__
 
@@ -109,7 +130,8 @@ class PythonCodeExporter(ABCModelExporter):
     file_name = 'model_instances.py'
     models_import = 'tvb.simulator.models'
 
-    def __init__(self, model_instance, keys: list[str]):
+    def __init__(self, model_instance, keys):
+        # type: (Model, list[str]) -> None
         super(PythonCodeExporter, self).__init__(model_instance, keys)
 
     @property
@@ -141,7 +163,11 @@ class PythonCodeExporter(ABCModelExporter):
         return model_params.rstrip(model_params[-1])
 
 
-def model_exporter_factory(exporter_type: str, model: Model, keys: list[str]) -> ABCModelExporter:
+def model_exporter_factory(exporter_type, model, keys):
+    # type: (str, Model, list[str]) -> ABCModelExporter
+    """
+    Factory for model exporter creation
+    """
     exporter = MODEL_CONFIGURATION_EXPORTS.get(exporter_type, False)
 
     if not exporter:
@@ -153,7 +179,8 @@ def model_exporter_factory(exporter_type: str, model: Model, keys: list[str]) ->
     return JSONModelExporter(model, keys)
 
 
-def is_jsonable(x: any):
+def is_jsonable(x):
+    # type: (any) -> bool
     """
     checks if an object is serializable
     """
