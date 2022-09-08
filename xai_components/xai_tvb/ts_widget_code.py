@@ -16,7 +16,6 @@ class SimulatorForWidgetComponent(Component):
     monitors: InArg[list]
     simulation_length: InArg[float]
 
-    # simulator: OutArg[Simulator]
     ts: OutArg[TimeSeries]
 
     def __init__(self):
@@ -28,7 +27,6 @@ class SimulatorForWidgetComponent(Component):
         self.integrator = InArg(None)
         self.monitors = InArg(None)
         self.simulation_length = InArg(None)
-        # self.simulator = OutArg(None)
         self.ts = OutArg(None)
 
     def execute(self, ctx) -> None:
@@ -46,8 +44,7 @@ class SimulatorForWidgetComponent(Component):
             simulation_length=self.simulation_length.value
         ).configure()
 
-        # self.simulator.value = sim
-        # print(self.simulator.value)
+        print(self.simulator.value)
 
         # generate TimeSeries
         (time, data), = sim.run()
