@@ -16,6 +16,7 @@ from tvb.basic.neotraits.api import HasTraits, Attr, NArray
 from tvb.simulator.lab import integrators
 from tvbwidgets.exporters.model_exporters import model_exporter_factory, MODEL_CONFIGURATION_EXPORTS
 from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.core.tvb_integrators import IntegratorsEnum
 
 
 def get_color(num_colours):
@@ -88,13 +89,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.traj_out = None
 
     def _reset_model(self):
-        self.model.configure()
-        self.params = dict()
         self.svx = self.model.state_variables[0]  # x-axis: 1st state variable
         self.svy = self.model.state_variables[1]  # y-axis: 2nd state variable
-        self.mode = 0
-        # Toggle variable for trajectory
-        self.traj_out = None
 
     def get_widget(self):
         """ Generate the Phase Plane Figure and Widgets. """
@@ -309,7 +305,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.sv_widgets = widgets.VBox([self.reset_sv_button] + list(self.sv_sliders.values()) +
                                        [self.traj_label, self.traj_x_box, self.traj_y_box,
                                         self.plot_traj_button, self.traj_out, self.clear_traj_button,
-                                        self.export_model_section, self.model_selector],
+                                        self.export_model_section, self.model_selector, self.integrator_selector],
                                        layout=self.box_layout)
 
         # Widget Group 3
@@ -664,12 +660,13 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             print('onchange values: ', change)
             self.model = models[change['new']]()
             self._reset_model()
-            # self.create_ui()
             display(self.get_widget())
 
         self.model_selector.observe(change_model)
-        # integrators_dict = integrators_module
-        # self.integrator_selector = widgets.Dropdown()
+        integrators_dict = IntegratorsEnum.get_integrators_dict()
+        self.integrator_selector = widgets.Dropdown(options=integrators_dict.keys(),
+                                                    description='Current Integrator',
+                                                    value=self.integrator.__class__.__name__)
 
     def add_serialize_button(self):
         btn_tooltip = 'Creates a .py file with code needed to generate a model instance ' \

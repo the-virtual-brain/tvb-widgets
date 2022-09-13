@@ -17,5 +17,6 @@ class IntegratorsEnum(Enum):
     def get_integrators_dict():
         integrators_dict = dict()
         for name, obj in inspect.getmembers(integrators):
-            if inspect.isclass(obj) and issubclass(integrators.Integrator, obj):
+            if inspect.isclass(obj) and issubclass(obj, integrators.Integrator):
                 integrators_dict[obj.__name__] = obj
+        return integrators_dict
