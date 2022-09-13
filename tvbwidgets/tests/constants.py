@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2023, TVB Widgets Team
+#
+
 SUP_HOPF_DEFAULT_PARAMS = {
     'a': [-0.5],
     'omega': [1],

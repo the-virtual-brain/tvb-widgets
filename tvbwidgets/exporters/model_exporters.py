@@ -135,7 +135,9 @@ class JSONModelExporter(ABCModelExporter):
 
 class PythonCodeExporter(ABCModelExporter):
     file_name = 'model_instances.py'
-    models_import = 'tvb.simulator.models'
+    numpy_import = 'import numpy'
+    models_import = 'from tvb.simulator.models import *'
+    instance_var_name = 'model_instance'
 
     def __init__(self, model_instance, keys):
         # type: (Model, list[str]) -> None
@@ -150,10 +152,10 @@ class PythonCodeExporter(ABCModelExporter):
         values = f'# {self.config_name}\n'
         # assume that if the file exists the imports also exist
         if not os.path.exists(self.file_name):
-            values += f'import numpy\nfrom {self.models_import} import *\n'
+            values += f'{self.numpy_import}\n{self.models_import}\n'
 
         model_params = self.get_model_params()
-        values += f'model_instance = {class_name}({model_params})\n\n'
+        values += f'{self.instance_var_name} = {class_name}({model_params})\n\n'
 
         # open the file to append to existing saved model instances
         with open(self.file_name, 'a') as f:
