@@ -15,6 +15,7 @@ import numpy as np
 import re
 import tvb.simulator.integrators as integrators_module
 import tvb.simulator.models as models_module
+from IPython.display import display
 from tvb.basic.neotraits.api import HasTraits, Attr, NArray
 from tvb.simulator.lab import integrators
 from tvb.simulator.models import ModelsEnum
@@ -91,6 +92,15 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                          margin='0px 5px 5px 0px',
                                          padding='2px 2px 2px 2px')
 
+        # Toggle variable for trajectory
+        self.traj_out = None
+
+    def _reset_model(self):
+        self.model.configure()
+        self.params = dict()
+        self.svx = self.model.state_variables[0]  # x-axis: 1st state variable
+        self.svy = self.model.state_variables[1]  # y-axis: 2nd state variable
+        self.mode = 0
         # Toggle variable for trajectory
         self.traj_out = None
 
@@ -258,9 +268,9 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         return vbox
 
-    ##------------------------------------------------------------------------##
-    ##----------------- Functions for building the figure --------------------##
-    ##------------------------------------------------------------------------##
+    # ------------------------------------------------------------------------#
+    # ----------------- Functions for building the figure --------------------#
+    # ------------------------------------------------------------------------#
 
     def create_ui(self):
         """ Create the widget UI. """
@@ -286,6 +296,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         # # add export button
         self.add_serialize_button()
+        self.add_model_integrator_selector()
 
         # Trajectory Plotting
         self.add_traj_coords_text()
@@ -306,7 +317,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.sv_widgets = widgets.VBox([self.reset_sv_button] + list(self.sv_sliders.values()) +
                                        [self.traj_label, self.traj_x_box, self.traj_y_box,
                                         self.plot_traj_button, self.traj_out, self.clear_traj_button,
-                                        self.export_model_section],
+                                        self.export_model_section, self.model_selector],
                                        layout=self.box_layout)
 
         # Widget Group 3
@@ -646,6 +657,27 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         """ Update integrator noise based on the noise slider value. """
 
         self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
+
+    def add_model_integrator_selector(self):
+        models = {model.__name__: model for model in models_module.ModelsEnum.get_base_model_subclasses()}
+        self.model_selector = widgets.Dropdown(options=models.keys(),
+                                               description='Current model:',
+                                               value=self.model.__class__.__name__)
+
+        # on change callback
+        def change_model(change):
+            if change['type'] != 'change' or change['name'] != 'value':
+                return
+            print('onchange: ', models[change['new']])
+            print('onchange values: ', change)
+            self.model = models[change['new']]()
+            self._reset_model()
+            # self.create_ui()
+            display(self.get_widget())
+
+        self.model_selector.observe(change_model)
+        # integrators_dict = integrators_module
+        # self.integrator_selector = widgets.Dropdown()
 
     def add_serialize_button(self):
         btn_tooltip = 'Creates a .py file with code needed to generate a model instance ' \
