@@ -6,23 +6,15 @@
 #
 
 import colorsys
-import os.path
-
 import ipywidgets as widgets
-import json
 import matplotlib.pyplot as plt
 import numpy as np
-import re
 import tvb.simulator.integrators as integrators_module
 import tvb.simulator.models as models_module
 from IPython.display import display
 from tvb.basic.neotraits.api import HasTraits, Attr, NArray
 from tvb.simulator.lab import integrators
-from tvb.simulator.models import ModelsEnum
-
-from tvbwidgets.core.exceptions import InvalidFileException, ModelNotFoundError
-from tvbwidgets.exporters.model_exporters import model_exporter_factory, is_valid_file_name, \
-    MODEL_CONFIGURATION_EXPORTS, JSONModelExporter
+from tvbwidgets.exporters.model_exporters import model_exporter_factory, MODEL_CONFIGURATION_EXPORTS
 from tvbwidgets.ui.base_widget import TVBWidget
 
 

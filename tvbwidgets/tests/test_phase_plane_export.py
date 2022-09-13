@@ -79,11 +79,32 @@ def test_python_export_with_user_defined_configuration_name():
     wid = PhasePlaneWidget(model=SupHopf(
         **{k: numpy.array(v) for k, v in SUP_HOPF_DEFAULT_PARAMS.items() if k != 'model'}))
     wid.get_widget()
-    config_name = 'test_config name'
+    config_name = 'test_config name2'
     expected_instance_code = f'# {config_name}\nimport numpy\nfrom tvb.simulator.models import *\nmodel_instance ' \
                              f'= SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
     wid.config_name.value = config_name
     wid.export_type.value = 'Python script'
+    wid.export_model_configuration()
+    with open(PythonCodeExporter.file_name, 'r') as exported_py:
+        exported_config = exported_py.read()
+        assert exported_config == expected_instance_code
+
+
+def test_python_multi_export_with_user_defined_configuration_name():
+    """
+    test that widget exports configuration with a user defined name as comment
+    """
+    wid = PhasePlaneWidget(model=SupHopf(
+        **{k: numpy.array(v) for k, v in SUP_HOPF_DEFAULT_PARAMS.items() if k != 'model'}))
+    wid.get_widget()
+    config_name = 'test_config name3'
+    expected_instance_code = f'# {config_name}\nimport numpy\nfrom tvb.simulator.models import *\nmodel_instance ' \
+                             f'= SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n# {config_name}\n'\
+                             'model_instance = SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+
+    wid.config_name.value = config_name
+    wid.export_type.value = 'Python script'
+    wid.export_model_configuration()
     wid.export_model_configuration()
     with open(PythonCodeExporter.file_name, 'r') as exported_py:
         exported_config = exported_py.read()
