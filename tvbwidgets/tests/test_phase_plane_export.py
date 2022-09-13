@@ -79,7 +79,7 @@ def test_python_export_with_user_defined_configuration_name():
     wid = PhasePlaneWidget(model=SupHopf(
         **{k: numpy.array(v) for k, v in SUP_HOPF_DEFAULT_PARAMS.items() if k != 'model'}))
     wid.get_widget()
-    config_name = 'test_config name'
+    config_name = 'test_config name2'
     expected_instance_code = f'# {config_name}\nimport numpy\nfrom tvb.simulator.models import *\nmodel_instance ' \
                              f'= SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
     wid.config_name.value = config_name
@@ -97,7 +97,7 @@ def test_python_multi_export_with_user_defined_configuration_name():
     wid = PhasePlaneWidget(model=SupHopf(
         **{k: numpy.array(v) for k, v in SUP_HOPF_DEFAULT_PARAMS.items() if k != 'model'}))
     wid.get_widget()
-    config_name = 'test_config name'
+    config_name = 'test_config name3'
     expected_instance_code = f'# {config_name}\nimport numpy\nfrom tvb.simulator.models import *\nmodel_instance ' \
                              f'= SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n# {config_name}\n'\
                              'model_instance = SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
