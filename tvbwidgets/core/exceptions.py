@@ -25,3 +25,15 @@ class InvalidFileException(WidgetsException):
     """
     To be thrown if an invalid filename is used.
     """
+
+
+class ModelNotFoundError(WidgetsException):
+    """
+    To be thrown when a model class can't be found or doesn't exist
+    """
+
+
+class ModelExporterNotFoundError(WidgetsException):
+    """
+    To be thrown when an attempt is being made to use an exporter that is not accessible
+    """

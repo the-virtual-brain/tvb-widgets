@@ -6,7 +6,6 @@
 #
 
 import colorsys
-
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,7 +13,7 @@ import tvb.simulator.integrators as integrators_module
 import tvb.simulator.models as models_module
 from tvb.basic.neotraits.api import HasTraits, Attr, NArray
 from tvb.simulator.lab import integrators
-
+from tvbwidgets.exporters.model_exporters import model_exporter_factory, ModelConfigurationExports
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
@@ -31,7 +30,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         - The value of all parameters of the Model.
         - The extent of the axes.
         - A fixed value for the state-variables which aren't currently selected.
-        - The noise strength, if a stocahstic integrator is specified.
+        - The noise strength, if a stochastic integrator is specified.
 
     and dropdown lists for selecting:
         - Which state-variables to show on each axis.
@@ -277,6 +276,9 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.add_sv_selector()
         self.add_mode_selector()
 
+        # # add export button
+        self.add_serialize_button()
+
         # Trajectory Plotting
         self.add_traj_coords_text()
 
@@ -295,7 +297,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         # Widget Group 2
         self.sv_widgets = widgets.VBox([self.reset_sv_button] + list(self.sv_sliders.values()) +
                                        [self.traj_label, self.traj_x_box, self.traj_y_box,
-                                        self.plot_traj_button, self.traj_out, self.clear_traj_button],
+                                        self.plot_traj_button, self.traj_out, self.clear_traj_button,
+                                        self.export_model_section],
                                        layout=self.box_layout)
 
         # Widget Group 3
@@ -456,7 +459,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             if self.exclude_sliders is not None and param_name in self.exclude_sliders:
                 continue
             param_def = getattr(type(self.model), param_name)
-            if not isinstance(param_def, NArray) or not param_def.dtype == np.float:
+            if not isinstance(param_def, NArray) or param_def.dtype != np.float:
                 continue
             param_range = param_def.domain
             if param_range is None:
@@ -578,9 +581,9 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.default_sv = self.sv_mean.repeat(self.model.number_of_modes, axis=2)
         self.no_coupling = np.zeros((self.model.nvar, 1, self.model.number_of_modes))
 
-    ##------------------------------------------------------------------------##
-    ##------------------- Functions for updating the figure ------------------##
-    ##------------------------------------------------------------------------##
+    # ------------------------------------------------------------------------#
+    # ------------------- Functions for updating the figure ------------------#
+    # ------------------------------------------------------------------------#
 
     def update_sl_x_range(self, val):
         """ Update the x_min slider's max value to be equal to the min value of x_max slider. """
@@ -635,3 +638,35 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         """ Update integrator noise based on the noise slider value. """
 
         self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
+
+    def add_serialize_button(self):
+        btn_tooltip = 'Creates a .py file with code needed to generate a model instance ' \
+                      'or a json file with model params'
+        export_types = [choice.value for choice in list(ModelConfigurationExports)]
+        self.export_type = widgets.Dropdown(options=export_types,
+                                            value=export_types[0],
+                                            description='Export as:',
+                                            disabled=False
+                                            )
+        self.do_export_btn = widgets.Button(description='Export model configuration',
+                                            layout=self.button_layout,
+                                            icon='file-export',
+                                            tooltip=btn_tooltip,
+                                            disabled=False)
+        self.config_name = widgets.Text(placeholder='Config name', value='')
+        self.do_export_btn.on_click(self.export_model_configuration)
+        self.export_model_section = widgets.VBox((self.export_type, self.config_name, self.do_export_btn))
+
+    def export_model_configuration(self, *_args):
+        # type: (any) -> None
+        """
+        on click handler for model configuration export
+        args are not used since the handlers are passed the buttons as args by default
+        """
+        export_type = self.export_type.value
+        model = self.model
+        keys = self.param_sliders.keys()
+        exporter = model_exporter_factory(export_type, model, keys)
+        if self.config_name.value.strip():
+            exporter.config_name = self.config_name.value
+        exporter.do_export()
