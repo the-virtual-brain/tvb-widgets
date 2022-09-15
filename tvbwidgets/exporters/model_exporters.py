@@ -128,8 +128,11 @@ class JSONModelExporter(ABCModelExporter):
         model_dict = self.model_instance.__dict__
 
         for key in self.keys:
-            if model_dict.get(key, False):
+            try:
                 values[key] = self.sanitize_property(model_dict[key])
+            except KeyError:
+                self.logger.warning(
+                    f'Parameter {key} will be skipped, it does not exist on {type(self.model_instance)}')
 
         values['model'] = self.model_instance.__class__.__name__
 
@@ -169,8 +172,11 @@ class PythonCodeExporter(ABCModelExporter):
         model_instance_dict = self.model_instance.__dict__
 
         for key in self.keys:
-            if model_instance_dict.get(key, False):
+            try:
                 model_params += f'{key}=numpy.array({model_instance_dict[key]}),'
+            except KeyError:
+                self.logger.warning(
+                    f'Parameter {key} will be skipped, it does not exist on {type(self.model_instance)}')
         # strip the last comma on params before returning
         return model_params.rstrip(model_params[-1])
 
