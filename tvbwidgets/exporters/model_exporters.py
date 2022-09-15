@@ -182,7 +182,7 @@ def model_exporter_factory(exporter_type, model, keys):
     if not exporter:
         raise ModelExporterNotFoundError('Could not find any exporter of the selected type!')
 
-    if exporter == 'python':
+    if exporter == MODEL_CONFIGURATION_EXPORTS['Python script']:
         return PythonCodeExporter(model, keys)
 
     return JSONModelExporter(model, keys)
