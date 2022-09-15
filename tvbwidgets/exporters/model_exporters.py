@@ -10,14 +10,16 @@ import json
 import numpy
 import os
 import re
+from enum import Enum
 from tvb.simulator.models import Model
 
+from tvbwidgets import get_logger
 from tvbwidgets.core.exceptions import ModelExporterNotFoundError
 
-MODEL_CONFIGURATION_EXPORTS = {
-    'JSON': 'json',
-    'Python script': 'python'
-}
+
+class ModelConfigurationExports(Enum):
+    JSON = 'JSON'
+    PYTHON = 'Python script'
 
 
 def is_valid_file_name(filename):
@@ -42,6 +44,7 @@ class ABCModelExporter(abc.ABC):
         # name of the exported configuration is set
         # from outside of class if we need other name than the default
         self.config_name = self.default_config_name
+        self.logger = get_logger(self.__class__.__module__)
 
     @property
     @abc.abstractmethod
@@ -177,12 +180,13 @@ def model_exporter_factory(exporter_type, model, keys):
     """
     Factory for model exporter creation
     """
-    exporter = MODEL_CONFIGURATION_EXPORTS.get(exporter_type, False)
 
-    if not exporter:
+    try:
+        exporter = ModelConfigurationExports(exporter_type)
+    except ValueError:
         raise ModelExporterNotFoundError('Could not find any exporter of the selected type!')
 
-    if exporter == MODEL_CONFIGURATION_EXPORTS['Python script']:
+    if exporter == ModelConfigurationExports.PYTHON:
         return PythonCodeExporter(model, keys)
 
     return JSONModelExporter(model, keys)

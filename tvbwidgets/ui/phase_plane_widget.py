@@ -13,7 +13,7 @@ import tvb.simulator.integrators as integrators_module
 import tvb.simulator.models as models_module
 from tvb.basic.neotraits.api import HasTraits, Attr, NArray
 from tvb.simulator.lab import integrators
-from tvbwidgets.exporters.model_exporters import model_exporter_factory, MODEL_CONFIGURATION_EXPORTS
+from tvbwidgets.exporters.model_exporters import model_exporter_factory, ModelConfigurationExports
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
@@ -642,7 +642,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
     def add_serialize_button(self):
         btn_tooltip = 'Creates a .py file with code needed to generate a model instance ' \
                       'or a json file with model params'
-        export_types = [choice for choice in MODEL_CONFIGURATION_EXPORTS.keys()]
+        export_types = [choice.value for choice in list(ModelConfigurationExports)]
         self.export_type = widgets.Dropdown(options=export_types,
                                             value=export_types[0],
                                             description='Export as:',
