@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tvb.simulator.integrators as integrators_module
 import tvb.simulator.models as models_module
-from IPython.display import display
+from IPython.display import display, clear_output
 from tvb.basic.neotraits.api import HasTraits, Attr, NArray
 from tvb.simulator.lab import integrators
 from tvbwidgets.exporters.model_exporters import model_exporter_factory, MODEL_CONFIGURATION_EXPORTS
@@ -249,12 +249,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         # Generate Output
         out = widgets.interactive_output(plotter, self.params)
 
-        vbox = widgets.VBox([ui, out], layout=self.DEFAULT_BORDER)
+        self.hbox = widgets.HBox([ui, out], layout=self.DEFAULT_BORDER)
 
         # # Display Output
         # display(ui, out)
 
-        return vbox
+        return self.hbox
 
     # ------------------------------------------------------------------------#
     # ----------------- Functions for building the figure --------------------#
@@ -312,10 +312,17 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.param_widgets = widgets.VBox([self.reset_param_button] + list(self.param_sliders.values()),
                                           layout=self.box_layout)
 
+        self.tabs_container.children = [self.param_widgets, self.sv_widgets, self.ax_widgets]
         # Group all Widgets in a Widget GridBox
-        items = [self.param_widgets, self.sv_widgets, self.ax_widgets]
-        grid = widgets.GridBox(items, layout=widgets.Layout(grid_template_columns="326px 326px 326px"))
-        return grid
+
+        # build tabs
+        self.tabs_container = widgets.Tab()
+        titles = ['Model Params', 'SV Widgets', 'AX Widgets']
+        self.tabs_container.set_title(0, titles[0])
+        self.tabs_container.set_title(1, titles[1])
+        self.tabs_container.set_title(2, titles[2])
+
+        return self.tabs_container
 
     def add_reset_axes_button(self):
         """ Add a button to reset the axes of the Phase Plane to their default ranges. """
@@ -660,7 +667,16 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             print('onchange values: ', change)
             self.model = models[change['new']]()
             self._reset_model()
-            display(self.get_widget())
+            self.vbox.close()
+            self.vbox = self.create_ui()
+            display(self.vbox)
+            # %rerun
+            # for wid in self.ax_widgets_list:
+            #     wid.close()
+            # self.create_ui().close()
+            # clear_output()
+            # self.integrator_selector.value = list(IntegratorsEnum.get_integrators_dict().keys())[0]
+            # display(self.get_widget())
 
         self.model_selector.observe(change_model)
         integrators_dict = IntegratorsEnum.get_integrators_dict()
