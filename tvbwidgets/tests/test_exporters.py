@@ -118,7 +118,7 @@ class TestPythonCodeExporter:
         model_instance = SupHopf(**args)
         exporter = PythonCodeExporter(model_instance, args.keys())
         exporter.do_export()
-        expected = '# default config\nimport numpy\nfrom tvb.simulator.models import models\n' \
+        expected = '# default config\nimport numpy\nfrom tvb.simulator import models\n' \
                    'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
         with open(exporter.file_name, 'r') as file:
             py_content = file.read()
@@ -130,7 +130,7 @@ class TestPythonCodeExporter:
         exporter = PythonCodeExporter(model_instance, args.keys())
         exporter.do_export()
         exporter.do_export()
-        expected = '# default config\nimport numpy\nfrom tvb.simulator.models import models\n' \
+        expected = '# default config\nimport numpy\nfrom tvb.simulator import models\n' \
                    'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
         expected += '# default config\n' \
                     'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
