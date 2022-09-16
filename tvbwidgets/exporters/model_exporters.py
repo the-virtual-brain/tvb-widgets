@@ -142,7 +142,8 @@ class JSONModelExporter(ABCModelExporter):
 class PythonCodeExporter(ABCModelExporter):
     file_name = 'model_instances.py'
     numpy_import = 'import numpy'
-    models_import = 'from tvb.simulator.models import *'
+    module_name = 'models'
+    models_import = f'from tvb.simulator import {module_name}'
     instance_var_name = 'model_instance'
 
     def __init__(self, model_instance, keys):
@@ -161,7 +162,7 @@ class PythonCodeExporter(ABCModelExporter):
             values += f'{self.numpy_import}\n{self.models_import}\n'
 
         model_params = self.get_model_params()
-        values += f'{self.instance_var_name} = {class_name}({model_params})\n\n'
+        values += f'{self.instance_var_name} = {self.module_name}.{class_name}({model_params})\n\n'
 
         # open the file to append to existing saved model instances
         with open(self.file_name, 'a') as f:

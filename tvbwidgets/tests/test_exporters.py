@@ -95,7 +95,8 @@ class TestJSONModelExporter:
 
     def test_multiple_exports_different_models(self):
         exporter = self._export_sup_hopf_default()
-        generic_defaults = {key: numpy.array(value) for key, value in OSCILLATOR_2d_DEFAULT_CONFIG.items() if key != 'model'}
+        generic_defaults = {key: numpy.array(value) for key, value in OSCILLATOR_2d_DEFAULT_CONFIG.items() if
+                            key != 'model'}
         exporter.model_instance = Generic2dOscillator(**generic_defaults)
         exporter.keys = generic_defaults.keys()
         exporter.do_export()
@@ -117,8 +118,8 @@ class TestPythonCodeExporter:
         model_instance = SupHopf(**args)
         exporter = PythonCodeExporter(model_instance, args.keys())
         exporter.do_export()
-        expected = '# default config\nimport numpy\nfrom tvb.simulator.models import *\nmodel_instance = SupHopf(' \
-                   'a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+        expected = '# default config\nimport numpy\nfrom tvb.simulator.models import models\n' \
+                   'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
         with open(exporter.file_name, 'r') as file:
             py_content = file.read()
             assert py_content == expected
@@ -129,9 +130,10 @@ class TestPythonCodeExporter:
         exporter = PythonCodeExporter(model_instance, args.keys())
         exporter.do_export()
         exporter.do_export()
-        expected = '# default config\nimport numpy\nfrom tvb.simulator.models import *\nmodel_instance = SupHopf(' \
-                   'a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
-        expected += '# default config\nmodel_instance = SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+        expected = '# default config\nimport numpy\nfrom tvb.simulator.models import models\n' \
+                   'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+        expected += '# default config\n' \
+                    'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
 
         with open(exporter.file_name, 'r') as file:
             py_content = file.read()
