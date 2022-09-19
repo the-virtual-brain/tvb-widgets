@@ -312,11 +312,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.param_widgets = widgets.VBox([self.reset_param_button] + list(self.param_sliders.values()),
                                           layout=self.box_layout)
 
-        self.tabs_container.children = [self.param_widgets, self.sv_widgets, self.ax_widgets]
         # Group all Widgets in a Widget GridBox
 
         # build tabs
         self.tabs_container = widgets.Tab()
+        self.tabs_container.children = [self.param_widgets, self.sv_widgets, self.ax_widgets]
         titles = ['Model Params', 'SV Widgets', 'AX Widgets']
         self.tabs_container.set_title(0, titles[0])
         self.tabs_container.set_title(1, titles[1])
@@ -668,8 +668,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             self.model = models[change['new']]()
             self._reset_model()
             self.vbox.close()
-            self.vbox = self.create_ui()
-            display(self.vbox)
+
             # %rerun
             # for wid in self.ax_widgets_list:
             #     wid.close()
