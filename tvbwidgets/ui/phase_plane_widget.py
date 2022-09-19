@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tvb.simulator.integrators as integrators_module
 import tvb.simulator.models as models_module
-from IPython.display import display, clear_output
+from IPython.core.getipython import get_ipython
 from tvb.basic.neotraits.api import HasTraits, Attr, NArray
 from tvb.simulator.lab import integrators
-from tvbwidgets.exporters.model_exporters import model_exporter_factory, ModelConfigurationExports
+from tvbwidgets.exporters.model_exporters import model_exporter_factory, ModelConfigurationExports, PythonCodeExporter
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.core.tvb_integrators import IntegratorsEnum
 
@@ -282,7 +282,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.add_sv_selector()
         self.add_mode_selector()
 
-        # # add export button
+        # add export button
         self.add_serialize_button()
         self.add_model_integrator_selector()
 
@@ -305,22 +305,27 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.sv_widgets = widgets.VBox([self.reset_sv_button] + list(self.sv_sliders.values()) +
                                        [self.traj_label, self.traj_x_box, self.traj_y_box,
                                         self.plot_traj_button, self.traj_out, self.clear_traj_button,
-                                        self.export_model_section, self.model_selector, self.integrator_selector],
+                                        self.model_selector, self.integrator_selector],
                                        layout=self.box_layout)
 
         # Widget Group 3
         self.param_widgets = widgets.VBox([self.reset_param_button] + list(self.param_sliders.values()),
                                           layout=self.box_layout)
 
+        # Exports
+        self.add_serialize_button()
+        self.add_model_integrator_selector()
+        # self.exports = widgets.VBox([self.export_model_section, self.model_selector])
         # Group all Widgets in a Widget GridBox
 
         # build tabs
         self.tabs_container = widgets.Tab()
-        self.tabs_container.children = [self.param_widgets, self.sv_widgets, self.ax_widgets]
-        titles = ['Model Params', 'SV Widgets', 'AX Widgets']
+        self.tabs_container.children = [self.param_widgets, self.sv_widgets, self.ax_widgets, self.export_model_section]
+        titles = ['Model Params', 'SV Widgets', 'AX Widgets', 'Exports']
         self.tabs_container.set_title(0, titles[0])
         self.tabs_container.set_title(1, titles[1])
         self.tabs_container.set_title(2, titles[2])
+        self.tabs_container.set_title(3, titles[3])
 
         return self.tabs_container
 
@@ -663,11 +668,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         def change_model(change):
             if change['type'] != 'change' or change['name'] != 'value':
                 return
-            print('onchange: ', models[change['new']])
-            print('onchange values: ', change)
+            # print('onchange: ', models[change['new']])
+            # print('onchange values: ', change)
             self.model = models[change['new']]()
             self._reset_model()
-            self.vbox.close()
+            # self.vbox.close()
 
             # %rerun
             # for wid in self.ax_widgets_list:
@@ -714,3 +719,19 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         if self.config_name.value.strip():
             exporter.config_name = self.config_name.value
         exporter.do_export()
+        self.export_model()
+
+    def export_model(self):
+        """
+        exports model instance as code in a new notebook cell
+        !!! Only works if it is called in a notebook cell. If called otherwise
+        the cell with code will be generated only after a cell rerun
+        """
+        exporter = PythonCodeExporter(self.model, self.param_sliders.keys())
+        params = exporter.get_model_params()
+        code = f'{exporter.numpy_import}\n{exporter.models_import}\n'
+        code += f'model_instance = models.{exporter.model_instance.__class__.__name__}({params})'
+        shell = get_ipython()
+        shell.payload_manager.write_payload(dict(source='set_next_input',
+                                                 text=code,
+                                                 replace=False))

@@ -65,7 +65,7 @@ class ABCModelExporter(abc.ABC):
         pass
 
     @staticmethod
-    def sanitize_property(prop: any) -> any:
+    def sanitize_property(prop):
         # type: (any) -> any
         """
         makes property safe for json serialization while allowing serialization
