@@ -27,6 +27,8 @@ These graphic user interface components enable:
 
 Installation:
 
+    jupyter labextension install @jupyter-widgets/jupyterlab-manager
+    jupyter labextension install jupyter-matplotlib
     pip install tvb-widgets
 
 #  Acknowledgments

@@ -10,14 +10,16 @@ import json
 import numpy
 import os
 import re
+from enum import Enum
 from tvb.simulator.models import Model
 
+from tvbwidgets import get_logger
 from tvbwidgets.core.exceptions import ModelExporterNotFoundError
 
-MODEL_CONFIGURATION_EXPORTS = {
-    'JSON': 'json',
-    'Python script': 'python'
-}
+
+class ModelConfigurationExports(Enum):
+    JSON = 'JSON'
+    PYTHON = 'Python script'
 
 
 def is_valid_file_name(filename):
@@ -42,6 +44,7 @@ class ABCModelExporter(abc.ABC):
         # name of the exported configuration is set
         # from outside of class if we need other name than the default
         self.config_name = self.default_config_name
+        self.logger = get_logger(self.__class__.__module__)
 
     @property
     @abc.abstractmethod
@@ -125,8 +128,11 @@ class JSONModelExporter(ABCModelExporter):
         model_dict = self.model_instance.__dict__
 
         for key in self.keys:
-            if model_dict.get(key, False):
+            try:
                 values[key] = self.sanitize_property(model_dict[key])
+            except KeyError:
+                self.logger.warning(
+                    f'Parameter {key} will be skipped, it does not exist on {type(self.model_instance)}')
 
         values['model'] = self.model_instance.__class__.__name__
 
@@ -136,7 +142,8 @@ class JSONModelExporter(ABCModelExporter):
 class PythonCodeExporter(ABCModelExporter):
     file_name = 'model_instances.py'
     numpy_import = 'import numpy'
-    models_import = 'from tvb.simulator.models import *'
+    module_name = 'models'
+    models_import = f'from tvb.simulator import {module_name}'
     instance_var_name = 'model_instance'
 
     def __init__(self, model_instance, keys):
@@ -155,7 +162,7 @@ class PythonCodeExporter(ABCModelExporter):
             values += f'{self.numpy_import}\n{self.models_import}\n'
 
         model_params = self.get_model_params()
-        values += f'{self.instance_var_name} = {class_name}({model_params})\n\n'
+        values += f'{self.instance_var_name} = {self.module_name}.{class_name}({model_params})\n\n'
 
         # open the file to append to existing saved model instances
         with open(self.file_name, 'a') as f:
@@ -166,8 +173,11 @@ class PythonCodeExporter(ABCModelExporter):
         model_instance_dict = self.model_instance.__dict__
 
         for key in self.keys:
-            if model_instance_dict.get(key, False):
+            try:
                 model_params += f'{key}=numpy.array({model_instance_dict[key]}),'
+            except KeyError:
+                self.logger.warning(
+                    f'Parameter {key} will be skipped, it does not exist on {type(self.model_instance)}')
         # strip the last comma on params before returning
         return model_params.rstrip(model_params[-1])
 
@@ -177,12 +187,13 @@ def model_exporter_factory(exporter_type, model, keys):
     """
     Factory for model exporter creation
     """
-    exporter = MODEL_CONFIGURATION_EXPORTS.get(exporter_type, False)
 
-    if not exporter:
+    try:
+        exporter = ModelConfigurationExports(exporter_type)
+    except ValueError:
         raise ModelExporterNotFoundError('Could not find any exporter of the selected type!')
 
-    if exporter == MODEL_CONFIGURATION_EXPORTS['Python script']:
+    if exporter == ModelConfigurationExports.PYTHON:
         return PythonCodeExporter(model, keys)
 
     return JSONModelExporter(model, keys)
