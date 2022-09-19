@@ -668,8 +668,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         def change_model(change):
             if change['type'] != 'change' or change['name'] != 'value':
                 return
-            # print('onchange: ', models[change['new']])
-            # print('onchange values: ', change)
+            
             self.model = models[change['new']]()
             self._reset_model()
             # self.vbox.close()
@@ -728,9 +727,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         the cell with code will be generated only after a cell rerun
         """
         exporter = PythonCodeExporter(self.model, self.param_sliders.keys())
-        params = exporter.get_model_params()
-        code = f'{exporter.numpy_import}\n{exporter.models_import}\n'
-        code += f'model_instance = models.{exporter.model_instance.__class__.__name__}({params})'
+        code = exporter.get_instance_code()
         shell = get_ipython()
         shell.payload_manager.write_payload(dict(source='set_next_input',
                                                  text=code,

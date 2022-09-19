@@ -140,6 +140,10 @@ class JSONModelExporter(ABCModelExporter):
 
 
 class PythonCodeExporter(ABCModelExporter):
+    """
+    Exporter class to export a model configuration as python code in
+    a python file
+    """
     file_name = 'model_instances.py'
     numpy_import = 'import numpy'
     module_name = 'models'
@@ -155,20 +159,40 @@ class PythonCodeExporter(ABCModelExporter):
         return 'default config'
 
     def do_export(self):
+        """
+        opens a py file and writes code required to instantiate a model with
+        the params set on model at the time of export
+        """
+        # if the file doesn't exist add modules imports
+        add_imports = not os.path.exists(self.file_name)
+
+        code = self.get_instance_code(add_imports=add_imports)
+
+        # open the file to append to existing saved model instances
+        with open(self.file_name, 'a') as f:
+            f.write(code)
+
+    def get_instance_code(self, add_imports=True):
+        # type: (bool) -> str
+        """
+        generates the code required to instantiate a model and returns it as string.
+        Optionally can add the imports for model and numpy.
+        """
         class_name = self.model_instance.__class__.__name__
         values = f'# {self.config_name}\n'
-        # assume that if the file exists the imports also exist
-        if not os.path.exists(self.file_name):
+        if add_imports:
             values += f'{self.numpy_import}\n{self.models_import}\n'
 
         model_params = self.get_model_params()
         values += f'{self.instance_var_name} = {self.module_name}.{class_name}({model_params})\n\n'
-
-        # open the file to append to existing saved model instances
-        with open(self.file_name, 'a') as f:
-            f.write(values)
+        return values
 
     def get_model_params(self):
+        # type: () -> str
+        """
+        Generates a string representing the parameters required to instantiate the
+        model set on exporter in the form 'attr=numpy.array(value), ...'
+        """
         model_params = ''
         model_instance_dict = self.model_instance.__dict__
 
