@@ -283,7 +283,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.add_mode_selector()
 
         # add model and integrator selector box
-        self.add_model_integrator_selector()
+        self.add_model_and_integrator_selector()
 
         # Trajectory Plotting
         self.add_traj_coords_text()
@@ -313,9 +313,9 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         # Exports
         self.build_export_section()
-        self.add_model_integrator_selector()
+        self.add_model_and_integrator_selector()
 
-        # Group all Widgets in a tabs
+        # Group all Widgets in tabs
         self.tabs_container = widgets.Tab()
         self._build_tabs()
 
@@ -323,11 +323,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
     def _build_tabs(self):
         self.tabs_container.children = [self.param_widgets, self.sv_widgets, self.ax_widgets, self.export_model_section]
-        titles = ['Model Params', 'SV Widgets', 'AX Widgets', 'Exports']
-        self.tabs_container.set_title(0, titles[0])
-        self.tabs_container.set_title(1, titles[1])
-        self.tabs_container.set_title(2, titles[2])
-        self.tabs_container.set_title(3, titles[3])
+        tab_titles = ['Model Params', 'State Variables', 'AX Widgets', 'Exports']
+        self.tabs_container.set_title(0, tab_titles[0])
+        self.tabs_container.set_title(1, tab_titles[1])
+        self.tabs_container.set_title(2, tab_titles[2])
+        self.tabs_container.set_title(3, tab_titles[3])
 
     def add_reset_axes_button(self):
         """ Add a button to reset the axes of the Phase Plane to their default ranges. """
@@ -658,7 +658,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
 
-    def add_model_integrator_selector(self):
+    def add_model_and_integrator_selector(self):
+        self._add_model_selector()
+        self._add_integrator_selector()
+
+
+    def _add_model_selector(self):
         models = {model.__name__: model for model in models_module.ModelsEnum.get_base_model_subclasses()}
         self.model_selector = widgets.Dropdown(options=models.keys(),
                                                description='Current model:',
@@ -671,21 +676,24 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
             self.model = models[change['new']]()
             self._reset_model()
-            # self.vbox.close()
-
-            # %rerun
-            # for wid in self.ax_widgets_list:
-            #     wid.close()
-            # self.create_ui().close()
-            # clear_output()
-            # self.integrator_selector.value = list(IntegratorsEnum.get_integrators_dict().keys())[0]
-            # display(self.get_widget())
+            shell = get_ipython()
+            shell.run_cell('%rerun', silent=False)
 
         self.model_selector.observe(change_model)
+
+    def _add_integrator_selector(self):
         integrators_dict = IntegratorsEnum.get_integrators_dict()
         self.integrator_selector = widgets.Dropdown(options=integrators_dict.keys(),
                                                     description='Current Integrator',
                                                     value=self.integrator.__class__.__name__)
+
+        def on_change_callback(change):
+            if change['type'] != 'change' or change['name'] != 'value':
+                return
+            self.integrator = integrators_dict[change['new']]()
+            shell = get_ipython()
+            shell.run_code('%rerun')
+        self.integrator_selector.observe(on_change_callback)
 
     def build_export_section(self):
         btn_tooltip = 'Creates a .py file with code needed to generate a model instance ' \
