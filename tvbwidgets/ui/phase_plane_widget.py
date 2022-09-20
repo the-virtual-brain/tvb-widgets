@@ -92,7 +92,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.svx = self.model.state_variables[0]  # x-axis: 1st state variable
         self.svy = self.model.state_variables[1]  # y-axis: 2nd state variable
 
-    def get_widget(self):
+    def get_widget(self, plot_size=(4, 5)):
         """ Generate the Phase Plane Figure and Widgets. """
 
         # Make sure the model is configured.
@@ -112,7 +112,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             # Generating the Phase Plane Figure
             model_name = model.__class__.__name__
             integrator_name = integrator.__class__.__name__
-            figsize = 4, 5
+            figsize = plot_size
             try:
                 figure_window_title = "Interactive phase-plane: " + model_name
                 figure_window_title += "   --   %s" % integrator_name
@@ -282,8 +282,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.add_sv_selector()
         self.add_mode_selector()
 
-        # add export button
-        self.add_serialize_button()
+        # add model and integrator selector box
         self.add_model_integrator_selector()
 
         # Trajectory Plotting
@@ -313,21 +312,22 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                           layout=self.box_layout)
 
         # Exports
-        self.add_serialize_button()
+        self.build_export_section()
         self.add_model_integrator_selector()
-        # self.exports = widgets.VBox([self.export_model_section, self.model_selector])
-        # Group all Widgets in a Widget GridBox
 
-        # build tabs
+        # Group all Widgets in a tabs
         self.tabs_container = widgets.Tab()
+        self._build_tabs()
+
+        return self.tabs_container
+
+    def _build_tabs(self):
         self.tabs_container.children = [self.param_widgets, self.sv_widgets, self.ax_widgets, self.export_model_section]
         titles = ['Model Params', 'SV Widgets', 'AX Widgets', 'Exports']
         self.tabs_container.set_title(0, titles[0])
         self.tabs_container.set_title(1, titles[1])
         self.tabs_container.set_title(2, titles[2])
         self.tabs_container.set_title(3, titles[3])
-
-        return self.tabs_container
 
     def add_reset_axes_button(self):
         """ Add a button to reset the axes of the Phase Plane to their default ranges. """
@@ -668,7 +668,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         def change_model(change):
             if change['type'] != 'change' or change['name'] != 'value':
                 return
-            
+
             self.model = models[change['new']]()
             self._reset_model()
             # self.vbox.close()
@@ -687,7 +687,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                                     description='Current Integrator',
                                                     value=self.integrator.__class__.__name__)
 
-    def add_serialize_button(self):
+    def build_export_section(self):
         btn_tooltip = 'Creates a .py file with code needed to generate a model instance ' \
                       'or a json file with model params'
         export_types = [choice.value for choice in list(ModelConfigurationExports)]
@@ -703,7 +703,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                             disabled=False)
         self.config_name = widgets.Text(placeholder='Config name', value='')
         self.do_export_btn.on_click(self.export_model_configuration)
-        self.export_model_section = widgets.VBox((self.export_type, self.config_name, self.do_export_btn))
+        self.py_output = widgets.Textarea(value='Code to generate model instance will appear here')
+        info = widgets.HTML(value="<p>*You can export the code to instantiate this widget's model<br/> with the "
+                                  "current parameters directly in a cell by calling <br/> "
+                                  "export_model() on this widget.</p>")
+        self.export_model_section = widgets.VBox((self.export_type, self.config_name,
+                                                  self.do_export_btn, self.py_output, info))
 
     def export_model_configuration(self, *_args):
         # type: (any) -> None
@@ -718,7 +723,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         if self.config_name.value.strip():
             exporter.config_name = self.config_name.value
         exporter.do_export()
-        self.export_model()
+        if isinstance(exporter, PythonCodeExporter):
+            self.py_output.value = exporter.get_instance_code()
 
     def export_model(self):
         """
