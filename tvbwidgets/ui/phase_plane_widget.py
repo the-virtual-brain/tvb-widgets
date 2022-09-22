@@ -68,6 +68,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         super(PhasePlaneWidget, self).__init__(**kwargs)
 
+        self.plot_size = 4, 5
+        self.traj_texts = []
         # Parameters to be passed to plotter
         self.params = dict()
 
@@ -92,164 +94,168 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.svx = self.model.state_variables[0]  # x-axis: 1st state variable
         self.svy = self.model.state_variables[1]  # y-axis: 2nd state variable
 
-    def get_widget(self, plot_size=(4, 5)):
-        """ Generate the Phase Plane Figure and Widgets. """
-
-        # Make sure the model is configured.
-        self.model.configure()
-
+    def plotter(self, **plot_params):
+        """ Main plotter function. """
         model = self.model
         integrator = self.integrator
         TRAJ_STEPS = self.TRAJ_STEPS
         NUMBEROFGRIDPOINTS = self.NUMBEROFGRIDPOINTS
 
-        # List for storing plotted trajectory coordinates.
-        traj_texts = []
+        # Generating the Phase Plane Figure
+        model_name = model.__class__.__name__
+        integrator_name = integrator.__class__.__name__
+        figsize = self.plot_size
+        try:
+            figure_window_title = "Interactive phase-plane: " + model_name
+            figure_window_title += "   --   %s" % integrator_name
+            ipp_fig = plt.figure(num=figure_window_title,
+                                 figsize=figsize)
+        except ValueError:
+            ipp_fig = plt.figure(num=42, figsize=figsize)
 
-        def plotter(**plot_params):
-            """ Main plotter function. """
+        pp_ax = ipp_fig.add_axes([0.15, 0.2, 0.8, 0.75])
+        pp_splt = ipp_fig.add_subplot(212)
+        ipp_fig.subplots_adjust(left=0.15, bottom=0.02, right=0.95,
+                                top=0.3, wspace=0.1, hspace=1.0)
+        pp_splt.set_prop_cycle(color=get_color(model.nvar))
+        pp_splt.plot(np.arange(TRAJ_STEPS + 1) * integrator.dt,
+                     np.zeros((TRAJ_STEPS + 1, model.nvar)))
+        if hasattr(pp_splt, 'autoscale'):
+            pp_splt.autoscale(enable=True, axis='y', tight=True)
+        pp_splt.legend(model.state_variables)
 
-            # Generating the Phase Plane Figure
-            model_name = model.__class__.__name__
-            integrator_name = integrator.__class__.__name__
-            figsize = plot_size
-            try:
-                figure_window_title = "Interactive phase-plane: " + model_name
-                figure_window_title += "   --   %s" % integrator_name
-                ipp_fig = plt.figure(num=figure_window_title,
-                                     figsize=figsize)
-            except ValueError:
-                ipp_fig = plt.figure(num=42, figsize=figsize)
+        # Fetching the parameter values from tvbwidgets.
+        svx = plot_params.pop('svx')
+        svy = plot_params.pop('svy')
 
-            pp_ax = ipp_fig.add_axes([0.15, 0.2, 0.8, 0.75])
-            pp_splt = ipp_fig.add_subplot(212)
-            ipp_fig.subplots_adjust(left=0.15, bottom=0.02, right=0.95,
-                                    top=0.3, wspace=0.1, hspace=1.0)
-            pp_splt.set_prop_cycle(color=get_color(model.nvar))
-            pp_splt.plot(np.arange(TRAJ_STEPS + 1) * integrator.dt,
-                         np.zeros((TRAJ_STEPS + 1, model.nvar)))
-            if hasattr(pp_splt, 'autoscale'):
-                pp_splt.autoscale(enable=True, axis='y', tight=True)
-            pp_splt.legend(model.state_variables)
+        mode = plot_params.pop('mode')
 
-            # Fetching the parameter values from tvbwidgets.
-            svx = plot_params.pop('svx')
-            svy = plot_params.pop('svy')
+        # Fetching Trajectory Coordinates and storing in a list.
+        traj_x = plot_params.pop('traj_x')
+        traj_y = plot_params.pop('traj_y')
+        plot_traj = plot_params.pop('plot_traj')
 
-            mode = plot_params.pop('mode')
+        if plot_traj and (traj_x, traj_y) not in self.traj_texts:
+            self.traj_texts.append((traj_x, traj_y))
 
-            # Fetching Trajectory Coordinates and storing in a list.
-            traj_x = plot_params.pop('traj_x')
-            traj_y = plot_params.pop('traj_y')
-            plot_traj = plot_params.pop('plot_traj')
+        # Clearing Plotted Trajectories.
+        clear_traj = plot_params.pop('clear_traj')
+        if clear_traj:
+            self.traj_texts.clear()
 
-            if plot_traj and (traj_x, traj_y) not in traj_texts:
-                traj_texts.append((traj_x, traj_y))
+        # Set Model Parameters
+        for k, v in plot_params.items():
+            setattr(model, k, np.r_[v])
 
-            # Clearing Plotted Trajectories.
-            clear_traj = plot_params.pop('clear_traj')
-            if clear_traj:
-                traj_texts.clear()
+        # Set State Vector
+        sv_mean = np.array([plot_params[key] for key in model.state_variables])
+        sv_mean = sv_mean.reshape((model.nvar, 1, 1))
+        default_sv = sv_mean.repeat(model.number_of_modes, axis=2)
+        no_coupling = np.zeros((model.nvar, 1, model.number_of_modes))
 
-            # Set Model Parameters
-            for k, v in plot_params.items():
-                setattr(model, k, np.r_[v])
+        # Set Mesh Grid
+        xlo = plot_params['sl_x_min']
+        xhi = plot_params['sl_x_max']
+        ylo = plot_params['sl_y_min']
+        yhi = plot_params['sl_y_max']
 
-            # Set State Vector
-            sv_mean = np.array([plot_params[key] for key in model.state_variables])
-            sv_mean = sv_mean.reshape((model.nvar, 1, 1))
-            default_sv = sv_mean.repeat(model.number_of_modes, axis=2)
-            no_coupling = np.zeros((model.nvar, 1, model.number_of_modes))
+        X = np.mgrid[xlo:xhi:(NUMBEROFGRIDPOINTS * 1j)]
+        Y = np.mgrid[ylo:yhi:(NUMBEROFGRIDPOINTS * 1j)]
 
-            # Set Mesh Grid
-            xlo = plot_params['sl_x_min']
-            xhi = plot_params['sl_x_max']
-            ylo = plot_params['sl_y_min']
-            yhi = plot_params['sl_y_max']
+        # Calculate Phase Plane
+        svx_ind = model.state_variables.index(svx)
+        svy_ind = model.state_variables.index(svy)
 
-            X = np.mgrid[xlo:xhi:(NUMBEROFGRIDPOINTS * 1j)]
-            Y = np.mgrid[ylo:yhi:(NUMBEROFGRIDPOINTS * 1j)]
+        # Calculate the vector field discretely sampled at a grid of points
+        grid_point = default_sv.copy()
+        U = np.zeros((NUMBEROFGRIDPOINTS, NUMBEROFGRIDPOINTS,
+                      model.number_of_modes))
+        V = np.zeros((NUMBEROFGRIDPOINTS, NUMBEROFGRIDPOINTS,
+                      model.number_of_modes))
+        for ii in range(NUMBEROFGRIDPOINTS):
+            grid_point[svy_ind] = Y[ii]
+            for jj in range(NUMBEROFGRIDPOINTS):
 
-            # Calculate Phase Plane
-            svx_ind = model.state_variables.index(svx)
-            svy_ind = model.state_variables.index(svy)
+                grid_point[svx_ind] = X[jj]
 
-            # Calculate the vector field discretely sampled at a grid of points
-            grid_point = default_sv.copy()
-            U = np.zeros((NUMBEROFGRIDPOINTS, NUMBEROFGRIDPOINTS,
-                          model.number_of_modes))
-            V = np.zeros((NUMBEROFGRIDPOINTS, NUMBEROFGRIDPOINTS,
-                          model.number_of_modes))
-            for ii in range(NUMBEROFGRIDPOINTS):
-                grid_point[svy_ind] = Y[ii]
-                for jj in range(NUMBEROFGRIDPOINTS):
+                d = model.dfun(grid_point, no_coupling)
 
-                    grid_point[svx_ind] = X[jj]
+                for kk in range(model.number_of_modes):
+                    U[ii, jj, kk] = d[svx_ind, 0, kk]
+                    V[ii, jj, kk] = d[svy_ind, 0, kk]
 
-                    d = model.dfun(grid_point, no_coupling)
+        model_name = model.__class__.__name__
+        pp_ax.set(title=model_name + " mode " + str(mode))
+        pp_ax.set(xlabel="State Variable " + svx)
+        pp_ax.set(ylabel="State Variable " + svy)
 
-                    for kk in range(model.number_of_modes):
-                        U[ii, jj, kk] = d[svx_ind, 0, kk]
-                        V[ii, jj, kk] = d[svy_ind, 0, kk]
+        # Plot a discrete representation of the vector field
+        if np.all(U[:, :, mode] + V[:, :, mode] == 0):
+            pp_ax.set(title=model_name + " mode " + str(mode) + ": NO MOTION IN THIS PLANE")
+            X, Y = np.meshgrid(X, Y)
+            pp_ax.scatter(X, Y, s=8, marker=".", c="k")
+        else:
+            pp_ax.quiver(X, Y, U[:, :, mode], V[:, :, mode],
+                         # UVmag[:, :, mode],
+                         width=0.001, headwidth=8)
 
-            model_name = model.__class__.__name__
-            pp_ax.set(title=model_name + " mode " + str(mode))
-            pp_ax.set(xlabel="State Variable " + svx)
-            pp_ax.set(ylabel="State Variable " + svy)
+        # Plot the nullclines
+        pp_ax.contour(X, Y, U[:, :, mode], [0], colors="r")
+        pp_ax.contour(X, Y, V[:, :, mode], [0], colors="g")
 
-            # Plot a discrete representation of the vector field
-            if np.all(U[:, :, mode] + V[:, :, mode] == 0):
-                pp_ax.set(title=model_name + " mode " + str(mode) + ": NO MOTION IN THIS PLANE")
-                X, Y = np.meshgrid(X, Y)
-                pp_ax.scatter(X, Y, s=8, marker=".", c="k")
-            else:
-                pp_ax.quiver(X, Y, U[:, :, mode], V[:, :, mode],
-                             # UVmag[:, :, mode],
-                             width=0.001, headwidth=8)
+        # Plot Trajectory
+        if len(self.traj_texts):
+            for traj_text in self.traj_texts:
 
-            # Plot the nullclines
-            pp_ax.contour(X, Y, U[:, :, mode], [0], colors="r")
-            pp_ax.contour(X, Y, V[:, :, mode], [0], colors="g")
+                x = float(traj_text[0])
+                y = float(traj_text[1])
+                svx_ind = model.state_variables.index(svx)
+                svy_ind = model.state_variables.index(svy)
 
-            # Plot Trajectory
-            if len(traj_texts):
-                for traj_text in traj_texts:
+                # Calculate an example trajectory
+                state = default_sv.copy()
+                integrator.clamped_state_variable_indices = np.setdiff1d(
+                    np.r_[:len(model.state_variables)], np.r_[svx_ind, svy_ind])
+                integrator.clamped_state_variable_values = default_sv[integrator.clamped_state_variable_indices]
+                state[svx_ind] = x
+                state[svy_ind] = y
+                scheme = integrator.scheme
+                traj = np.zeros((TRAJ_STEPS + 1, model.nvar, 1,
+                                 model.number_of_modes))
+                traj[0, :] = state
+                for step in range(TRAJ_STEPS):
+                    state = scheme(state, model.dfun, no_coupling, 0.0, 0.0)
+                    traj[step + 1, :] = state
 
-                    x = float(traj_text[0])
-                    y = float(traj_text[1])
-                    svx_ind = model.state_variables.index(svx)
-                    svy_ind = model.state_variables.index(svy)
+                pp_ax.scatter(x, y, s=42, c='g', marker='o', edgecolor=None)
+                pp_ax.plot(traj[:, svx_ind, 0, mode],
+                           traj[:, svy_ind, 0, mode])
 
-                    # Calculate an example trajectory
-                    state = default_sv.copy()
-                    integrator.clamped_state_variable_indices = np.setdiff1d(
-                        np.r_[:len(model.state_variables)], np.r_[svx_ind, svy_ind])
-                    integrator.clamped_state_variable_values = default_sv[integrator.clamped_state_variable_indices]
-                    state[svx_ind] = x
-                    state[svy_ind] = y
-                    scheme = integrator.scheme
-                    traj = np.zeros((TRAJ_STEPS + 1, model.nvar, 1,
-                                     model.number_of_modes))
-                    traj[0, :] = state
-                    for step in range(TRAJ_STEPS):
-                        state = scheme(state, model.dfun, no_coupling, 0.0, 0.0)
-                        traj[step + 1, :] = state
+                # Plot the selected state variable trajectories as a function of time
+                pp_splt.plot(np.arange(TRAJ_STEPS + 1) * integrator.dt,
+                             traj[:, :, 0, mode])
 
-                    pp_ax.scatter(x, y, s=42, c='g', marker='o', edgecolor=None)
-                    pp_ax.plot(traj[:, svx_ind, 0, mode],
-                               traj[:, svy_ind, 0, mode])
+    def get_widget(self, plot_size=(4, 5)):
+        """ Generate the Phase Plane Figure and Widgets. """
+        self.plot_size = plot_size
+        # Make sure the model is configured.
+        self.model.configure()
 
-                    # Plot the selected state variable trajectories as a function of time
-                    pp_splt.plot(np.arange(TRAJ_STEPS + 1) * integrator.dt,
-                                 traj[:, :, 0, mode])
+        # model = self.model
+        # integrator = self.integrator
+        # TRAJ_STEPS = self.TRAJ_STEPS
+        # NUMBEROFGRIDPOINTS = self.NUMBEROFGRIDPOINTS
+        #
+        # # List for storing plotted trajectory coordinates.
+        # traj_texts = []
 
         # Create UI with Widgets
-        ui = self.create_ui()
+        self.ui = self.create_ui()
 
         # Generate Output
-        out = widgets.interactive_output(plotter, self.params)
+        self.out = widgets.interactive_output(self.plotter, self.params)
 
-        self.hbox = widgets.HBox([ui, out], layout=self.DEFAULT_BORDER)
+        self.hbox = widgets.HBox([self.ui, self.out], layout=self.DEFAULT_BORDER)
 
         # # Display Output
         # display(ui, out)
@@ -273,6 +279,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         # Param Sliders and Reset Button
         self.add_param_sliders()
         self.add_reset_param_button()
+        self.add_model_and_integrator_selector()
 
         # State Variable Sliders and Reset Button
         self.add_sv_sliders()
@@ -281,9 +288,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         # XY Axes State Variable Selector and Mode Selector
         self.add_sv_selector()
         self.add_mode_selector()
-
-        # add model and integrator selector box
-        self.add_model_and_integrator_selector()
 
         # Trajectory Plotting
         self.add_traj_coords_text()
@@ -303,17 +307,17 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         # Widget Group 2
         self.sv_widgets = widgets.VBox([self.reset_sv_button] + list(self.sv_sliders.values()) +
                                        [self.traj_label, self.traj_x_box, self.traj_y_box,
-                                        self.plot_traj_button, self.traj_out, self.clear_traj_button,
-                                        self.model_selector, self.integrator_selector],
+                                        self.plot_traj_button, self.traj_out, self.clear_traj_button],
                                        layout=self.box_layout)
 
         # Widget Group 3
-        self.param_widgets = widgets.VBox([self.reset_param_button] + list(self.param_sliders.values()),
+        self.add_model_and_integrator_selector()
+        self.param_widgets = widgets.VBox([self.reset_param_button] + list(self.param_sliders.values()) +
+                                          [self.model_selector, self.integrator_selector],
                                           layout=self.box_layout)
 
         # Exports
         self.build_export_section()
-        self.add_model_and_integrator_selector()
 
         # Group all Widgets in tabs
         self.tabs_container = widgets.Tab()
@@ -323,7 +327,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
     def _build_tabs(self):
         self.tabs_container.children = [self.param_widgets, self.sv_widgets, self.ax_widgets, self.export_model_section]
-        tab_titles = ['Model Params', 'State Variables', 'AX Widgets', 'Exports']
+        tab_titles = ['Model', 'Trajectories', 'Axes', 'Exports']
         self.tabs_container.set_title(0, tab_titles[0])
         self.tabs_container.set_title(1, tab_titles[1])
         self.tabs_container.set_title(2, tab_titles[2])
@@ -662,7 +666,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self._add_model_selector()
         self._add_integrator_selector()
 
-
     def _add_model_selector(self):
         models = {model.__name__: model for model in models_module.ModelsEnum.get_base_model_subclasses()}
         self.model_selector = widgets.Dropdown(options=models.keys(),
@@ -676,8 +679,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
             self.model = models[change['new']]()
             self._reset_model()
-            shell = get_ipython()
-            shell.run_cell('%rerun', silent=False)
+            self._rebuild_widget()
 
         self.model_selector.observe(change_model)
 
@@ -691,9 +693,65 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             if change['type'] != 'change' or change['name'] != 'value':
                 return
             self.integrator = integrators_dict[change['new']]()
-            shell = get_ipython()
-            shell.run_code('%rerun')
+            self._rebuild_widget()
+
         self.integrator_selector.observe(on_change_callback)
+
+    def _rebuild_widget(self):
+        # type: () -> None
+        """
+        rebuilds widget. Used when changing model or integrator
+        """
+        # rebuild model params tab
+        self._rebuild_param_widgets()
+        self._rebuild_state_variables_widgets()
+        self._rebuild_ax_widgets()
+        self._rebuild_plot_widget()
+
+    def _rebuild_plot_widget(self):
+        self.out.close()
+        self.out = widgets.interactive_output(self.plotter, self.params)
+        self.hbox.children = (self.tabs_container, self.out)
+
+    def _rebuild_ax_widgets(self):
+        for wid in self.ax_widgets.children:
+            wid.close()
+        self.svx_widget.close()
+        self.svy_widget.close()
+        self.add_sv_selector()
+        self.mode_selector_widget = widgets.VBox([widgets.Label('Mode Selector'), self.mode_selector])
+        self.svx_widget = widgets.VBox([widgets.Label('SVX Selector'), self.state_variable_x])
+        self.svy_widget = widgets.VBox([widgets.Label('SVY Selector'), self.state_variable_y])
+        self.add_reset_axes_button()
+        self.add_axes_sliders()
+        self.ax_widgets_list = [self.reset_axes_button,
+                                self.sl_x_min, self.sl_x_max, self.sl_y_min, self.sl_y_max,
+                                self.mode_selector_widget, self.svx_widget, self.svy_widget]
+
+        self.add_integrator_widgets()
+        self.ax_widgets.children = tuple(self.ax_widgets_list)
+
+    def _rebuild_state_variables_widgets(self):
+        for wid in self.sv_widgets.children:
+            wid.close()
+
+        self.set_state_vector()
+        self.add_sv_sliders()
+        self.add_reset_sv_button()
+        self.add_traj_coords_text()
+        self.sv_widgets.children = tuple([self.reset_sv_button, *list(self.sv_sliders.values()),
+                                          self.traj_label, self.traj_x_box, self.traj_y_box,
+                                          self.plot_traj_button, self.traj_out, self.clear_traj_button])
+
+    def _rebuild_param_widgets(self):
+        for wid in self.param_widgets.children:
+            wid.close()
+        self.add_reset_param_button()
+        self.add_param_sliders()
+        self.add_model_and_integrator_selector()
+        self.param_widgets.children = tuple(
+            [self.reset_param_button] + list(self.param_sliders.values()) + [self.model_selector,
+                                                                             self.integrator_selector])
 
     def build_export_section(self):
         btn_tooltip = 'Creates a .py file with code needed to generate a model instance ' \
