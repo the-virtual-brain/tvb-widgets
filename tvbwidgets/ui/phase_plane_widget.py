@@ -44,7 +44,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
     """
 
     # Set the resolution of the phase-plane and sample trajectories.
-    NUMBEROFGRIDPOINTS = 42
+    NUMBER_OF_GRID_POINTS = 42
     TRAJ_STEPS = 4096
     exclude_sliders = None
 
@@ -90,16 +90,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         # Toggle variable for trajectory
         self.traj_out = None
 
-    def _reset_model(self):
-        self.svx = self.model.state_variables[0]  # x-axis: 1st state variable
-        self.svy = self.model.state_variables[1]  # y-axis: 2nd state variable
-
     def plotter(self, **plot_params):
         """ Main plotter function. """
         model = self.model
         integrator = self.integrator
-        TRAJ_STEPS = self.TRAJ_STEPS
-        NUMBEROFGRIDPOINTS = self.NUMBEROFGRIDPOINTS
+        traj_steps = self.TRAJ_STEPS
+        number_of_grid_points = self.NUMBER_OF_GRID_POINTS
 
         # Generating the Phase Plane Figure
         model_name = model.__class__.__name__
@@ -118,8 +114,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         ipp_fig.subplots_adjust(left=0.15, bottom=0.02, right=0.95,
                                 top=0.3, wspace=0.1, hspace=1.0)
         pp_splt.set_prop_cycle(color=get_color(model.nvar))
-        pp_splt.plot(np.arange(TRAJ_STEPS + 1) * integrator.dt,
-                     np.zeros((TRAJ_STEPS + 1, model.nvar)))
+        pp_splt.plot(np.arange(traj_steps + 1) * integrator.dt,
+                     np.zeros((traj_steps + 1, model.nvar)))
         if hasattr(pp_splt, 'autoscale'):
             pp_splt.autoscale(enable=True, axis='y', tight=True)
         pp_splt.legend(model.state_variables)
@@ -159,8 +155,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         ylo = plot_params['sl_y_min']
         yhi = plot_params['sl_y_max']
 
-        X = np.mgrid[xlo:xhi:(NUMBEROFGRIDPOINTS * 1j)]
-        Y = np.mgrid[ylo:yhi:(NUMBEROFGRIDPOINTS * 1j)]
+        X = np.mgrid[xlo:xhi:(number_of_grid_points * 1j)]
+        Y = np.mgrid[ylo:yhi:(number_of_grid_points * 1j)]
 
         # Calculate Phase Plane
         svx_ind = model.state_variables.index(svx)
@@ -168,13 +164,13 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         # Calculate the vector field discretely sampled at a grid of points
         grid_point = default_sv.copy()
-        U = np.zeros((NUMBEROFGRIDPOINTS, NUMBEROFGRIDPOINTS,
+        U = np.zeros((number_of_grid_points, number_of_grid_points,
                       model.number_of_modes))
-        V = np.zeros((NUMBEROFGRIDPOINTS, NUMBEROFGRIDPOINTS,
+        V = np.zeros((number_of_grid_points, number_of_grid_points,
                       model.number_of_modes))
-        for ii in range(NUMBEROFGRIDPOINTS):
+        for ii in range(number_of_grid_points):
             grid_point[svy_ind] = Y[ii]
-            for jj in range(NUMBEROFGRIDPOINTS):
+            for jj in range(number_of_grid_points):
 
                 grid_point[svx_ind] = X[jj]
 
@@ -220,10 +216,10 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                 state[svx_ind] = x
                 state[svy_ind] = y
                 scheme = integrator.scheme
-                traj = np.zeros((TRAJ_STEPS + 1, model.nvar, 1,
+                traj = np.zeros((traj_steps + 1, model.nvar, 1,
                                  model.number_of_modes))
                 traj[0, :] = state
-                for step in range(TRAJ_STEPS):
+                for step in range(traj_steps):
                     state = scheme(state, model.dfun, no_coupling, 0.0, 0.0)
                     traj[step + 1, :] = state
 
@@ -232,7 +228,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                            traj[:, svy_ind, 0, mode])
 
                 # Plot the selected state variable trajectories as a function of time
-                pp_splt.plot(np.arange(TRAJ_STEPS + 1) * integrator.dt,
+                pp_splt.plot(np.arange(traj_steps + 1) * integrator.dt,
                              traj[:, :, 0, mode])
 
     def get_widget(self, plot_size=(4, 5)):
@@ -241,14 +237,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         # Make sure the model is configured.
         self.model.configure()
 
-        # model = self.model
-        # integrator = self.integrator
-        # TRAJ_STEPS = self.TRAJ_STEPS
-        # NUMBEROFGRIDPOINTS = self.NUMBEROFGRIDPOINTS
-        #
-        # # List for storing plotted trajectory coordinates.
-        # traj_texts = []
-
         # Create UI with Widgets
         self.ui = self.create_ui()
 
@@ -256,9 +244,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.out = widgets.interactive_output(self.plotter, self.params)
 
         self.hbox = widgets.HBox([self.ui, self.out], layout=self.DEFAULT_BORDER)
-
-        # # Display Output
-        # display(ui, out)
 
         return self.hbox
 
@@ -296,8 +281,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.mode_selector_widget = widgets.VBox([widgets.Label('Mode Selector'), self.mode_selector])
         self.svx_widget = widgets.VBox([widgets.Label('SVX Selector'), self.state_variable_x])
         self.svy_widget = widgets.VBox([widgets.Label('SVY Selector'), self.state_variable_y])
-        self.ax_widgets_list = [self.reset_axes_button,
-                                self.sl_x_min, self.sl_x_max, self.sl_y_min, self.sl_y_max,
+        self.ax_widgets_list = [self.sl_x_min, self.sl_x_max, self.sl_y_min, self.sl_y_max, self.reset_axes_button,
                                 self.mode_selector_widget, self.svx_widget, self.svy_widget]
 
         self.add_integrator_widgets()
@@ -305,15 +289,15 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.ax_widgets = widgets.VBox(self.ax_widgets_list, layout=self.box_layout)
 
         # Widget Group 2
-        self.sv_widgets = widgets.VBox([self.reset_sv_button] + list(self.sv_sliders.values()) +
+        self.sv_widgets = widgets.VBox(list(self.sv_sliders.values()) + [self.reset_sv_button] +
                                        [self.traj_label, self.traj_x_box, self.traj_y_box,
                                         self.plot_traj_button, self.traj_out, self.clear_traj_button],
                                        layout=self.box_layout)
 
         # Widget Group 3
         self.add_model_and_integrator_selector()
-        self.param_widgets = widgets.VBox([self.reset_param_button] + list(self.param_sliders.values()) +
-                                          [self.model_selector, self.integrator_selector],
+        self.param_widgets = widgets.VBox([self.model_selector, self.integrator_selector] +
+                                          list(self.param_sliders.values()) + [self.reset_param_button],
                                           layout=self.box_layout)
 
         # Exports
@@ -376,7 +360,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
     def add_reset_noise_button(self):
         """ Add a button to reset integrator noise. """
-
         self.reset_noise_button = widgets.Button(description='Reset noise strength',
                                                  disabled=False,
                                                  layout=self.button_layout)
@@ -388,7 +371,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
     def add_reset_random_stream_button(self):
         """ Add a button to reset random stream of Integrator Noise. """
-
         self.reset_seed_button = widgets.Button(description='Reset random stream',
                                                 disabled=False,
                                                 layout=self.button_layout)
@@ -422,7 +404,13 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                             layout=self.slider_layout,
                                             style=self.slider_style,
                                             continuous_update=False)
-        self.sl_x_min.observe(self.update_sl_x_range, 'value')
+
+        def update_sl_x_range(_val):
+            """ Update the x_min slider's max value to be equal to the min value of x_max slider. """
+
+            self.sl_x_min.max = self.sl_x_max.value
+
+        self.sl_x_min.observe(update_sl_x_range, 'value')
 
         self.sl_x_max = widgets.FloatSlider(description="xhi",
                                             min=min_val_x,
@@ -439,7 +427,13 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                             layout=self.slider_layout,
                                             style=self.slider_style,
                                             continuous_update=False)
-        self.sl_y_min.observe(self.update_sl_y_range, 'value')
+
+        def update_sl_y_range(_val):
+            """ Update the y_min slider's max value to be equal to the min value of y_max slider. """
+
+            self.sl_y_min.max = self.sl_y_max.value
+
+        self.sl_y_min.observe(update_sl_y_range, 'value')
 
         self.sl_y_max = widgets.FloatSlider(description="yhi",
                                             min=min_val_y,
@@ -508,7 +502,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                                 value=self.integrator.noise.nsig,
                                                 layout=self.slider_layout,
                                                 style=self.slider_style)
-        self.noise_slider.observe(self.update_noise)
+
+        def update_noise(_change):
+            """ Update integrator noise based on the noise slider value. """
+            self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
+
+        self.noise_slider.observe(update_noise)
 
     def add_integrator_widgets(self):
         """ Add a noise slider, reset noise button and reset random stream button for Stochastic Integrator. """
@@ -557,7 +556,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         Add a button to clear trajectories.
         """
 
-        self.traj_label = widgets.Label('Trajectory Co-ordinates (Float)')
+        self.traj_label = widgets.Label('Trajectory Coordinates (Float)')
         self.plot_traj = widgets.Valid(value=False, description="Hidden Field for Plotting Trajectory")
         self.clear_traj = widgets.Valid(value=False, description="Hidden Field for Clearing Trajectory")
         self.traj_out = widgets.Textarea(value='', placeholder='Trajectory Co-ordinates output will be shown here')
@@ -608,16 +607,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
     # ------------------- Functions for updating the figure ------------------#
     # ------------------------------------------------------------------------#
 
-    def update_sl_x_range(self, val):
-        """ Update the x_min slider's max value to be equal to the min value of x_max slider. """
-
-        self.sl_x_min.max = self.sl_x_max.value
-
-    def update_sl_y_range(self, val):
-        """ Update the y_min slider's max value to be equal to the min value of y_max slider. """
-
-        self.sl_y_min.max = self.sl_y_max.value
-
     def set_default_axes_sliders(self):
         """ Calculate the default X Axis and Y Axis Sliders values. """
 
@@ -657,19 +646,18 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.sl_y_max.value = self.sl_y_max_initval
         self.sl_y_max.max = max_val_y
 
-    def update_noise(self, val):
-        """ Update integrator noise based on the noise slider value. """
-
-        self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
-
     def add_model_and_integrator_selector(self):
         self._add_model_selector()
         self._add_integrator_selector()
 
+    def _reset_model(self):
+        self.svx = self.model.state_variables[0]  # x-axis: 1st state variable
+        self.svy = self.model.state_variables[1]  # y-axis: 2nd state variable
+
     def _add_model_selector(self):
         models = {model.__name__: model for model in models_module.ModelsEnum.get_base_model_subclasses()}
         self.model_selector = widgets.Dropdown(options=models.keys(),
-                                               description='Current model:',
+                                               description='Model:',
                                                value=self.model.__class__.__name__)
 
         # on change callback
@@ -686,7 +674,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
     def _add_integrator_selector(self):
         integrators_dict = IntegratorsEnum.get_integrators_dict()
         self.integrator_selector = widgets.Dropdown(options=integrators_dict.keys(),
-                                                    description='Current Integrator',
+                                                    description='Integrator',
                                                     value=self.integrator.__class__.__name__)
 
         def on_change_callback(change):
@@ -702,58 +690,18 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         """
         rebuilds widget. Used when changing model or integrator
         """
-        # rebuild model params tab
-        self._rebuild_param_widgets()
-        self._rebuild_state_variables_widgets()
-        self._rebuild_ax_widgets()
-        self._rebuild_plot_widget()
+        for wid in self.hbox.children:
+            wid.close()
 
-    def _rebuild_plot_widget(self):
-        self.out.close()
+        self.model.configure()
+        self.ui = self.create_ui()
         self.out = widgets.interactive_output(self.plotter, self.params)
-        self.hbox.children = (self.tabs_container, self.out)
-
-    def _rebuild_ax_widgets(self):
-        for wid in self.ax_widgets.children:
-            wid.close()
-        self.svx_widget.close()
-        self.svy_widget.close()
-        self.add_sv_selector()
-        self.mode_selector_widget = widgets.VBox([widgets.Label('Mode Selector'), self.mode_selector])
-        self.svx_widget = widgets.VBox([widgets.Label('SVX Selector'), self.state_variable_x])
-        self.svy_widget = widgets.VBox([widgets.Label('SVY Selector'), self.state_variable_y])
-        self.add_reset_axes_button()
-        self.add_axes_sliders()
-        self.ax_widgets_list = [self.reset_axes_button,
-                                self.sl_x_min, self.sl_x_max, self.sl_y_min, self.sl_y_max,
-                                self.mode_selector_widget, self.svx_widget, self.svy_widget]
-
-        self.add_integrator_widgets()
-        self.ax_widgets.children = tuple(self.ax_widgets_list)
-
-    def _rebuild_state_variables_widgets(self):
-        for wid in self.sv_widgets.children:
-            wid.close()
-
-        self.set_state_vector()
-        self.add_sv_sliders()
-        self.add_reset_sv_button()
-        self.add_traj_coords_text()
-        self.sv_widgets.children = tuple([self.reset_sv_button, *list(self.sv_sliders.values()),
-                                          self.traj_label, self.traj_x_box, self.traj_y_box,
-                                          self.plot_traj_button, self.traj_out, self.clear_traj_button])
-
-    def _rebuild_param_widgets(self):
-        for wid in self.param_widgets.children:
-            wid.close()
-        self.add_reset_param_button()
-        self.add_param_sliders()
-        self.add_model_and_integrator_selector()
-        self.param_widgets.children = tuple(
-            [self.reset_param_button] + list(self.param_sliders.values()) + [self.model_selector,
-                                                                             self.integrator_selector])
+        self.hbox.children = (self.ui, self.out)
 
     def build_export_section(self):
+        """
+        Builds UI for Exports tab
+        """
         btn_tooltip = 'Creates a .py file with code needed to generate a model instance ' \
                       'or a json file with model params'
         export_types = [choice.value for choice in list(ModelConfigurationExports)]
@@ -775,6 +723,10 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                   "export_model() on this widget.</p>")
         self.export_model_section = widgets.VBox((self.export_type, self.config_name,
                                                   self.do_export_btn, self.py_output, info))
+
+    # -----------------------------------------------------------#
+    # ----------------- EXPORT FUNCTIONALITY --------------------#
+    # -----------------------------------------------------------#
 
     def export_model_configuration(self, *_args):
         # type: (any) -> None
