@@ -12,7 +12,6 @@ import os
 import re
 from enum import Enum
 from tvb.simulator.models import Model
-
 from tvbwidgets import get_logger
 from tvbwidgets.core.exceptions import ModelExporterNotFoundError
 

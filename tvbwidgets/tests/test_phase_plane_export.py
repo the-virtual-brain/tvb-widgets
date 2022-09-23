@@ -12,7 +12,7 @@ import pytest
 import shutil
 import tempfile
 
-from tvbwidgets.exporters.model_exporters import JSONModelExporter, PythonCodeExporter
+from tvbwidgets.core.simulator.model_exporters import JSONModelExporter, PythonCodeExporter
 from tvbwidgets.ui.phase_plane_widget import PhasePlaneWidget
 from tvb.simulator.models.oscillator import Generic2dOscillator, SupHopf
 from tvbwidgets.tests.constants import OSCILLATOR_2d_DEFAULT_CONFIG, SUP_HOPF_DEFAULT_PARAMS

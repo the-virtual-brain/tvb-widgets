@@ -11,7 +11,7 @@ import numpy
 import pytest
 import shutil
 import tempfile
-from tvbwidgets.exporters.model_exporters import is_jsonable, is_valid_file_name, JSONModelExporter, PythonCodeExporter
+from tvbwidgets.core.simulator.model_exporters import is_jsonable, is_valid_file_name, JSONModelExporter, PythonCodeExporter
 from tvb.simulator.models.oscillator import Generic2dOscillator, SupHopf
 from tvbwidgets.tests.constants import SUP_HOPF_DEFAULT_PARAMS, OSCILLATOR_2d_DEFAULT_CONFIG
 
