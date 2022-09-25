@@ -68,7 +68,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         super(PhasePlaneWidget, self).__init__(**kwargs)
 
         self.plot_size = 4, 5
-        self.traj_texts = []
+        self.trajectories = []
         # Parameters to be passed to plotter
         self.params = dict()
 
@@ -93,10 +93,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         """
         Main plotter function, generating the main Phase Plane Figure.
         """
+        plt.close()
         ipp_fig = plt.figure(figsize=self.plot_size)
         pp_ax = ipp_fig.add_axes([0.15, 0.2, 0.8, 0.75])
         pp_splt = ipp_fig.add_subplot(212)
-        ipp_fig.subplots_adjust(left=0.15, bottom=0.02, right=0.95,
+        ipp_fig.subplots_adjust(left=0.15, bottom=0.04, right=0.95,
                                 top=0.3, wspace=0.1, hspace=1.0)
         pp_splt.set_prop_cycle(color=get_color(self.model.nvar))
         pp_splt.plot(np.arange(self.TRAJ_STEPS + 1) * self.integrator.dt,
@@ -109,19 +110,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         svx = plot_params.pop('svx')
         svy = plot_params.pop('svy')
         mode = plot_params.pop('mode')
-
-        # Fetching Trajectory Coordinates and storing in a list.
-        traj_x = plot_params.pop('traj_x')
-        traj_y = plot_params.pop('traj_y')
-        plot_traj = plot_params.pop('plot_traj')
-
-        if plot_traj and (traj_x, traj_y) not in self.traj_texts:
-            self.traj_texts.append((traj_x, traj_y))
-
-        # Clearing Plotted Trajectories.
-        clear_traj = plot_params.pop('clear_traj')
-        if clear_traj:
-            self.traj_texts.clear()
 
         # Set Model Parameters
         for k, v in plot_params.items():
@@ -177,8 +165,34 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         pp_ax.contour(x, y, u[:, :, mode], [0], colors="r")
         pp_ax.contour(x, y, v[:, :, mode], [0], colors="g")
 
+        self.plot_trajectories(svx, svy, default_sv, no_coupling, mode, pp_ax, pp_splt, **plot_params)
+
+        def on_click(event):
+            if event.inaxes == pp_ax:
+                self.traj_x.value = event.xdata
+                self.traj_y.value = event.ydata
+                self.plot_traj_button.click()
+
+        ipp_fig.canvas.mpl_connect('button_press_event', on_click)
+        plt.show()
+
+    def plot_trajectories(self, svx, svy, default_sv, no_coupling, mode, pp_ax, pp_splt, **plot_params):
+
+        # Fetching Trajectory Coordinates and storing in a list.
+        traj_x = plot_params.pop('traj_x')
+        traj_y = plot_params.pop('traj_y')
+        plot_traj = plot_params.pop('plot_traj')
+
+        if plot_traj and (traj_x, traj_y) not in self.trajectories:
+            self.trajectories.append((traj_x, traj_y))
+
+        # Clearing Plotted Trajectories.
+        clear_traj = plot_params.pop('clear_traj')
+        if clear_traj:
+            self.trajectories.clear()
+
         # Plot Trajectories
-        for traj_text in self.traj_texts:
+        for traj_text in self.trajectories:
 
             x = float(traj_text[0])
             y = float(traj_text[1])
@@ -333,7 +347,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         def reset_noise(_):
             self.noise_slider.value = self.noise_slider_valinit
             self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
-            self.plotter()
+            # self.plotter(**self.params)
 
         reset_noise_button.on_click(reset_noise)
         return reset_noise_button
@@ -346,7 +360,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         def reset_seed(_):
             self.integrator.noise.reset_random_stream()
-            self.plotter()
+            # self.plotter(**self.params)
 
         reset_seed_button.on_click(reset_seed)
         return reset_seed_button
