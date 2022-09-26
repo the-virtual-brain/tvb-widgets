@@ -170,7 +170,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         plt.show()
 
     def _init_plot(self):
-        ipp_fig = plt.figure(figsize=self.plot_size)
+        try:
+            ipp_fig = plt.figure(num="Phase Plane", figsize=self.plot_size)
+        except ValueError:
+            # In case a text can not be given instead of the figure number
+            ipp_fig = plt.figure(figsize=self.plot_size)
         pp_ax = ipp_fig.add_axes([0.15, 0.2, 0.8, 0.75])
         pp_splt = ipp_fig.add_subplot(212)
         ipp_fig.subplots_adjust(left=0.15, bottom=0.04, right=0.95,
