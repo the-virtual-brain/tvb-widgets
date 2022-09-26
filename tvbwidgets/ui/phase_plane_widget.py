@@ -468,10 +468,10 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             self.param_sliders[param_name] = widgets.FloatSlider(description=param_name,
                                                                  min=param_range.lo,
                                                                  max=param_range.hi,
+                                                                 step=param_range.step,
                                                                  value=param_value,
                                                                  layout=self.slider_layout,
-                                                                 style=self.slider_style,
-                                                                 continuous_update=False)
+                                                                 style=self.slider_style)
             self.param_sliders_values[param_name] = param_value
             self.params[param_name] = self.param_sliders[param_name]
 
