@@ -115,6 +115,10 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         for k, v in plot_params.items():
             setattr(self.model, k, np.r_[v])
 
+        if 'noise_slider' in plot_params:
+            # Update integrator noise based on the noise slider value, for stohastic integrators
+            self.integrator.noise.nsig = np.array([plot_params.pop('noise_slider'), ])
+
         # Set State Vector
         sv_mean = np.array([plot_params[key] for key in self.model.state_variables])
         sv_mean = sv_mean.reshape((self.model.nvar, 1, 1))
@@ -346,8 +350,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         def reset_noise(_):
             self.noise_slider.value = self.noise_slider_valinit
-            self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
-            # self.plotter(**self.params)
 
         reset_noise_button.on_click(reset_noise)
         return reset_noise_button
@@ -355,12 +357,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
     def add_reset_random_stream_button(self):
         """ Add a button to reset random stream of Integrator Noise. """
         reset_seed_button = widgets.Button(description='Reset random stream',
-                                           disabled=False,
-                                           layout=self.button_layout)
+                                           disabled=False, layout=self.button_layout)
 
         def reset_seed(_):
             self.integrator.noise.reset_random_stream()
-            # self.plotter(**self.params)
+            self.noise_slider.value = self.noise_slider_valinit
 
         reset_seed_button.on_click(reset_seed)
         return reset_seed_button
@@ -478,20 +479,15 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
     def add_noise_slider(self):
         """ Add a slider to set integrator noise. """
 
-        self.noise_slider_valinit = self.integrator.noise.nsig
-        self.noise_slider = widgets.FloatSlider(description="Log Noise",
-                                                min=-9.0,
-                                                max=1.0,
-                                                value=self.integrator.noise.nsig,
+        self.noise_slider_valinit = self.integrator.noise.nsig[0]
+        self.noise_slider = widgets.FloatSlider(description="Noise Dispersion",
+                                                min=0.0,
+                                                max=2.0,
+                                                step=0.01,
+                                                value=self.noise_slider_valinit,
                                                 layout=self.slider_layout,
                                                 style=self.slider_style)
-
-        def update_noise(_change):
-            """ Update integrator noise based on the noise slider value. """
-            self.integrator.noise.nsig = np.array([10 ** self.noise_slider.value, ])
-
         self.params["noise_slider"] = self.noise_slider
-        self.noise_slider.observe(update_noise)
 
     def add_integrator_widgets(self):
         """ Add a noise slider, reset noise button and reset random stream button for Stochastic Integrator. """
