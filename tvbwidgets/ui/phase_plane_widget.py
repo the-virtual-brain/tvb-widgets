@@ -45,7 +45,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
     """
     # Set the resolution of the phase-plane and sample trajectories.
     NO_GRID_POINTS = 42
-    TRAJ_STEPS = 8200
+    TRAJ_STEPS = 6144
 
     model = Attr(
         field_type=models_module.Model,
@@ -68,8 +68,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         super(PhasePlaneWidget, self).__init__(**kwargs)
 
         self.plot_size = 4, 5
+        self.plot_main_axes = None
+        self.plot_bellow = None
+
         self.trajectories = []
-        # Parameters to be passed to plotter
+        # Parameters to be passed to plotter when their change affects the drawing
         self.params = dict()
 
         # Prepare the initial state
@@ -91,20 +94,13 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
     def plotter(self, **plot_params):
         """
-        Main plotter function, generating the main Phase Plane Figure.
+        Main plotter function, (re)drawing the main Phase Plane canvases.
         """
-        plt.close()
-        ipp_fig = plt.figure(figsize=self.plot_size)
-        pp_ax = ipp_fig.add_axes([0.15, 0.2, 0.8, 0.75])
-        pp_splt = ipp_fig.add_subplot(212)
-        ipp_fig.subplots_adjust(left=0.15, bottom=0.04, right=0.95,
-                                top=0.3, wspace=0.1, hspace=1.0)
-        pp_splt.set_prop_cycle(color=get_color(self.model.nvar))
-        pp_splt.plot(np.arange(self.TRAJ_STEPS + 1) * self.integrator.dt,
-                     np.zeros((self.TRAJ_STEPS + 1, self.model.nvar)))
-        if hasattr(pp_splt, 'autoscale'):
-            pp_splt.autoscale(enable=True, axis='y', tight=True)
-        pp_splt.legend(self.model.state_variables)
+        if self.plot_main_axes is None:
+            self.plot_main_axes, self.plot_bellow = self._init_plot()
+        else:
+            self.plot_main_axes.clear()
+            self.plot_bellow.clear()
 
         # Fetching the parameter values from tvb-widgets.
         svx = plot_params.pop('svx')
@@ -153,32 +149,47 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                     v[ii, jj, kk] = d[svy_ind, 0, kk]
 
         model_name = self.model.__class__.__name__
-        pp_ax.set(title=model_name + " mode " + str(mode))
-        pp_ax.set(xlabel="State Variable " + svx)
-        pp_ax.set(ylabel="State Variable " + svy)
+        self.plot_main_axes.set(title=model_name + " mode " + str(mode))
+        self.plot_main_axes.set(xlabel="State Variable " + svx)
+        self.plot_main_axes.set(ylabel="State Variable " + svy)
 
         # Plot a discrete representation of the vector field
         if np.all(u[:, :, mode] + v[:, :, mode] == 0):
-            pp_ax.set(title=model_name + " mode " + str(mode) + ": NO MOTION IN THIS PLANE")
+            self.plot_main_axes.set(title=model_name + " mode " + str(mode) + ": NO MOTION IN THIS PLANE")
             x, y = np.meshgrid(x, y)
-            pp_ax.scatter(x, y, s=8, marker=".", c="k")
+            self.plot_main_axes.scatter(x, y, s=8, marker=".", c="k")
         else:
-            pp_ax.quiver(x, y, u[:, :, mode], v[:, :, mode], width=0.001, headwidth=8)
+            self.plot_main_axes.quiver(x, y, u[:, :, mode], v[:, :, mode], width=0.001, headwidth=8)
 
         # Plot the nullclines
-        pp_ax.contour(x, y, u[:, :, mode], [0], colors="r")
-        pp_ax.contour(x, y, v[:, :, mode], [0], colors="g")
+        self.plot_main_axes.contour(x, y, u[:, :, mode], [0], colors="r")
+        self.plot_main_axes.contour(x, y, v[:, :, mode], [0], colors="g")
 
-        self.plot_trajectories(svx, svy, default_sv, no_coupling, mode, pp_ax, pp_splt, **plot_params)
+        self.plot_trajectories(svx, svy, default_sv, no_coupling, mode, self.plot_main_axes, self.plot_bellow,
+                               **plot_params)
+        plt.show()
+
+    def _init_plot(self):
+        ipp_fig = plt.figure(figsize=self.plot_size)
+        pp_ax = ipp_fig.add_axes([0.15, 0.2, 0.8, 0.75])
+        pp_splt = ipp_fig.add_subplot(212)
+        ipp_fig.subplots_adjust(left=0.15, bottom=0.04, right=0.95,
+                                top=0.3, wspace=0.1, hspace=1.0)
+        pp_splt.set_prop_cycle(color=get_color(self.model.nvar))
+        pp_splt.plot(np.arange(self.TRAJ_STEPS + 1) * self.integrator.dt,
+                     np.zeros((self.TRAJ_STEPS + 1, self.model.nvar)))
+        if hasattr(pp_splt, 'autoscale'):
+            pp_splt.autoscale(enable=True, axis='y', tight=True)
+        pp_splt.legend(self.model.state_variables)
 
         def on_click(event):
-            if event.inaxes == pp_ax:
+            if event.inaxes == self.plot_main_axes:
                 self.traj_x.value = event.xdata
                 self.traj_y.value = event.ydata
                 self.plot_traj_button.click()
 
         ipp_fig.canvas.mpl_connect('button_press_event', on_click)
-        plt.show()
+        return pp_ax, pp_splt
 
     def plot_trajectories(self, svx, svy, default_sv, no_coupling, mode, pp_ax, pp_splt, **plot_params):
 
@@ -388,8 +399,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                             max=max_val_x,
                                             value=self.model.state_variable_range[self.svx][0],
                                             layout=self.slider_layout,
-                                            style=self.slider_style,
-                                            continuous_update=False)
+                                            style=self.slider_style)
 
         def update_sl_x_range(_val):
             """ Update the x_min slider's max value to be equal to the min value of x_max slider. """
@@ -403,16 +413,14 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                             max=max_val_x,
                                             value=self.model.state_variable_range[self.svx][1],
                                             layout=self.slider_layout,
-                                            style=self.slider_style,
-                                            continuous_update=False)
+                                            style=self.slider_style)
 
         self.sl_y_min = widgets.FloatSlider(description="ylo",
                                             min=min_val_y,
                                             max=max_val_y,
                                             value=self.model.state_variable_range[self.svy][0],
                                             layout=self.slider_layout,
-                                            style=self.slider_style,
-                                            continuous_update=False)
+                                            style=self.slider_style)
 
         def update_sl_y_range(_val):
             """ Update the y_min slider's max value to be equal to the min value of y_max slider. """
@@ -426,8 +434,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                             max=max_val_y,
                                             value=self.model.state_variable_range[self.svy][1],
                                             layout=self.slider_layout,
-                                            style=self.slider_style,
-                                            continuous_update=False)
+                                            style=self.slider_style)
 
         self.params['sl_x_min'] = self.sl_x_min
         self.params['sl_x_max'] = self.sl_x_max
@@ -447,8 +454,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                                           max=msv_range[sv_str][1],
                                                           value=self.default_sv[sv, 0, 0],
                                                           layout=self.slider_layout,
-                                                          style=self.slider_style,
-                                                          continuous_update=False)
+                                                          style=self.slider_style)
             self.sv_sliders_values[sv_str] = self.default_sv[sv, 0, 0]
             self.params[sv_str] = self.sv_sliders[sv_str]
 
@@ -554,12 +560,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             self.plot_traj.value = False
 
         self.traj_x_label = widgets.Label('X: ')
-        self.traj_x = widgets.FloatText(placeholder='X - Coordinate', continuous_update=False)
+        self.traj_x = widgets.FloatText(placeholder='X - Coordinate')
         self.traj_x.observe(disable_plot_traj, 'value')
         self.traj_x_box = widgets.HBox([self.traj_x_label, self.traj_x])
 
         self.traj_y_label = widgets.Label('Y: ')
-        self.traj_y = widgets.FloatText(placeholder='Y - Coordinate', continuous_update=False)
+        self.traj_y = widgets.FloatText(placeholder='Y - Coordinate')
         self.traj_y.observe(disable_plot_traj, 'value')
         self.traj_y_box = widgets.HBox([self.traj_y_label, self.traj_y])
 
