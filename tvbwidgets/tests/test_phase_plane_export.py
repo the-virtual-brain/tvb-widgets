@@ -81,7 +81,8 @@ def test_python_export_with_user_defined_configuration_name():
     wid.get_widget()
     config_name = 'test_config name2'
     expected_instance_code = f'# {config_name}\nimport numpy\nfrom tvb.simulator import models\n' \
-                             f'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+                             f'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
+                             f'model_instance\n\n'
     wid.config_name.value = config_name
     wid.export_type.value = 'Python script'
     wid.export_model_configuration()
@@ -99,9 +100,11 @@ def test_python_multi_export_with_user_defined_configuration_name():
     wid.get_widget()
     config_name = 'test_config name3'
     expected_instance_code = f'# {config_name}\nimport numpy\nfrom tvb.simulator import models\n' \
-                             f'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n' \
+                             f'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
+                             f'model_instance\n\n' \
                              f'# {config_name}\n' \
-                             'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+                             'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
+                             'model_instance\n\n'
 
     wid.config_name.value = config_name
     wid.export_type.value = 'Python script'

@@ -4,9 +4,9 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+
 import json
 import os
-
 import numpy
 import pytest
 import shutil
@@ -119,7 +119,8 @@ class TestPythonCodeExporter:
         exporter = PythonCodeExporter(model_instance, args.keys())
         exporter.do_export()
         expected = '# default config\nimport numpy\nfrom tvb.simulator import models\n' \
-                   'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+                   'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
+                   'model_instance\n\n'
         with open(exporter.file_name, 'r') as file:
             py_content = file.read()
             assert py_content == expected
@@ -131,9 +132,11 @@ class TestPythonCodeExporter:
         exporter.do_export()
         exporter.do_export()
         expected = '# default config\nimport numpy\nfrom tvb.simulator import models\n' \
-                   'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+                   'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
+                   'model_instance\n\n'
         expected += '# default config\n' \
-                    'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+                    'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
+                    'model_instance\n\n'
 
         with open(exporter.file_name, 'r') as file:
             py_content = file.read()
