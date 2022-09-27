@@ -4,14 +4,14 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+
 import json
 import os
-
 import numpy
 import pytest
 import shutil
 import tempfile
-from tvbwidgets.exporters.model_exporters import is_jsonable, is_valid_file_name, JSONModelExporter, PythonCodeExporter
+from tvbwidgets.core.simulator.model_exporters import is_jsonable, is_valid_file_name, JSONModelExporter, PythonCodeExporter
 from tvb.simulator.models.oscillator import Generic2dOscillator, SupHopf
 from tvbwidgets.tests.constants import SUP_HOPF_DEFAULT_PARAMS, OSCILLATOR_2d_DEFAULT_CONFIG
 
@@ -119,7 +119,8 @@ class TestPythonCodeExporter:
         exporter = PythonCodeExporter(model_instance, args.keys())
         exporter.do_export()
         expected = '# default config\nimport numpy\nfrom tvb.simulator import models\n' \
-                   'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+                   'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
+                   'model_instance\n\n'
         with open(exporter.file_name, 'r') as file:
             py_content = file.read()
             assert py_content == expected
@@ -131,9 +132,11 @@ class TestPythonCodeExporter:
         exporter.do_export()
         exporter.do_export()
         expected = '# default config\nimport numpy\nfrom tvb.simulator import models\n' \
-                   'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+                   'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
+                   'model_instance\n\n'
         expected += '# default config\n' \
-                    'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n\n'
+                    'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
+                    'model_instance\n\n'
 
         with open(exporter.file_name, 'r') as file:
             py_content = file.read()
