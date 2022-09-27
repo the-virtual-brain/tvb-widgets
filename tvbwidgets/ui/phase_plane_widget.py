@@ -179,12 +179,10 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         pp_splt = ipp_fig.add_subplot(212)
         ipp_fig.subplots_adjust(left=0.15, bottom=0.04, right=0.95,
                                 top=0.3, wspace=0.1, hspace=1.0)
-        pp_splt.set_prop_cycle(color=get_color(self.model.nvar))
         pp_splt.plot(np.arange(self.TRAJ_STEPS + 1) * self.integrator.dt,
                      np.zeros((self.TRAJ_STEPS + 1, self.model.nvar)))
         if hasattr(pp_splt, 'autoscale'):
             pp_splt.autoscale(enable=True, axis='y', tight=True)
-        pp_splt.legend(self.model.state_variables)
 
         def on_click(event):
             if event.inaxes == self.plot_main_axes:
@@ -237,7 +235,9 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             pp_ax.plot(traj[:, svx_ind, 0, mode], traj[:, svy_ind, 0, mode])
 
             # Plot the selected state variable trajectories as a function of time
+            pp_splt.set_prop_cycle(color=get_color(self.model.nvar))
             pp_splt.plot(np.arange(self.TRAJ_STEPS + 1) * self.integrator.dt, traj[:, :, 0, mode])
+            pp_splt.legend(self.model.state_variables)
 
     def get_widget(self, plot_size=(4, 5)):
         """ Generate the Phase Plane Figure and Widgets. """

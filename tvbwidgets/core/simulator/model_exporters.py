@@ -183,7 +183,8 @@ class PythonCodeExporter(ABCModelExporter):
             values += f'{self.numpy_import}\n{self.models_import}\n'
 
         model_params = self.get_model_params()
-        values += f'{self.instance_var_name} = {self.module_name}.{class_name}({model_params})\n\n'
+        values += f'{self.instance_var_name} = {self.module_name}.{class_name}({model_params})\n'
+        values += f'{self.instance_var_name}\n\n'
         return values
 
     def get_model_params(self):
