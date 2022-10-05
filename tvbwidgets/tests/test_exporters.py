@@ -54,7 +54,7 @@ class TestJSONModelExporter:
     def mock_exported_filename(self, temp_storage, monkeypatch):
         _storage, file = temp_storage
         file_json_path = os.path.join(file, 'test_json.json')
-        monkeypatch.setattr(JSONModelExporter, 'file_name', file_json_path)
+        monkeypatch.setattr(JSONModelExporter, 'file_path', file_json_path)
 
     def _export_sup_hopf_default(self):
         model = SupHopf(a=numpy.array(SUP_HOPF_DEFAULT_PARAMS['a']),
@@ -66,14 +66,14 @@ class TestJSONModelExporter:
 
     def test_simple_sup_hopf_export(self):
         exporter = self._export_sup_hopf_default()
-        with open(exporter.file_name, 'r') as file:
+        with open(exporter.file_path, 'r') as file:
             json_content = json.loads(file.read())
             assert json_content[exporter.default_config_name + '1'] == SUP_HOPF_DEFAULT_PARAMS
 
     def test_multiple_sup_hopf_exports(self):
         exporter = self._export_sup_hopf_default()
         exporter.do_export()
-        with open(exporter.file_name, 'r') as file:
+        with open(exporter.file_path, 'r') as file:
             json_content = json.loads(file.read())
             assert len(json_content.keys()) == 2
             assert json_content[exporter.default_config_name + '1'] == SUP_HOPF_DEFAULT_PARAMS
@@ -85,7 +85,7 @@ class TestJSONModelExporter:
                           omega=numpy.array(SUP_HOPF_DEFAULT_PARAMS['omega']))
         exporter.model_instance = model_2
         exporter.do_export()
-        with open(exporter.file_name, 'r') as file:
+        with open(exporter.file_path, 'r') as file:
             json_content = json.loads(file.read())
             assert len(json_content.keys()) == 2
             assert json_content[exporter.default_config_name + '1'] == SUP_HOPF_DEFAULT_PARAMS
@@ -100,7 +100,7 @@ class TestJSONModelExporter:
         exporter.model_instance = Generic2dOscillator(**generic_defaults)
         exporter.keys = generic_defaults.keys()
         exporter.do_export()
-        with open(exporter.file_name, 'r') as file:
+        with open(exporter.file_path, 'r') as file:
             json_content = json.loads(file.read())
             assert json_content[exporter.default_config_name + '1'] == SUP_HOPF_DEFAULT_PARAMS
             assert json_content[exporter.default_config_name + '2'] == OSCILLATOR_2d_DEFAULT_CONFIG
@@ -111,7 +111,7 @@ class TestPythonCodeExporter:
     def mock_exported_filename(self, temp_storage, monkeypatch):
         _storage, file = temp_storage
         py_file_path = os.path.join(file, 'instances_test_python.py')
-        monkeypatch.setattr(PythonCodeExporter, 'file_name', py_file_path)
+        monkeypatch.setattr(PythonCodeExporter, 'file_path', py_file_path)
 
     def test_simple_sup_hopf_python_export(self):
         args = {k: numpy.array(v) for k, v in SUP_HOPF_DEFAULT_PARAMS.items() if k != 'model'}
@@ -121,7 +121,7 @@ class TestPythonCodeExporter:
         expected = '# default config\nimport numpy\nfrom tvb.simulator import models\n' \
                    'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
                    'model_instance\n\n'
-        with open(exporter.file_name, 'r') as file:
+        with open(exporter.file_path, 'r') as file:
             py_content = file.read()
             assert py_content == expected
 
@@ -138,6 +138,6 @@ class TestPythonCodeExporter:
                     'model_instance = models.SupHopf(a=numpy.array([-0.5]),omega=numpy.array([1.]))\n' \
                     'model_instance\n\n'
 
-        with open(exporter.file_name, 'r') as file:
+        with open(exporter.file_path, 'r') as file:
             py_content = file.read()
             assert py_content == expected

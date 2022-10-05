@@ -67,6 +67,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         super(PhasePlaneWidget, self).__init__(**kwargs)
 
+        self.export_filename = None
         self.plot_size = 4, 5
         self.plot_main_axes = None
         self.plot_bellow = None
@@ -726,7 +727,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         export_type = self.export_type.value
         model = self.model
         keys = self.param_sliders.keys()
-        exporter = model_exporter_factory(export_type, model, keys)
+        exporter = model_exporter_factory(export_type, model, keys, self.export_filename)
         if self.config_name.value.strip():
             exporter.config_name = self.config_name.value
         exporter.do_export()

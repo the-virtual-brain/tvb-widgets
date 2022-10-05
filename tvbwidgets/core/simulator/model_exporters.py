@@ -33,17 +33,24 @@ def is_valid_file_name(filename):
 
 class ABCModelExporter(abc.ABC):
     @abc.abstractmethod
-    def __init__(self, model_instance, keys):
-        # type: (Model, list[str]) -> None
+    def __init__(self, model_instance, keys, file_name=None):
+        # type: (Model, list[str], str) -> None
         """
         Abstract constructor to be implemented in subclasses
         """
+        if file_name:
+            self.file_name = file_name
+
         self.model_instance = model_instance
         self.keys = keys
         # name of the exported configuration is set
         # from outside of class if we need other name than the default
         self.config_name = self.default_config_name
         self.logger = get_logger(self.__class__.__module__)
+
+    @property
+    def file_path(self):
+        return f'{self.file_name}.{self.file_extension}'
 
     @property
     @abc.abstractmethod
@@ -81,11 +88,12 @@ class JSONModelExporter(ABCModelExporter):
     """
     Class used to export a model configuration to json format
     """
-    file_name = 'model_config.json'
+    file_name = 'model_config'
+    file_extension = 'json'
 
-    def __init__(self, model_instance, keys):
-        # type: (Model, list[str]) -> None
-        super(JSONModelExporter, self).__init__(model_instance, keys)
+    def __init__(self, model_instance, keys, file_name=None):
+        # type: (Model, list[str], str) -> None
+        super(JSONModelExporter, self).__init__(model_instance, keys, file_name)
 
     @property
     def default_config_name(self):
@@ -100,7 +108,7 @@ class JSONModelExporter(ABCModelExporter):
         config_dict = self._read_existing_config()
         config_name = self.config_name if self.config_name != self.default_config_name else self.default_config_name + str(len(config_dict.keys()) + 1)
         config_dict[config_name] = self._prepare_export_values()
-        with open(self.file_name, 'w') as f:
+        with open(self.file_path, 'w') as f:
             f.write(json.dumps(config_dict))
 
     def _read_existing_config(self):
@@ -109,7 +117,7 @@ class JSONModelExporter(ABCModelExporter):
         reads a json file and returns the dict representing the json data or an empty dict
         if the config file or data in it doesn't exist
         """
-        file_name = self.file_name
+        file_name = self.file_path
         config = {}
         try:
             with open(file_name, 'r+') as config_file:
@@ -143,15 +151,16 @@ class PythonCodeExporter(ABCModelExporter):
     Exporter class to export a model configuration as python code in
     a python file
     """
-    file_name = 'model_instances.py'
+    file_name = 'model_instances'
+    file_extension = 'json'
     numpy_import = 'import numpy'
     module_name = 'models'
     models_import = f'from tvb.simulator import {module_name}'
     instance_var_name = 'model_instance'
 
-    def __init__(self, model_instance, keys):
-        # type: (Model, list[str]) -> None
-        super(PythonCodeExporter, self).__init__(model_instance, keys)
+    def __init__(self, model_instance, keys, file_name=None):
+        # type: (Model, list[str], str) -> None
+        super(PythonCodeExporter, self).__init__(model_instance, keys, file_name)
 
     @property
     def default_config_name(self):
@@ -163,12 +172,12 @@ class PythonCodeExporter(ABCModelExporter):
         the params set on model at the time of export
         """
         # if the file doesn't exist add modules imports
-        add_imports = not os.path.exists(self.file_name)
+        add_imports = not os.path.exists(self.file_path)
 
         code = self.get_instance_code(add_imports=add_imports)
 
         # open the file to append to existing saved model instances
-        with open(self.file_name, 'a') as f:
+        with open(self.file_path, 'a') as f:
             f.write(code)
 
     def get_instance_code(self, add_imports=True):
@@ -206,8 +215,8 @@ class PythonCodeExporter(ABCModelExporter):
         return model_params.rstrip(model_params[-1])
 
 
-def model_exporter_factory(exporter_type, model, keys):
-    # type: (str, Model, list[str]) -> ABCModelExporter
+def model_exporter_factory(exporter_type, model, keys, export_filename=None):
+    # type: (str, Model, list[str], str) -> ABCModelExporter
     """
     Factory for model exporter creation
     """
@@ -218,9 +227,9 @@ def model_exporter_factory(exporter_type, model, keys):
         raise ModelExporterNotFoundError('Could not find any exporter of the selected type!')
 
     if exporter == ModelConfigurationExports.PYTHON:
-        return PythonCodeExporter(model, keys)
+        return PythonCodeExporter(model, keys, export_filename)
 
-    return JSONModelExporter(model, keys)
+    return JSONModelExporter(model, keys, export_filename)
 
 
 def is_jsonable(x):

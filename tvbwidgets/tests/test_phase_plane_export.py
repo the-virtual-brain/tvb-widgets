@@ -35,8 +35,8 @@ def mock_exporter_filename(temp_storage, monkeypatch):
     _storage, file = temp_storage
     json_file = os.path.join(file, 'test_json_file.json')
     py_file = os.path.join(file, 'test_py_file.py')
-    monkeypatch.setattr(JSONModelExporter, 'file_name', json_file)
-    monkeypatch.setattr(PythonCodeExporter, 'file_name', py_file)
+    monkeypatch.setattr(JSONModelExporter, 'file_path', json_file)
+    monkeypatch.setattr(PythonCodeExporter, 'file_path', py_file)
 
 
 def test_josn_export_config_simple():
@@ -49,7 +49,7 @@ def test_josn_export_config_simple():
     default_config = OSCILLATOR_2d_DEFAULT_CONFIG
     wid.export_model_configuration()
 
-    with open(JSONModelExporter.file_name, 'r') as exported_json:
+    with open(JSONModelExporter.file_path, 'r') as exported_json:
         exported_config = json.loads(exported_json.read())
         assert default_config == exported_config['default_config_key1']
         assert len(exported_config.keys()) == 1
@@ -66,7 +66,7 @@ def test_json_export_with_user_defined_configuration_name():
     default_config = OSCILLATOR_2d_DEFAULT_CONFIG
     wid.config_name.value = config_name
     wid.export_model_configuration()
-    with open(JSONModelExporter.file_name, 'r') as exported_json:
+    with open(JSONModelExporter.file_path, 'r') as exported_json:
         exported_config = json.loads(exported_json.read())
         assert default_config == exported_config[config_name]
         assert len(exported_config.keys()) == 1
@@ -86,7 +86,7 @@ def test_python_export_with_user_defined_configuration_name():
     wid.config_name.value = config_name
     wid.export_type.value = 'Python script'
     wid.export_model_configuration()
-    with open(PythonCodeExporter.file_name, 'r') as exported_py:
+    with open(PythonCodeExporter.file_path, 'r') as exported_py:
         exported_config = exported_py.read()
         assert exported_config == expected_instance_code
 
@@ -110,6 +110,6 @@ def test_python_multi_export_with_user_defined_configuration_name():
     wid.export_type.value = 'Python script'
     wid.export_model_configuration()
     wid.export_model_configuration()
-    with open(PythonCodeExporter.file_name, 'r') as exported_py:
+    with open(PythonCodeExporter.file_path, 'r') as exported_py:
         exported_config = exported_py.read()
         assert exported_config == expected_instance_code
