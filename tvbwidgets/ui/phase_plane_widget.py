@@ -68,6 +68,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         super(PhasePlaneWidget, self).__init__(**kwargs)
 
         self.export_filename = None
+        self.disable_model_dropdown = False
+        self.disable_export_dropdown = False
         self.plot_size = 4, 5
         self.plot_main_axes = None
         self.plot_bellow = None
@@ -645,7 +647,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         models = {model.__name__: model for model in models_module.ModelsEnum.get_base_model_subclasses()}
         self.model_selector = widgets.Dropdown(options=models.keys(),
                                                description='Model:',
-                                               value=self.model.__class__.__name__)
+                                               value=self.model.__class__.__name__,
+                                               disabled=self.disable_model_dropdown)
 
         # on change callback
         def change_model(change):
@@ -702,7 +705,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.export_type = widgets.Dropdown(options=export_types,
                                             value=export_types[0],
                                             description='Export as:',
-                                            disabled=False
+                                            disabled=self.disable_export_dropdown
                                             )
         self.do_export_btn = widgets.Button(description='Export model configuration',
                                             layout=self.button_layout,
