@@ -712,7 +712,9 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                             icon='file-export',
                                             tooltip=btn_tooltip,
                                             disabled=False)
-        self.config_name = widgets.Text(placeholder='Config name', value='')
+        self.config_name = widgets.Text(placeholder='Config name',
+                                        value=self.export_filename or '',
+                                        disabled=self.export_filename is not None)
         self.do_export_btn.on_click(self.export_model_configuration)
         self.py_output = widgets.Textarea(value='Code to generate model instance will appear here')
         info = widgets.HTML(value="<p>*You can export the code to instantiate this widget's model<br/> with the "
