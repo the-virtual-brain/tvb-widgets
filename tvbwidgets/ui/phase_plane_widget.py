@@ -479,10 +479,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             if param_range is None:
                 continue
             param_value = getattr(self.model, param_name)[0]
+            diff = param_range.hi - param_range.lo
             self.param_sliders[param_name] = widgets.FloatSlider(description=param_name,
                                                                  min=param_range.lo,
                                                                  max=param_range.hi,
-                                                                 step=param_range.step,
+                                                                 step=param_range.step if param_range.step < diff else diff,
                                                                  value=param_value,
                                                                  layout=self.slider_layout,
                                                                  style=self.slider_style)
