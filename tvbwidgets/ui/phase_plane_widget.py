@@ -646,6 +646,14 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
     def _add_model_selector(self):
         models = {model.__name__: model for model in models_module.ModelsEnum.get_base_model_subclasses()}
+
+        filtered_modules = {}
+        for name in models.keys():
+            if not models.get(name)._nvar < 2:
+                filtered_modules[name] = models.get(name)
+
+        models = filtered_modules
+
         self.model_selector = widgets.Dropdown(options=models.keys(),
                                                description='Model:',
                                                value=self.model.__class__.__name__,
