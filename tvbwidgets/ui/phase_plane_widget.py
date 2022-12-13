@@ -6,6 +6,9 @@
 #
 
 import colorsys
+import sys
+import warnings
+
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
@@ -64,7 +67,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
     def __init__(self, **kwargs):
         """ Initialise based on provided keywords or their traited defaults. """
-
+        warnings.formatwarning("", category=RuntimeWarning, filename="phase_plane_widget.py", lineno=0)
         super(PhasePlaneWidget, self).__init__(**kwargs)
 
         self.export_filename = None
@@ -105,72 +108,77 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             self.plot_main_axes.clear()
             self.plot_bellow.clear()
 
-        # Fetching the parameter values from tvb-widgets.
-        svx = plot_params.pop('svx')
-        svy = plot_params.pop('svy')
-        mode = plot_params.pop('mode')
+        try:
+            # Fetching the parameter values from tvb-widgets.
+            svx = plot_params.pop('svx')
+            svy = plot_params.pop('svy')
+            mode = plot_params.pop('mode')
 
-        # Set Model Parameters
-        for k, v in plot_params.items():
-            setattr(self.model, k, np.r_[v])
+            # Set Model Parameters
+            for k, v in plot_params.items():
+                setattr(self.model, k, np.r_[v])
 
-        if 'noise_slider' in plot_params:
-            # Update integrator noise based on the noise slider value, for stohastic integrators
-            self.integrator.noise.nsig = np.array([plot_params.pop('noise_slider'), ])
+            if 'noise_slider' in plot_params:
+                # Update integrator noise based on the noise slider value, for stohastic integrators
+                self.integrator.noise.nsig = np.array([plot_params.pop('noise_slider'), ])
 
-        # Set State Vector
-        sv_mean = np.array([plot_params[key] for key in self.model.state_variables])
-        sv_mean = sv_mean.reshape((self.model.nvar, 1, 1))
-        default_sv = sv_mean.repeat(self.model.number_of_modes, axis=2)
-        no_coupling = np.zeros((self.model.nvar, 1, self.model.number_of_modes))
+            # Set State Vector
+            sv_mean = np.array([plot_params[key] for key in self.model.state_variables])
+            sv_mean = sv_mean.reshape((self.model.nvar, 1, 1))
+            default_sv = sv_mean.repeat(self.model.number_of_modes, axis=2)
+            no_coupling = np.zeros((self.model.nvar, 1, self.model.number_of_modes))
 
-        # Set Mesh Grid
-        xlo = plot_params['sl_x_min']
-        xhi = plot_params['sl_x_max']
-        ylo = plot_params['sl_y_min']
-        yhi = plot_params['sl_y_max']
+            # Set Mesh Grid
+            xlo = plot_params['sl_x_min']
+            xhi = plot_params['sl_x_max']
+            ylo = plot_params['sl_y_min']
+            yhi = plot_params['sl_y_max']
 
-        x = np.mgrid[xlo:xhi:(self.NO_GRID_POINTS * 1j)]
-        y = np.mgrid[ylo:yhi:(self.NO_GRID_POINTS * 1j)]
+            x = np.mgrid[xlo:xhi:(self.NO_GRID_POINTS * 1j)]
+            y = np.mgrid[ylo:yhi:(self.NO_GRID_POINTS * 1j)]
 
-        # Calculate Phase Plane
-        svx_ind = self.model.state_variables.index(svx)
-        svy_ind = self.model.state_variables.index(svy)
+            # Calculate Phase Plane
+            svx_ind = self.model.state_variables.index(svx)
+            svy_ind = self.model.state_variables.index(svy)
 
-        # Calculate the vector field discretely sampled at a grid of points
-        grid_point = default_sv.copy()
-        u = np.zeros((self.NO_GRID_POINTS, self.NO_GRID_POINTS, self.model.number_of_modes))
-        v = np.zeros((self.NO_GRID_POINTS, self.NO_GRID_POINTS, self.model.number_of_modes))
+            # Calculate the vector field discretely sampled at a grid of points
+            grid_point = default_sv.copy()
+            u = np.zeros((self.NO_GRID_POINTS, self.NO_GRID_POINTS, self.model.number_of_modes))
+            v = np.zeros((self.NO_GRID_POINTS, self.NO_GRID_POINTS, self.model.number_of_modes))
 
-        for ii in range(self.NO_GRID_POINTS):
-            grid_point[svy_ind] = y[ii]
-            for jj in range(self.NO_GRID_POINTS):
-                grid_point[svx_ind] = x[jj]
-                d = self.model.dfun(grid_point, no_coupling)
-                for kk in range(self.model.number_of_modes):
-                    u[ii, jj, kk] = d[svx_ind, 0, kk]
-                    v[ii, jj, kk] = d[svy_ind, 0, kk]
+            for ii in range(self.NO_GRID_POINTS):
+                grid_point[svy_ind] = y[ii]
+                for jj in range(self.NO_GRID_POINTS):
+                    grid_point[svx_ind] = x[jj]
+                    d = self.model.dfun(grid_point, no_coupling)
+                    for kk in range(self.model.number_of_modes):
+                        u[ii, jj, kk] = d[svx_ind, 0, kk]
+                        v[ii, jj, kk] = d[svy_ind, 0, kk]
 
-        model_name = self.model.__class__.__name__
-        self.plot_main_axes.set(title=model_name + " mode " + str(mode))
-        self.plot_main_axes.set(xlabel="State Variable " + svx)
-        self.plot_main_axes.set(ylabel="State Variable " + svy)
+            model_name = self.model.__class__.__name__
+            self.plot_main_axes.set(title=model_name + " mode " + str(mode))
+            self.plot_main_axes.set(xlabel="State Variable " + svx)
+            self.plot_main_axes.set(ylabel="State Variable " + svy)
 
-        # Plot a discrete representation of the vector field
-        if np.all(u[:, :, mode] + v[:, :, mode] == 0):
-            self.plot_main_axes.set(title=model_name + " mode " + str(mode) + ": NO MOTION IN THIS PLANE")
-            x, y = np.meshgrid(x, y)
-            self.plot_main_axes.scatter(x, y, s=8, marker=".", c="k")
-        else:
-            self.plot_main_axes.quiver(x, y, u[:, :, mode], v[:, :, mode], width=0.001, headwidth=8)
+            # Plot a discrete representation of the vector field
+            if np.all(u[:, :, mode] + v[:, :, mode] == 0):
+                self.plot_main_axes.set(title=model_name + " mode " + str(mode) + ": NO MOTION IN THIS PLANE")
+                x, y = np.meshgrid(x, y)
+                self.plot_main_axes.scatter(x, y, s=8, marker=".", c="k")
+            else:
+                self.plot_main_axes.quiver(x, y, u[:, :, mode], v[:, :, mode], width=0.001, headwidth=8)
 
-        # Plot the nullclines
-        self.plot_main_axes.contour(x, y, u[:, :, mode], [0], colors="r")
-        self.plot_main_axes.contour(x, y, v[:, :, mode], [0], colors="g")
+            # Plot the nullclines
+            self.plot_main_axes.contour(x, y, u[:, :, mode], [0], colors="r")
+            self.plot_main_axes.contour(x, y, v[:, :, mode], [0], colors="g")
 
-        self.plot_trajectories(svx, svy, default_sv, no_coupling, mode, self.plot_main_axes, self.plot_bellow,
-                               **plot_params)
-        plt.show()
+            self.plot_trajectories(svx, svy, default_sv, no_coupling, mode, self.plot_main_axes, self.plot_bellow,
+                                   **plot_params)
+            plt.show()
+        except:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            return
 
     def _init_plot(self):
         try:
@@ -456,12 +464,15 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.sv_sliders_values = dict()
         for sv in range(self.model.nvar):
             sv_str = self.model.state_variables[sv]
-            self.sv_sliders[sv_str] = widgets.FloatSlider(description=sv_str,
-                                                          min=msv_range[sv_str][0],
-                                                          max=msv_range[sv_str][1],
-                                                          value=self.default_sv[sv, 0, 0],
-                                                          layout=self.slider_layout,
-                                                          style=self.slider_style)
+            try:
+                self.sv_sliders[sv_str] = widgets.FloatSlider(description=sv_str,
+                                                              min=msv_range[sv_str][0],
+                                                              max=msv_range[sv_str][1],
+                                                              value=self.default_sv[sv, 0, 0],
+                                                              layout=self.slider_layout,
+                                                              style=self.slider_style)
+            except:
+                return
             self.sv_sliders_values[sv_str] = self.default_sv[sv, 0, 0]
             self.params[sv_str] = self.sv_sliders[sv_str]
 
