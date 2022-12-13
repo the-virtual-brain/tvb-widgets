@@ -645,14 +645,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.sv_sliders[self.state_variable_y.value].disabled = True
 
     def _add_model_selector(self):
-        models = {model.__name__: model for model in models_module.ModelsEnum.get_base_model_subclasses()}
+        models = {}
 
-        filtered_modules = {}
-        for name in models.keys():
-            if not models.get(name)._nvar < 2:
-                filtered_modules[name] = models.get(name)
-
-        models = filtered_modules
+        for model in models_module.ModelsEnum.get_base_model_subclasses():
+            if model._nvar >= 2:
+                models[model.__name__] = model
 
         self.model_selector = widgets.Dropdown(options=models.keys(),
                                                description='Model:',
