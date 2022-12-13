@@ -479,10 +479,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             if param_range is None:
                 continue
             param_value = getattr(self.model, param_name)[0]
+            diff = param_range.hi - param_range.lo
             self.param_sliders[param_name] = widgets.FloatSlider(description=param_name,
                                                                  min=param_range.lo,
                                                                  max=param_range.hi,
-                                                                 step=param_range.step,
+                                                                 step=param_range.step if param_range.step < diff else diff,
                                                                  value=param_value,
                                                                  layout=self.slider_layout,
                                                                  style=self.slider_style)
@@ -644,7 +645,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.sv_sliders[self.state_variable_y.value].disabled = True
 
     def _add_model_selector(self):
-        models = {model.__name__: model for model in models_module.ModelsEnum.get_base_model_subclasses()}
+        models = {}
+
+        for model in models_module.ModelsEnum.get_base_model_subclasses():
+            if model._nvar >= 2:
+                models[model.__name__] = model
+
         self.model_selector = widgets.Dropdown(options=models.keys(),
                                                description='Model:',
                                                value=self.model.__class__.__name__,
