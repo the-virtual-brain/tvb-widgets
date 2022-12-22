@@ -6,17 +6,13 @@
 #
 
 import colorsys
-import sys
-import warnings
-
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
 import tvb.simulator.integrators as integrators_module
 import tvb.simulator.models as models_module
-from IPython.core.display_functions import display
 from IPython.core.getipython import get_ipython
-from ipywidgets import Output
+from ipympl.backend_nbagg import Canvas
 from tvb.basic.neotraits.api import HasTraits, Attr, NArray
 from tvb.simulator.lab import integrators
 from tvbwidgets.core.simulator.model_exporters import model_exporter_factory, ModelConfigurationExports
@@ -69,7 +65,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
     def __init__(self, **kwargs):
         """ Initialise based on provided keywords or their traited defaults. """
-        warnings.formatwarning("", category=RuntimeWarning, filename="phase_plane_widget.py", lineno=0)
         super(PhasePlaneWidget, self).__init__(**kwargs)
 
         self.export_filename = None
@@ -175,8 +170,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         self.plot_trajectories(svx, svy, default_sv, no_coupling, mode, self.plot_main_axes, self.plot_bellow,
                                **plot_params)
-        # plt.show()
-        # display(plt.figure)
+        plt.show()
 
     def _init_plot(self):
         try:
@@ -258,10 +252,14 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.ui = self.create_ui()
 
         # Generate Output
-        widgets.interactive_output(self.plotter, self.params)
-        widget_box = widgets.Box(list(self.out.widgets.values()))
-        self.hbox = widgets.HBox([self.ui, widget_box], layout=self.DEFAULT_BORDER)
+        out = widgets.interactive_output(self.plotter, self.params)
+        figure_widget = None
+        for widget in out.widgets.values():
+            if isinstance(widget, Canvas):
+                figure_widget = widget
+                break
 
+        self.hbox = widgets.HBox([self.ui, figure_widget], layout=self.DEFAULT_BORDER)
         return self.hbox
 
     # ------------------------------------------------------------------------#
@@ -462,15 +460,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.sv_sliders_values = dict()
         for sv in range(self.model.nvar):
             sv_str = self.model.state_variables[sv]
-            try:
-                self.sv_sliders[sv_str] = widgets.FloatSlider(description=sv_str,
-                                                              min=msv_range[sv_str][0],
-                                                              max=msv_range[sv_str][1],
-                                                              value=self.default_sv[sv, 0, 0],
-                                                              layout=self.slider_layout,
-                                                              style=self.slider_style)
-            except:
-                return
+            self.sv_sliders[sv_str] = widgets.FloatSlider(description=sv_str,
+                                                          min=msv_range[sv_str][0],
+                                                          max=msv_range[sv_str][1],
+                                                          value=self.default_sv[sv, 0, 0],
+                                                          layout=self.slider_layout,
+                                                          style=self.slider_style)
             self.sv_sliders_values[sv_str] = self.default_sv[sv, 0, 0]
             self.params[sv_str] = self.sv_sliders[sv_str]
 
@@ -697,15 +692,20 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         """
         rebuilds widget. Used when changing model or integrator
         """
-        for wid in self.hbox.children:
-            wid.close()
+        # for wid in self.hbox.children:
+        #     wid.close()
 
         self.model.configure()
         self.ui = self.create_ui()
         self.clear_traj.value = True
-        self.out = widgets.interactive_output(self.plotter, self.params)
-        widget_box = widgets.Box(list(self.out.widgets.values()))
-        self.hbox.children = (self.ui, widget_box)
+
+        out = widgets.interactive_output(self.plotter, self.params)
+        figure_widget = None
+        for widget in out.widgets.values():
+            if isinstance(widget, Canvas):
+                figure_widget = widget
+
+        self.hbox = widgets.HBox([self.ui, figure_widget], layout=self.DEFAULT_BORDER)
 
     # -----------------------------------------------------------#
     # ----------------- EXPORT FUNCTIONALITY --------------------#
