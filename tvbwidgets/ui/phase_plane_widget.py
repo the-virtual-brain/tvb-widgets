@@ -73,7 +73,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.plot_size = 4, 5
         self.plot_main_axes = None
         self.plot_bellow = None
-        self.noise_slider = []
+        self.noise_sliders = []
+        self.noise_slider_available = False
         self.trajectories = []
         # Parameters to be passed to plotter when their change affects the drawing
         self.params = dict()
@@ -114,11 +115,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         for k, v in plot_params.items():
             setattr(self.model, k, np.r_[v])
 
-        if 'noise_slider' in plot_params:
+        noise_element_exists = 'noise_slider_' + str(self.model.state_variables[0])
+        if noise_element_exists in plot_params:
             # Update integrator noise based on the noise slider value, for stohastic integrators
             noise_sliders = []
             for state_variable in self.model.state_variables:
-                noise_sliders.append(plot_params.pop('noise_slider_' + str(state_variable)))
+                noise_sliders.append([plot_params.pop('noise_slider_' + str(state_variable)),])
             self.integrator.noise.nsig = np.array(noise_sliders)
 
         # Set State Vector
@@ -370,11 +372,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                             disabled=False, layout=self.button_layout)
 
         def reset_noise(_):
-            i = 0
-            while i < self.noise_slider.__len__():
-                self.noise_slider[i] = self.noise_slider_valinit[i]
-                i = i + 1
-            # self.noise_slider.value = self.noise_slider_valinit
+            for i in range(self.noise_sliders.__len__()):
+                self.noise_sliders[i].value = self.noise_slider_valinit
 
         reset_noise_button.on_click(reset_noise)
         return reset_noise_button
@@ -386,11 +385,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         def reset_seed(_):
             self.integrator.noise.reset_random_stream()
-            i = 0
-            while i < self.noise_slider.__len__():
-                self.noise_slider[i] = self.noise_slider_valinit[i]
-                i = i + 1
-            # self.noise_slider.value = self.noise_slider_valinit
+            for i in range(self.noise_sliders.__len__()):
+                self.noise_sliders[i].value = self.noise_slider_valinit
 
         reset_seed_button.on_click(reset_seed)
         return reset_seed_button
@@ -501,11 +497,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             self.param_sliders_values[param_name] = param_value
             self.params[param_name] = self.param_sliders[param_name]
 
-    def add_noise_slider(self):
+    def add_noise_sliders(self):
         """ Add a slider to set integrator noise. """
 
+        self.noise_sliders = []
         for state_variable in self.model.state_variables:
-            self.noise_slider_valinit = self.integrator.noise.nsig[0]
             ns = widgets.FloatSlider(description=state_variable,
                                                     min=0.0,
                                                     max=2.0,
@@ -513,7 +509,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                                     value=self.noise_slider_valinit,
                                                     layout=self.slider_layout,
                                                     style=self.slider_style)
-            self.noise_slider.append(ns)
+            self.noise_sliders.append(ns)
             param = 'noise_slider_' + str(state_variable)
             self.params[param] = ns
 
@@ -528,11 +524,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                 self.integrator.noise.configure_white(self.integrator.dt,
                                                       (1, self.model.nvar, 1, self.model.number_of_modes))
 
-            self.add_noise_slider()
+            self.add_noise_sliders()
             reset_noise_button = self.add_reset_noise_button()
             reset_seed_button = self.add_reset_random_stream_button()
             listItems = []
-            for noiseElems in self.noise_slider:
+            for noiseElems in self.noise_sliders:
                 listItems.append(noiseElems)
             listItems.append(reset_noise_button)
             listItems.append(reset_seed_button)
@@ -699,6 +695,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             if change['type'] != 'change' or change['name'] != 'value':
                 return
             self.integrator = integrators_dict[change['new']]()
+            self.noise_slider_valinit = self.integrator.noise.nsig[0]
             self._rebuild_widget()
 
         self.integrator_selector.observe(on_change_callback)
