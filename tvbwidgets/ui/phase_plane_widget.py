@@ -528,8 +528,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             reset_noise_button = self.add_reset_noise_button()
             reset_seed_button = self.add_reset_random_stream_button()
             list_items = []
-            for noiseElems in self.noise_sliders:
-                list_items.append(noiseElems)
+            for noise_elem in self.noise_sliders:
+                list_items.append(noise_elem)
             list_items.append(reset_noise_button)
             list_items.append(reset_seed_button)
             return list_items
