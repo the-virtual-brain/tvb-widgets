@@ -74,7 +74,6 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.plot_main_axes = None
         self.plot_bellow = None
         self.noise_sliders = []
-        self.noise_slider_available = False
         self.trajectories = []
         # Parameters to be passed to plotter when their change affects the drawing
         self.params = dict()
@@ -372,8 +371,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
                                             disabled=False, layout=self.button_layout)
 
         def reset_noise(_):
-            for i in range(self.noise_sliders.__len__()):
-                self.noise_sliders[i].value = self.noise_slider_valinit
+            for slider in self.noise_sliders:
+                slider.value = self.noise_slider_valinit
 
         reset_noise_button.on_click(reset_noise)
         return reset_noise_button
@@ -385,8 +384,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         def reset_seed(_):
             self.integrator.noise.reset_random_stream()
-            for i in range(self.noise_sliders.__len__()):
-                self.noise_sliders[i].value = self.noise_slider_valinit
+            for slider in self.noise_sliders:
+                slider.value = self.noise_slider_valinit
 
         reset_seed_button.on_click(reset_seed)
         return reset_seed_button
@@ -527,12 +526,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             self.add_noise_sliders()
             reset_noise_button = self.add_reset_noise_button()
             reset_seed_button = self.add_reset_random_stream_button()
-            list_items = []
-            for noise_elem in self.noise_sliders:
-                list_items.append(noise_elem)
-            list_items.append(reset_noise_button)
-            list_items.append(reset_seed_button)
-            return list_items
+            return self.noise_sliders + [reset_noise_button, reset_seed_button]
         return []
 
     def add_mode_selector(self):
