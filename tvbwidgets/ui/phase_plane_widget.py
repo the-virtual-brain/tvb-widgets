@@ -120,7 +120,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             # Update integrator noise based on the noise slider value, for stohastic integrators
             noise_sliders = []
             for state_variable in self.model.state_variables:
-                noise_sliders.append([plot_params.pop('noise_slider_' + str(state_variable)),])
+                noise_sliders.append([[plot_params.pop('noise_slider_' + str(state_variable))]])
             self.integrator.noise.nsig = np.array(noise_sliders)
 
         # Set State Vector
@@ -527,13 +527,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             self.add_noise_sliders()
             reset_noise_button = self.add_reset_noise_button()
             reset_seed_button = self.add_reset_random_stream_button()
-            listItems = []
+            list_items = []
             for noiseElems in self.noise_sliders:
-                listItems.append(noiseElems)
-            listItems.append(reset_noise_button)
-            listItems.append(reset_seed_button)
-            # return [list(self.noise_slider.values()), reset_noise_button, reset_seed_button]
-            return listItems
+                list_items.append(noiseElems)
+            list_items.append(reset_noise_button)
+            list_items.append(reset_seed_button)
+            return list_items
         return []
 
     def add_mode_selector(self):
