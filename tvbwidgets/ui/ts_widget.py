@@ -293,6 +293,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
     def add_data_array(self, numpy_array, sample_freq, ch_idx):
         # type: (np.array, float, int) -> None
+        mne.viz.set_browser_backend('matplotlib')
         data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
         self._populate_from_data_wrapper(data_wrapper)
 
@@ -374,7 +375,6 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             self.fig.canvas.mpl_connect('key_press_event', update_on_plot_interaction)
             self.fig.canvas.mpl_connect('button_press_event', update_on_plot_interaction)
             self.fig.canvas.mpl_connect("motion_notify_event", hover)
-
             with self.output:
                 self.output.clear_output(wait=True)
                 display(self.fig.canvas)
