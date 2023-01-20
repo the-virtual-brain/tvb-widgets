@@ -125,19 +125,19 @@ def test_head_widget(mocker):
     assert len(widget.buttons.children) == 3
 
     with pytest.raises(InvalidFileException):
-        widget._HeadWidget__validate_file(None, None)
+        widget._TVBWidgetWithBrowser__validate_file(None, None)
 
     with pytest.raises(InvalidFileException):
-        widget._HeadWidget__validate_file('abc.txt', '.zip')
+        widget._TVBWidgetWithBrowser__validate_file('abc.txt', '.zip')
 
-    widget._HeadWidget__display_message('ABC')
+    widget._TVBWidgetWithBrowser__display_message('ABC')
     assert widget.message_label.value == HeadWidget.MSG_TEMPLATE.format('ABC', HeadWidget.MSG_COLOR)
 
     widget.storage_widget.api.repos_dropdown.value = widget.storage_widget.api.repos_dropdown.options[0][1]
     widget.storage_widget.api.files_list.value = widget.storage_widget.api.files_list.options[1]
 
-    widget._HeadWidget__load_selected_file(Surface)
+    widget.load_selected_file(Surface)
     assert 'Only .zip' in widget.message_label.value
 
-    widget._HeadWidget__load_selected_file(Sensors, '.txt')
+    widget.load_selected_file(Sensors, '.txt')
     assert 'Could not load' in widget.message_label.value

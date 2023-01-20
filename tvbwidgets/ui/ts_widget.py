@@ -17,6 +17,7 @@ from tvb.datatypes.time_series import TimeSeries
 from tvbwidgets.core.ini_parser import parse_ini_file
 from tvbwidgets.core.exceptions import InvalidInputException
 from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.widget_with_browser import TVBWidgetWithBrowser
 
 
 class ABCDataWrapper(ABC):
@@ -535,3 +536,21 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             self.fig._redraw(annotations=True)
         except:
             self.fig._redraw(update_data=False)  # needed in case of Unselect all
+
+
+class TimeSeriesBrowserWidget(widgets.VBox, TVBWidgetWithBrowser):
+
+    def __init__(self):
+        super().__init__()
+        timeseries_button = widgets.Button(description='View time series')
+        self.buttons = widgets.HBox([timeseries_button], layout=widgets.Layout(margin="0px 0px 0px 20px"))
+        self.timeseries_widget = TimeSeriesWidget()
+        self.children = [self.storage_widget, self.buttons, self.message_label, self.timeseries_widget]
+
+        def add_timeseries_datatype(_):
+            self.load_selected_file(TimeSeries, ('.h5', '.npz'))
+
+        timeseries_button.on_click(add_timeseries_datatype)
+
+    def add_datatype(self, datatype):  # type: (TimeSeries) -> None
+        self.timeseries_widget.add_datatype(datatype)
