@@ -30,9 +30,11 @@ class TVBWidgetWithBrowser(TVBWidget):
         if file_name is None:
             raise InvalidFileException("Please select a file!")
 
-        if not file_name.endswith(accepted_suffix):
-            raise InvalidFileException(
-                f"Only {' or '.join(ext for ext in accepted_suffix)} files are supported for this data type!")
+        for suffix in accepted_suffix:
+            if file_name.endswith(suffix):
+                return suffix
+        raise InvalidFileException(
+            f"Only {' or '.join(ext for ext in accepted_suffix)} files are supported for this data type!")
 
     def load_selected_file(self, datatype_cls, accepted_suffix=('.zip',)):
         file_name = self.storage_widget.get_selected_file_name()
@@ -40,7 +42,7 @@ class TVBWidgetWithBrowser(TVBWidget):
         self.logger.info(f"{file_name}")
 
         try:
-            self.__validate_file(file_name, accepted_suffix)
+            content_type = self.__validate_file(file_name, accepted_suffix)
         except InvalidFileException as e:
             msg = e.message
             self.logger.error(f"{e}")
@@ -50,13 +52,8 @@ class TVBWidgetWithBrowser(TVBWidget):
 
         content_bytes = self.storage_widget.get_selected_file_content()
 
-        # TODO: this should move inside tvb-library in the next release
-        if file_name.endswith('.txt.bz2'):
-            decompressor = bz2.BZ2Decompressor()
-            content_bytes = decompressor.decompress(content_bytes)
-
         try:
-            datatype = datatype_cls.from_bytes_stream(content_bytes, file_name)
+            datatype = datatype_cls.from_bytes_stream(content_bytes, content_type)
             datatype.configure()
             self.add_datatype(datatype)
         except ReaderException as e:
