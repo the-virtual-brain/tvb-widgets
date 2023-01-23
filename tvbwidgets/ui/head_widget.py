@@ -82,7 +82,7 @@ class CustomOutput(ipywidgets.Output):
             self.plotter.show()
 
 
-class HeadWidgetBase(ipywidgets.HBox, TVBWidget):
+class HeadWidget(ipywidgets.HBox, TVBWidget):
 
     def __init__(self, datatypes=None):
         # type: (list[HasTraits]) -> None
@@ -257,7 +257,7 @@ class HeadWidgetBase(ipywidgets.HBox, TVBWidget):
         return size_input,
 
 
-class HeadWidget(ipywidgets.VBox, TVBWidgetWithBrowser):
+class HeadBrowser(ipywidgets.VBox, TVBWidgetWithBrowser):
 
     def __init__(self):
         super().__init__()
@@ -266,7 +266,7 @@ class HeadWidget(ipywidgets.VBox, TVBWidgetWithBrowser):
         connectivity_button = ipywidgets.Button(description='View connectivity')
         self.buttons = ipywidgets.HBox([surface_button, sensors_button, connectivity_button],
                                        layout=ipywidgets.Layout(margin="0px 0px 0px 20px"))
-        self.head_widget = HeadWidgetBase()
+        self.head_widget = HeadWidget()
         self.children = [self.storage_widget, self.buttons, self.message_label, self.head_widget]
 
         def add_surface_datatype(_):

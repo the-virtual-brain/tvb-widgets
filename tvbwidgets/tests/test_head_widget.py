@@ -19,7 +19,7 @@ from tvb.datatypes.surfaces import FaceSurface, CorticalSurface, Surface
 from tvbwidgets.core.auth import CLB_AUTH
 from tvbwidgets.core.exceptions import InvalidFileException
 from tvbwidgets.tests.test_drive_widget import MockDriveClient
-from tvbwidgets.ui.head_widget import HeadWidget
+from tvbwidgets.ui.head_widget import HeadBrowser
 
 NOT_SUPPORTED = 'not supported'
 
@@ -35,28 +35,28 @@ def test_add_datatype(caplog, mocker):
     logger.propagate = True
 
     connectivity = Connectivity(centres=numpy.zeros((10, 3)))
-    widget = api.HeadWidgetBase([connectivity])
+    widget = api.HeadWidget([connectivity])
     assert widget.output_plot.total_actors == 1
     assert len(widget.plot_controls.children) == 1
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
-        api.HeadWidgetBase(None)
+        api.HeadWidget(None)
         assert len(caplog.records) == 0
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
-        api.HeadWidgetBase('abc')
+        api.HeadWidget('abc')
         assert caplog.records[0].levelname == 'WARNING'
         assert NOT_SUPPORTED in caplog.text
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
-        api.HeadWidgetBase([10])
+        api.HeadWidget([10])
         assert caplog.records[0].levelname == 'WARNING'
         assert NOT_SUPPORTED in caplog.text
 
-    widget = api.HeadWidgetBase()
+    widget = api.HeadWidget()
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
@@ -117,10 +117,10 @@ def test_head_widget(mocker):
         os.environ.pop(CLB_AUTH)
 
     with pytest.raises(RuntimeError):
-        HeadWidget()
+        HeadBrowser()
 
     os.environ[CLB_AUTH] = "test_auth_token"
-    widget = HeadWidget()
+    widget = HeadBrowser()
 
     assert len(widget.buttons.children) == 3
 
@@ -131,7 +131,7 @@ def test_head_widget(mocker):
         widget._TVBWidgetWithBrowser__validate_file('abc.txt', '.zip')
 
     widget._TVBWidgetWithBrowser__display_message('ABC')
-    assert widget.message_label.value == HeadWidget.MSG_TEMPLATE.format('ABC', HeadWidget.MSG_COLOR)
+    assert widget.message_label.value == HeadBrowser.MSG_TEMPLATE.format('ABC', HeadBrowser.MSG_COLOR)
 
     widget.storage_widget.api.repos_dropdown.value = widget.storage_widget.api.repos_dropdown.options[0][1]
     widget.storage_widget.api.files_list.value = widget.storage_widget.api.files_list.options[1]

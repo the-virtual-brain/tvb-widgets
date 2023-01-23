@@ -538,7 +538,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             self.fig._redraw(update_data=False)  # needed in case of Unselect all
 
 
-class TimeSeriesBrowserWidget(widgets.VBox, TVBWidgetWithBrowser):
+class TimeSeriesBrowser(widgets.VBox, TVBWidgetWithBrowser):
 
     def __init__(self):
         super().__init__()
