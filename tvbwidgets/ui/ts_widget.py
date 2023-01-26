@@ -19,6 +19,8 @@ from tvbwidgets.core.exceptions import InvalidInputException
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.widget_with_browser import TVBWidgetWithBrowser
 
+mne.set_config('MNE_BROWSER_BACKEND', 'matplotlib')
+
 
 class ABCDataWrapper(ABC):
     """ Wrap any TimeSeries for TSWidget to read/parse uniformly"""
@@ -293,7 +295,6 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
     def add_data_array(self, numpy_array, sample_freq, ch_idx):
         # type: (np.array, float, int) -> None
-        mne.viz.set_browser_backend('matplotlib')
         data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
         self._populate_from_data_wrapper(data_wrapper)
 
@@ -338,6 +339,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                 cb = self.checkboxes[ch_name]
                 if not cb.value:
                     cb.value = True
+            self._update_fig()
 
         def hover(event):
             self.channel_val_area.children = []
