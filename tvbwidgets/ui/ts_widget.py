@@ -266,8 +266,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
         annotation_area = self._create_annotation_area()
-        instr_area = self._create_instructions_region()
-        self.title_area = widgets.HBox(children=[instr_area])
+        self.instr_area = self._create_instructions_region()
+        self.title_area = widgets.HBox(children=[self.instr_area])
 
         self.checkboxes = dict()
         super().__init__([self.output, annotation_area, self.title_area], layout=self.DEFAULT_BORDER)
@@ -278,6 +278,10 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         data_wrapper = WrapperTVB(ts_tvb)
         self.logger.debug("Adding TVB TS for display...")
         self._populate_from_data_wrapper(data_wrapper)
+
+    def reset_data(self):
+        self.data = None
+        self.title_area.children = [self.instr_area]
 
     def _populate_from_data_wrapper(self, data_wrapper):
         # type: (ABCDataWrapper) -> None
@@ -555,4 +559,5 @@ class TimeSeriesBrowser(widgets.VBox, TVBWidgetWithBrowser):
         timeseries_button.on_click(add_timeseries_datatype)
 
     def add_datatype(self, datatype):  # type: (TimeSeries) -> None
+        self.timeseries_widget.reset_data()
         self.timeseries_widget.add_datatype(datatype)
