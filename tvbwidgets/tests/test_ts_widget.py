@@ -201,7 +201,7 @@ def test_create_instructions_region():
     shortcuts = instr_area.children[0].children[0].children
     descriptions = instr_area.children[0].children[1].children
 
-    no_instruction = 27
+    no_instruction = 23
     assert len(shortcuts) == len(descriptions) == no_instruction
 
     title = 'Keyboard shortcuts'

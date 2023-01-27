@@ -19,6 +19,8 @@ from tvbwidgets.core.exceptions import InvalidInputException
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.widget_with_browser import TVBWidgetWithBrowser
 
+mne.set_config('MNE_BROWSER_BACKEND', 'matplotlib')
+
 
 class ABCDataWrapper(ABC):
     """ Wrap any TimeSeries for TSWidget to read/parse uniformly"""
@@ -337,6 +339,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                 cb = self.checkboxes[ch_name]
                 if not cb.value:
                     cb.value = True
+            self._update_fig()
 
         def hover(event):
             self.channel_val_area.children = []
@@ -374,7 +377,6 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             self.fig.canvas.mpl_connect('key_press_event', update_on_plot_interaction)
             self.fig.canvas.mpl_connect('button_press_event', update_on_plot_interaction)
             self.fig.canvas.mpl_connect("motion_notify_event", hover)
-
             with self.output:
                 self.output.clear_output(wait=True)
                 display(self.fig.canvas)
