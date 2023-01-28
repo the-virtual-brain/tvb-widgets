@@ -286,7 +286,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
     def _populate_from_data_wrapper(self, data_wrapper):
         # type: (ABCDataWrapper) -> None
         if self.data is not None:
-            raise InvalidInputException("TSWidget is not yet capable to display more than one TS!")
+            raise InvalidInputException("TSWidget is not yet capable to display more than one TS, "
+                                        "either use wid.reset_data, or create another widget instance!")
 
         self.data = data_wrapper
         self.sample_freq = data_wrapper.get_ts_sample_rate()
