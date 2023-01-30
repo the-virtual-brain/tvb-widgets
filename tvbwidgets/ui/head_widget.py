@@ -41,7 +41,10 @@ class HeadWidgetConfig:
         self.cmap = 'fire'
 
     def is_incompatible(self, prev_config):
-        if (self.cmap is not None and prev_config is None) or (self.cmap is None and prev_config is not None):
+        # type: (HeadWidgetConfig) -> bool
+        if prev_config is None:
+            return self.cmap is not None
+        if (self.cmap is not None and prev_config.cmap is None) or (self.cmap is None and prev_config.cmap is not None):
             return True
         return False
 
@@ -114,7 +117,6 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
             self.logger.info("You have reached the maximum datatypes that can be drawn to this plot!")
             return
 
-        self.existent_configs.append(config)
         if isinstance(datatype, Surface):
             self.__draw_mesh_actor(datatype, config)
         elif isinstance(datatype, Connectivity):
@@ -144,6 +146,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
 
     def __draw_mesh_actor(self, surface, config):
         # type: (Surface, HeadWidgetConfig) -> None
+
         if config is None:
             config = HeadWidgetConfig(name='Surface-' + str(surface.number_of_vertices))
 
@@ -151,6 +154,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
             if config.is_incompatible(prev_config):
                 self.logger.info("HeadWidget can not support multiple surfaces with incompatible coloring!")
                 return
+        self.existent_configs.append(config)
 
         mesh = self.__prepare_mesh(surface)
         mesh_actor = self.output_plot.add_mesh(mesh, config)
