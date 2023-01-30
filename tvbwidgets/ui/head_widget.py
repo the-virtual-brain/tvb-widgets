@@ -40,6 +40,11 @@ class HeadWidgetConfig:
         self.scalars = region_mapping.array_data
         self.cmap = 'fire'
 
+    def is_incompatible(self, prev_config):
+        if (self.cmap is not None and prev_config is None) or (self.cmap is None and prev_config is not None):
+            return True
+        return False
+
 
 class CustomOutput(ipywidgets.Output):
     CONFIG = HeadWidgetConfig()
@@ -88,7 +93,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         # type: (list[HasTraits]) -> None
         self.output_plot = CustomOutput()
         self.plot_controls = ipywidgets.Accordion(layout=ipywidgets.Layout(width='380px'))
-        self.widgets = []
+        self.existent_configs = []
 
         super().__init__([self.plot_controls, self.output_plot], layout=self.DEFAULT_BORDER)
 
@@ -109,12 +114,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
             self.logger.info("You have reached the maximum datatypes that can be drawn to this plot!")
             return
 
-        self.widgets.append([datatype, config])
-        for i in range(self.widgets.__len__() - 1):
-            if self.widgets[i][1] != self.widgets[i + 1][1]:
-                self.logger.info("HeadWidget can not support multiple surfaces with incompatible coloring!")
-                return
-
+        self.existent_configs.append(config)
         if isinstance(datatype, Surface):
             self.__draw_mesh_actor(datatype, config)
         elif isinstance(datatype, Connectivity):
@@ -146,6 +146,11 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         # type: (Surface, HeadWidgetConfig) -> None
         if config is None:
             config = HeadWidgetConfig(name='Surface-' + str(surface.number_of_vertices))
+
+        for prev_config in self.existent_configs:
+            if config.is_incompatible(prev_config):
+                self.logger.info("HeadWidget can not support multiple surfaces with incompatible coloring!")
+                return
 
         mesh = self.__prepare_mesh(surface)
         mesh_actor = self.output_plot.add_mesh(mesh, config)
