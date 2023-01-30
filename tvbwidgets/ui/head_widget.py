@@ -40,6 +40,14 @@ class HeadWidgetConfig:
         self.scalars = region_mapping.array_data
         self.cmap = 'fire'
 
+    def is_incompatible(self, prev_config):
+        # type: (HeadWidgetConfig) -> bool
+        if prev_config is None:
+            return self.cmap is not None
+        if (self.cmap is not None and prev_config.cmap is None) or (self.cmap is None and prev_config.cmap is not None):
+            return True
+        return False
+
 
 class CustomOutput(ipywidgets.Output):
     CONFIG = HeadWidgetConfig()
@@ -88,6 +96,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         # type: (list[HasTraits]) -> None
         self.output_plot = CustomOutput()
         self.plot_controls = ipywidgets.Accordion(layout=ipywidgets.Layout(width='380px'))
+        self.existent_configs = []
 
         super().__init__([self.plot_controls, self.output_plot], layout=self.DEFAULT_BORDER)
 
@@ -137,8 +146,15 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
 
     def __draw_mesh_actor(self, surface, config):
         # type: (Surface, HeadWidgetConfig) -> None
+
         if config is None:
             config = HeadWidgetConfig(name='Surface-' + str(surface.number_of_vertices))
+
+        for prev_config in self.existent_configs:
+            if config.is_incompatible(prev_config):
+                self.logger.info("HeadWidget can not support multiple surfaces with incompatible coloring!")
+                return
+        self.existent_configs.append(config)
 
         mesh = self.__prepare_mesh(surface)
         mesh_actor = self.output_plot.add_mesh(mesh, config)
