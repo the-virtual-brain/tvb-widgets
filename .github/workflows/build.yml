@@ -25,7 +25,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install scipy numpy tvb-library ebrains_drive ipywidgets==7.7.1
           python -m pip install pythreejs pyvista colorcet  
-          python -m pip install ipympl mne==0.24.1
+          python -m pip install ipympl mne
           python -m pip install pytest pytest-cov pytest-mock tvb-data
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
