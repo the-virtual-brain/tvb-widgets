@@ -88,6 +88,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         # type: (list[HasTraits]) -> None
         self.output_plot = CustomOutput()
         self.plot_controls = ipywidgets.Accordion(layout=ipywidgets.Layout(width='380px'))
+        self.widgets = []
 
         super().__init__([self.plot_controls, self.output_plot], layout=self.DEFAULT_BORDER)
 
@@ -107,6 +108,12 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         if self.output_plot.can_draw is False:
             self.logger.info("You have reached the maximum datatypes that can be drawn to this plot!")
             return
+
+        self.widgets.append([datatype, config])
+        for i in range(self.widgets.__len__() - 1):
+            if self.widgets[i][1] != self.widgets[i + 1][1]:
+                self.logger.info("HeadWidget can not support multiple surfaces with incompatible coloring!")
+                return
 
         if isinstance(datatype, Surface):
             self.__draw_mesh_actor(datatype, config)
