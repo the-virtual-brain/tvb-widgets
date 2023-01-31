@@ -94,6 +94,13 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
 
     def __init__(self, datatypes=None, ignore=False):
         # type: (list[HasTraits], bool) -> None
+        """
+        :param datatypes: like Surface, Connectivity, Sensors
+        :param ignore: - optional flag which allow ignoring coloring incompatibilities
+                       - default is set to False because Ebrains Lab does not support surfaces with incompatible coloring
+                        (kills the kernel)
+                       - locally this issue does not appear
+        """
         self.output_plot = CustomOutput()
         self.plot_controls = ipywidgets.Accordion(layout=ipywidgets.Layout(width='380px'))
         self.existent_configs = []
