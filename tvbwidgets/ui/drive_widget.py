@@ -67,6 +67,8 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
     def select_repo(self, _, folder=None):
         if folder is None:
             folder = self.ROOT
+        if not folder.startswith(self.ROOT):
+            folder = self.ROOT + folder
         self.update_files_for_chosen_dir(folder)
 
     def select_dir(self, _):
