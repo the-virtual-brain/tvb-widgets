@@ -133,7 +133,7 @@ def test_head_widget(mocker):
     widget._TVBWidgetWithBrowser__display_message('ABC')
     assert widget.message_label.value == HeadBrowser.MSG_TEMPLATE.format('ABC', HeadBrowser.MSG_COLOR)
 
-    widget.storage_widget.api.repos_dropdown.value = widget.storage_widget.api.repos_dropdown.options[0][1]
+    widget.storage_widget.api.repos_dropdown.value = widget.storage_widget.api.repos_dropdown.options['repo1']
     widget.storage_widget.api.files_list.value = widget.storage_widget.api.files_list.options[1]
 
     widget.load_selected_file(Surface)

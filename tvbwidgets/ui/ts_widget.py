@@ -547,8 +547,8 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
 
 class TimeSeriesBrowser(widgets.VBox, TVBWidgetWithBrowser):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, collab=None, folder=None):
+        super().__init__(**{'collab': collab, 'folder': folder})
         timeseries_button = widgets.Button(description='View time series')
         self.buttons = widgets.HBox([timeseries_button], layout=widgets.Layout(margin="0px 0px 0px 20px"))
         self.timeseries_widget = TimeSeriesWidget()

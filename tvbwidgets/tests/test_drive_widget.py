@@ -87,7 +87,7 @@ def test_drive_widget(mocker):
     assert widget.get_chosen_repo() is None
 
     # this triggers the observe events on dropbox widget
-    widget.repos_dropdown.value = widget.repos_dropdown.options[0][1]
+    widget.repos_dropdown.value = widget.repos_dropdown.options['repo1']
     assert isinstance(widget.get_chosen_repo(), Repo)
     assert widget.get_selected_file_path() is None
     assert len(widget.files_list.options) == 3  # 3 because the parent dir is also added
@@ -122,7 +122,7 @@ def test_storage_widget(mocker):
     os.environ[CLB_AUTH] = "test_auth_token"
     widget = StorageWidget()
 
-    widget.api.repos_dropdown.value = widget.api.repos_dropdown.options[0][1]
+    widget.api.repos_dropdown.value = widget.api.repos_dropdown.options['repo1']
     widget.api.files_list.value = widget.api.files_list.options[1]
 
     assert widget.get_selected_file_name() == DUMMY_FILENAME

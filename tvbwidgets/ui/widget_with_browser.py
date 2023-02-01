@@ -18,9 +18,9 @@ class TVBWidgetWithBrowser(TVBWidget):
     MSG_TEMPLATE = '<span style="color:{1};">{0}</span>'
     MSG_COLOR = 'red'
 
-    def __init__(self):
+    def __init__(self, collab=None, folder=None):
         super().__init__()
-        self.storage_widget = StorageWidget()
+        self.storage_widget = StorageWidget(collab, folder)
         self.message_label = ipywidgets.HTML(layout=ipywidgets.Layout(height='25px'))
 
     def __display_message(self, msg):
