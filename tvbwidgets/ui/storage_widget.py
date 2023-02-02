@@ -12,9 +12,9 @@ from tvbwidgets.ui.drive_widget import DriveWidget
 
 class StorageWidget(ipywidgets.Tab, TVBWidget):
 
-    def __init__(self, **kwargs):
+    def __init__(self, collab=None, folder=None, **kwargs):
         tab1 = ipywidgets.VBox()
-        tab2 = DriveWidget()
+        tab2 = DriveWidget(collab, folder)
         tab3 = ipywidgets.VBox()
 
         super().__init__([tab1, tab2, tab3], selected_index=1,
