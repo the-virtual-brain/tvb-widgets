@@ -8,6 +8,6 @@ conda install -y --name tvb-widgets -c conda-forge pythreejs pyvista colorcet
 conda install -y --name tvb-widgets ipywidgets
 
 pip install --upgrade pip
-pip install ebrains_drive mne==0.24.1
+pip install ebrains_drive mne
 
 # Optionally install tvb-data from ZENODO to use demo data within it
