@@ -9,3 +9,4 @@ from .ui.phase_plane_widget import PhasePlaneWidget
 from .ui.storage_widget import StorageWidget
 from .ui.head_widget import HeadBrowser, HeadWidget, HeadWidgetConfig
 from .ui.ts_widget import TimeSeriesWidget, TimeSeriesBrowser
+from .ui.pse_widget import PSEWidget
