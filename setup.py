@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 
 REQUIRED_PACKAGES = ["colorcet", "ebrains_drive", "ipympl>0.8.5", "ipywidgets==7.7.2", "mne>=1.0",
-                     "pythreejs", "pyvista>=0.34.0", "tvb-library>=2.5"]
+                     "pythreejs", "pyvista==0.37.0", "tvb-library>=2.5"]
 
 REQUIRED_EXTRA_EXAMPLES = ["tvb-data"]
 REQUIRED_EXTRA_TESTS = ["pytest", "pytest-mock"]
