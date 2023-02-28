@@ -14,10 +14,11 @@ import ipywidgets as widgets
 
 class PSELauncher(TVBWidget):
 
-    def __init__(self, simulator):
-        # type: (Simulator) -> None
+    def __init__(self, simulator, connectivity_list=None):
+        # type: (Simulator, list) -> None
         super().__init__()
         self.simulator = simulator
+        self.connectivity_list = connectivity_list
         self.params_dict = {}
         self.create_dict()
         self.param_1 = None
@@ -53,6 +54,17 @@ class PSELauncher(TVBWidget):
         cond_speed_default_value = self.simulator.conduction_speed
         self.params_dict["conduction_speed"] = [0, 10*cond_speed_default_value, cond_speed_default_value]
 
+        if "noise" in type(self.simulator.integrator).declarative_attrs:
+            for elem in type(self.simulator.integrator.noise).declarative_attrs:
+                attribute = getattr(type(self.simulator.integrator.noise), elem)
+                if isinstance(attribute, NArray) and attribute.domain is not None:
+                    param_name = "noise." + elem
+                    self.params_dict[param_name] = [attribute.domain.lo, attribute.domain.hi, attribute.domain.step]
+
+        if self.connectivity_list is not None:
+            self.params_dict["connectivity"] = [0, 0, 0]
+
+
     def create_metrics(self):
         self.metrics = widgets.SelectMultiple(
             options=["Example_1", "Example_2", "Example_3", "Example_4", "Example_5"],
@@ -79,7 +91,7 @@ class PSELauncher(TVBWidget):
         self.param_2 = widgets.Dropdown(
             options=sorted(self.params_dict.keys()),
             description=f"<b>PSE param2</b>",
-            value=list(sorted(self.params_dict.keys()))[1],
+            value=list(sorted(self.params_dict.keys()))[2],
             disabled=False
         )
 
@@ -93,10 +105,24 @@ class PSELauncher(TVBWidget):
                 self.warning.value = f"<b><font color='red'>The parameters should be different!</b>"
 
             if self.param_1.value == change['new'] and self.param_1.value != self.param_2.value:
+                if self.param_1.value == "connectivity":
+                    self.visibility_range(True, "hidden")
+                elif change['old'] == "connectivity":
+                    self.visibility_range(True, "visible")
+
                 self.change_range_param(True)
             elif self.param_2.value == change['new'] and self.param_1.value != self.param_2.value:
+                if self.param_2.value == "connectivity":
+                    self.visibility_range(False, "hidden")
+                elif change['old'] == "connectivity":
+                    self.visibility_range(False, "visible")
+
                 self.change_range_param(False)
             else:
+                if self.param_1.value == "connectivity":
+                    self.visibility_range(True, "hidden")
+                    self.visibility_range(False, "hidden")
+
                 self.change_range_param(True)
                 self.change_range_param(False)
 
@@ -104,6 +130,16 @@ class PSELauncher(TVBWidget):
         self.param_2.observe(param_changed)
 
         return self.pse_params_range()
+
+    def visibility_range(self, param1, visibility):
+        if param1:
+            self.min_range1.layout.visibility = visibility
+            self.max_range1.layout.visibility = visibility
+            self.step1.layout.visibility = visibility
+        else:
+            self.min_range2.layout.visibility = visibility
+            self.max_range2.layout.visibility = visibility
+            self.step2.layout.visibility = visibility
 
     def change_range_param(self, param1):
         if param1:
