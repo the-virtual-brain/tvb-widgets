@@ -16,10 +16,12 @@ jobs:
         python-version: [ "3.8", "3.9" ]
     steps:
       - uses: actions/checkout@v2
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -27,14 +29,19 @@ jobs:
           python -m pip install pythreejs pyvista colorcet plotly
           python -m pip install ipympl mne
           python -m pip install pytest pytest-cov pytest-mock tvb-data
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          python -m pip install nbformat nbconvert
 
       - name: Test with pytest
         run: |
           pytest
+
       - name: Compute coverage
         run: |
           pytest -v  --cov --cov-report=xml
+
+      - name: Run notebooks
+        run: |
+          xvfb-run python notebook_runner.py notebooks executed_notebooks
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
