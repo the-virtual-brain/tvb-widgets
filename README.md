@@ -31,5 +31,11 @@ Installation:
     jupyter labextension install jupyter-matplotlib
     pip install tvb-widgets
 
+In order to install tvb-widgets from the local project and tvb-data, directly in a notebook, run (in the first cell): 
+    %pip install --quiet --upgrade pip
+    %pip install --quiet -e ..
+    %pip install tvb-data
+
 #  Acknowledgments
 This project has received funding from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).
+
