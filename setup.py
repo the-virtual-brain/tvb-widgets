@@ -8,8 +8,8 @@
 import json
 import setuptools
 import shutil
-from pathlib import Path
 import pkg_resources
+from pathlib import Path
 
 with Path('requirements.txt').open() as requirements_txt:
     REQUIRED_PACKAGES = [
