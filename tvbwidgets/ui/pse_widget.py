@@ -4,52 +4,60 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
-
+import pandas as pd
 import plotly.graph_objects as go
 import ipywidgets as widgets
-import numpy as np
 from IPython.core.display_functions import display
+from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
 from tvbwidgets.ui.base_widget import TVBWidget
 
 
 class PSEWidget(TVBWidget):
     """Visualize PSE results"""
 
-    def __init__(self, data, x_title, y_title, x_value, y_value, metrics_names, **kwargs):
-        # type: (np.ndarray, str, str, list, list, list, dict) -> None
+    def __init__(self, file_name, **kwargs):
+        # type: (str, dict) -> None
         """
-        :param data: Numpy array with metrics data
-        :param x_title: Title of X axis
-        :param y_title: Title of Y axis
-        :param x_value: List consists of X axis range(min, max) and a step, ex: [0, 30, 2]
-        :param y_value: List consists of Y axis range(min, max) and a step
-        :param metrics_names: Representative names for each metrics
+        :param file_name: path to the file_name that contains the data necessary for the visualization
         """
         super().__init__(**kwargs)
-        self.x_title = x_title
-        self.y_title = y_title
-        self.x_value = x_value
-        self.y_value = y_value
-        self.data = data
-        self.metrics_names = metrics_names
+        self.file_name = file_name
+        self.x_title = None
+        self.y_title = None
+        self.x_value = None
+        self.y_value = None
+        self.data = None
+        self.metrics_names = []
         self.dict_metrics = {}
         self.figure = None
         self.smooth_effect_cb = None
         self.change_color_dd = None
         self.metrics_change_dd = None
+        self.read_h5_file()
         self._map_names_to_metrics()
         self._create_visualizer()
 
+    def read_h5_file(self):
+        pse_result = PSEData()
+        PSEStorage(self.file_name).load_into(pse_result)
+        self.x_title = pse_result.x_title
+        self.y_title = pse_result.y_title
+        self.x_value = [pse_result.x_value.lo, pse_result.x_value.hi, pse_result.x_value.step]
+        self.y_value = [pse_result.y_value.lo, pse_result.y_value.hi, pse_result.y_value.step]
+        self.metrics_names = pse_result.metrics_names
+        self.data = pse_result.results
+
     def _map_names_to_metrics(self):
         for index in range(self.metrics_names.__len__()):
-            self.dict_metrics[self.metrics_names[index]] = self.data[index]
+            self.dict_metrics[self.metrics_names[index]] = self.data
 
     def _create_visualizer(self):
         pse_layout = go.Layout(width=1000, height=500,
+                               # TODO set the labels of the axis with the ranges given by the user
                                xaxis=go.layout.XAxis(linecolor='black', linewidth=1, mirror=True, title=self.x_title,
-                                                     range=[self.x_value[0], self.x_value[1]], dtick=self.x_value[2]),
+                                                     range=[0, len(self.data[0]) - 1], dtick=1),
                                yaxis=go.layout.YAxis(linecolor='black', linewidth=1, mirror=True, title=self.y_title,
-                                                     range=[self.y_value[0], self.y_value[1]], dtick=self.y_value[2]),
+                                                     range=[0, len(self.data) - 1], dtick=1),
                                margin=go.layout.Margin(
                                    l=100,
                                    r=50,
