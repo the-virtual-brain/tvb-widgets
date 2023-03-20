@@ -41,7 +41,7 @@ jobs:
 
       - name: Run notebooks
         run: |
-          xvfb-run python notebook_runner.py notebooks executed_notebooks
+          xvfb-run python ./dev/notebook_runner.py notebooks executed_notebooks
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
