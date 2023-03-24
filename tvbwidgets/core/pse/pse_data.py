@@ -6,14 +6,14 @@
 #
 
 from tvb.basic.neotraits.api import NArray, HasTraits, Range, List, Attr
-from tvb.core.neotraits.h5 import H5File, DataSet, Scalar, JsonRange, Json
+from tvb.core.neotraits.h5 import H5File, DataSet, Scalar, Json
 
 
 class PSEData(HasTraits):
     x_title = Attr(str)
     y_title = Attr(str)
-    x_value = Attr(Range)
-    y_value = Attr(Range)
+    x_value = Attr(list)
+    y_value = Attr(list)
     metrics_names = Attr(list)
     results = NArray()
 
@@ -23,7 +23,7 @@ class PSEStorage(H5File):
         super(PSEStorage, self).__init__(path)
         self.x_title = Scalar(PSEData.x_title, self)
         self.y_title = Scalar(PSEData.y_title, self)
-        self.x_value = JsonRange(PSEData.x_value, self)  # JsonRange
-        self.y_value = JsonRange(PSEData.y_value, self)  # JsonRange
+        self.x_value = Json(PSEData.x_value, self)
+        self.y_value = Json(PSEData.y_value, self)
         self.metrics_names = Json(PSEData.metrics_names, self)
         self.results = DataSet(PSEData.results, self)

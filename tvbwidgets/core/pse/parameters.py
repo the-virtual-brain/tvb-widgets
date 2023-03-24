@@ -4,15 +4,14 @@ A collection of parameter related classes and functions.
 
 from copy import deepcopy
 from typing import List, Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import numpy as np
-from tvb.analyzers import compute_variance_global_metric
-from tvb.datatypes.connectivity import Connectivity
-from tvb.datatypes.time_series import TimeSeriesRegion
+from tvb.analyzers import compute_variance_global_metric, compute_kuramoto_index_metric, \
+    compute_proxy_metastability_metric, compute_variance_of_node_variance_metric
+from tvb.datatypes.time_series import TimeSeries
 from tvb.simulator.simulator import Simulator
 import os
 from dask.distributed import Client
-from tvb.basic.neotraits.api import Range
 
 import logging
 
@@ -75,24 +74,62 @@ class NodeVariability(Metric):
         return np.std(y[t > (t[-1] / 2), 0, :, 0], axis=0)
 
 
-class Variability(Metric):
-    "A simplistic simulation statistic."
-
-    def __call__(self, t, y):
-        a = np.std(y[t > (t[-1] / 2), 0, :, 0], axis=0)
-        return np.mean(a)
-
-
 class GlobalVariance(Metric):
-    "A simplistic simulation statistic."
 
-    def __init__(self, simulator):
-        self.sim = simulator
+    def __init__(self, sample_period, start_point=500, segment=4):
+        self.sample_period = sample_period
+        self.start_point = start_point
+        self.segment = segment
 
     def __call__(self, t, y):
-        ts = TimeSeriesRegion(connectivity=self.sim.connectivity, sample_period=self.sim.period)
+        ts = TimeSeries(sample_period=self.sample_period)
         ts.data = y
-        return compute_variance_global_metric(ts)
+        return compute_variance_global_metric({"time_series": ts, "start_point": self.start_point,
+                                               "segment": self.segment})
+
+
+class KuramotoIndex(Metric):
+
+    def __init__(self, sample_period):
+        self.sample_period = sample_period
+
+    def __call__(self, t, y):
+        ts = TimeSeries(sample_period=self.sample_period)
+        ts.data = y
+        return compute_kuramoto_index_metric({"time_series": ts})
+
+
+class ProxyMetastabilitySynchrony(Metric):
+
+    def __init__(self, mode, sample_period, start_point=500, segment=4):
+        self.mode = mode
+        self.sample_period = sample_period
+        self.start_point = start_point
+        self.segment = segment
+
+    def __call__(self, t, y):
+        ts = TimeSeries(sample_period=self.sample_period)
+        ts.data = y
+        return compute_proxy_metastability_metric({"time_series": ts, "start_point": self.start_point,
+                                                   "segment": self.segment})[self.mode]
+
+
+class VarianceNodeVariance(Metric):
+
+    def __init__(self, sample_period, start_point=500, segment=4):
+        self.sample_period = sample_period
+        self.start_point = start_point
+        self.segment = segment
+
+    def __call__(self, t, y):
+        ts = TimeSeries(sample_period=self.sample_period)
+        ts.data = y
+        return compute_variance_of_node_variance_metric({"time_series": ts, "start_point": self.start_point,
+                                                         "segment": self.segment})
+
+
+METRICS = ['GlobalVariance', 'KuramotoIndex', 'ProxyMetastabilitySynchrony Metastability',
+           'ProxyMetastabilitySynchrony Synchrony', 'VarianceNodeVariance']
 
 
 class Reduction:
@@ -113,33 +150,30 @@ class SaveMetricsToDisk(Reduction):
 class SaveDataToDisk(Reduction):
     param1: str
     param2: str
-    range1: list
-    range2: list
+    x_values: list
+    y_values: list
     metrics: list
     file_name: str
 
     def __call__(self, metric_data: np.ndarray) -> None:
         metrics_data_np = np.array(metric_data)
-        # nmb_elems1 = int((self.range1[1] - self.range1[0]) / self.range1[2])
-        # nmb_elems2 = int((self.range2[1] - self.range2[0]) / self.range2[2])
-        # if self.range1[1] % self.range1[2] != 0:
-        #     nmb_elems1 += 1
-        # if self.range2[1] % self.range2[2] != 0:
-        #     nmb_elems2 += 1
-        nmb_elems1 = 0
-        nmb_elems2 = 0
-        for _ in np.arange(self.range1[0], self.range1[1], self.range1[2]):
-            nmb_elems1 += 1
-        for _ in np.arange(self.range2[0], self.range2[1], self.range2[2]):
-            nmb_elems2 += 1
-
         pse_result = PSEData()
         pse_result.x_title = self.param1
         pse_result.y_title = self.param2
-        pse_result.x_value = Range(lo=self.range1[0], hi=self.range1[1], step=self.range1[2])
-        pse_result.y_value = Range(lo=self.range2[0], hi=self.range2[1], step=self.range2[2])
+
+        if self.param1 == "connectivity":
+            id_values = [val.title[0:25] + "..." for val in self.x_values]
+            pse_result.x_value = id_values
+        else:
+            pse_result.x_value = self.x_values
+        if self.param2 == "connectivity":
+            id_values = [val.title[0:25] + "..." for val in self.y_values]
+            pse_result.y_value = id_values
+        else:
+            pse_result.y_value = self.y_values
+
         pse_result.metrics_names = self.metrics
-        pse_result.results = metrics_data_np.reshape(nmb_elems1, nmb_elems2)
+        pse_result.results = metrics_data_np.reshape(len(self.metrics), len(self.x_values), len(self.y_values))
         self.file_name += ".h5"
 
         f = PSEStorage(self.file_name)
@@ -256,25 +290,45 @@ class DaskExec(JobLibExec):
             return metrics
 
 
-def launch_local_param(param1, param2, range1, range2, metrics, file_name):
-    # TODO instead of receiving the ranges as parameters, we will receive the lists already computed for both parameters
-    input_values = []
-    for elem1 in np.arange(range1[0], range1[1], range1[2]):
-        for elem2 in np.arange(range2[0], range2[1], range2[2]):
-            input_values.append([np.array([elem1]), np.array([elem2])])
+def compute_metrics(sim, metrics):
+    computed_metrics = []
+    for metric in metrics:
+        if metric == "GlobalVariance":
+            computed_metrics.append(GlobalVariance(sim.monitors[0].period))
+        elif metric == "KuramotoIndex":
+            computed_metrics.append(KuramotoIndex(sim.monitors[0].period))
+        elif metric == "ProxyMetastabilitySynchrony Metastability":
+            computed_metrics.append(ProxyMetastabilitySynchrony("Metastability", sim.monitors[0].period))
+        elif metric == "ProxyMetastabilitySynchrony Synchrony":
+            computed_metrics.append(ProxyMetastabilitySynchrony("Synchrony", sim.monitors[0].period))
+        else:
+            computed_metrics.append(VarianceNodeVariance(sim.monitors[0].period))
+    return computed_metrics
 
-    # TODO simulator will be given as a parameter to the function, we do not need to create a new one
-    sim = Simulator(
-        connectivity=Connectivity.from_file()).configure()  # deepcopy doesn't work on un-configured simulator o_O
+
+def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name):
+    input_values = []
+    for elem1 in x_values:
+        for elem2 in y_values:
+            if param1 == "conduction_speed" or param1 == "connectivity":
+                el1_value = elem1
+            else:
+                el1_value = np.array([elem1])
+            if param2 == "conduction_speed" or param2 == "connectivity":
+                el2_value = elem2
+            else:
+                el2_value = np.array([elem2])
+            input_values.append([el1_value, el2_value])
+
+    sim = simulator.configure()  # deepcopy doesn't work on un-configured simulator o_O
     seq = SimSeq(
         template=sim,
         params=[param1, param2],
         values=input_values
     )
     pp = PostProcess(
-        # TODO a particular class for every METRIC(instead of Variability class)
-        metrics=[Variability()],
-        reduction=SaveDataToDisk(param1, param2, range1, range2, metrics, file_name),
+        metrics=compute_metrics(sim, metrics),
+        reduction=SaveDataToDisk(param1, param2, x_values, y_values, metrics, file_name),
     )
-    exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir="C:\\Users\\teodora.misan\\Documents\\localLaunch")
+    exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None)
     exe(n_jobs=4)

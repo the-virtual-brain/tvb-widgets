@@ -4,13 +4,11 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
-import pandas as pd
 import plotly.graph_objects as go
 import ipywidgets as widgets
 from IPython.core.display_functions import display
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
 from tvbwidgets.ui.base_widget import TVBWidget
-
 
 class PSEWidget(TVBWidget):
     """Visualize PSE results"""
@@ -42,22 +40,21 @@ class PSEWidget(TVBWidget):
         PSEStorage(self.file_name).load_into(pse_result)
         self.x_title = pse_result.x_title
         self.y_title = pse_result.y_title
-        self.x_value = [pse_result.x_value.lo, pse_result.x_value.hi, pse_result.x_value.step]
-        self.y_value = [pse_result.y_value.lo, pse_result.y_value.hi, pse_result.y_value.step]
+        self.x_value = pse_result.x_value
+        self.y_value = pse_result.y_value
         self.metrics_names = pse_result.metrics_names
         self.data = pse_result.results
 
     def _map_names_to_metrics(self):
         for index in range(self.metrics_names.__len__()):
-            self.dict_metrics[self.metrics_names[index]] = self.data
+            self.dict_metrics[self.metrics_names[index]] = self.data[index]
 
     def _create_visualizer(self):
+        self.x_value = [str(elem) for elem in self.x_value]
+        self.y_value = [str(elem) for elem in self.y_value]
         pse_layout = go.Layout(width=1000, height=500,
-                               # TODO set the labels of the axis with the ranges given by the user
-                               xaxis=go.layout.XAxis(linecolor='black', linewidth=1, mirror=True, title=self.x_title,
-                                                     range=[0, len(self.data[0]) - 1], dtick=1),
-                               yaxis=go.layout.YAxis(linecolor='black', linewidth=1, mirror=True, title=self.y_title,
-                                                     range=[0, len(self.data) - 1], dtick=1),
+                               xaxis=go.layout.XAxis(linecolor='black', linewidth=1, mirror=True, title=self.y_title),
+                               yaxis=go.layout.YAxis(linecolor='black', linewidth=1, mirror=True, title=self.x_title),
                                margin=go.layout.Margin(
                                    l=100,
                                    r=50,
@@ -66,8 +63,10 @@ class PSEWidget(TVBWidget):
                                    pad=4), title="PSE Visualizer", titlefont=dict(size=20, family='Arial, sans-serif'),
                                )
         self.figure = go.FigureWidget(layout=pse_layout)
-        self.figure.add_trace(go.Heatmap(z=list(self.dict_metrics.values())[0], colorscale='RdBu', showscale=True,
-                                         zsmooth='best'))
+
+        self.figure.add_trace(go.Heatmap(z=list(self.dict_metrics.values())[0], x=self.y_value, y=self.x_value,
+                                         colorscale='RdBu', connectgaps=False, showscale=True, zsmooth='best'))
+
         self._populate_features()
 
     def _populate_features(self):
@@ -83,7 +82,7 @@ class PSEWidget(TVBWidget):
         display(table)
 
     def _smooth_effect(self):
-        self.smooth_effect_cb = widgets.Checkbox(True, description='Smooth visualizer',
+        self.smooth_effect_cb = widgets.Checkbox(value=True, description='Smooth visualizer',
                                                  layout=widgets.Layout(margin='10px 0px 10px 0px'))
 
         def smooth_effect_changed(change):

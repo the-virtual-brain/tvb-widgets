@@ -4,12 +4,13 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+import numpy as np
 from tvb.basic.neotraits._attr import NArray
-from tvbwidgets.core.parameters import launch_local_param
+from tvbwidgets.core.pse.parameters import launch_local_param
+from tvbwidgets.core.pse.parameters import METRICS
 from tvbwidgets.ui.base_widget import TVBWidget
 from IPython.core.display_functions import display
 import ipywidgets as widgets
-from tvb.analyzers import METRICS
 
 
 class PSELauncher(TVBWidget):
@@ -25,6 +26,7 @@ class PSELauncher(TVBWidget):
         self.param_1 = None
         self.param_2 = None
         self.warning = None
+        self.launch_text_information = None
         self.min_range1 = None
         self.max_range1 = None
         self.step1 = None
@@ -35,7 +37,7 @@ class PSELauncher(TVBWidget):
         self.launch_hpc_button = None
         self.file_name = None
         self.metrics_sm = None
-        self.create_warning_text()
+        self.create_informative_texts()
         self.handle_launch_buttons()
         self.create_metrics()
         self.file_options()
@@ -89,15 +91,22 @@ class PSELauncher(TVBWidget):
         )
 
         def hpc_launch(change):
-            self.logger.info("HPC launch in progress")
+            if self.launch_hpc_button.button_style == "success":
+                self.launch_text_information.value = f"<font color='gray'>HPC launch in progress"
 
         def local_launch(change):
-            # TODO compute two lists for the ranges of the parameters(arrays/floats)
-            self.logger.info("Local launch in progress")
             if self.launch_local_button.button_style == "success":
-                launch_local_param(self.param_1.value, self.param_2.value,
-                                   [self.min_range1.value, self.max_range1.value, self.step1.value],
-                                   [self.min_range2.value, self.max_range2.value, self.step2.value],
+                self.launch_text_information.value = f"<font color='gray'>Local launch in progress"
+
+                if self.param_1.value == "connectivity":
+                    x_values = self.connectivity_list
+                else:
+                    x_values = self.create_input_values(self.min_range1.value, self.max_range1.value, self.step1.value)
+                if self.param_2.value == "connectivity":
+                    y_values = self.connectivity_list
+                else:
+                    y_values = self.create_input_values(self.min_range2.value, self.max_range2.value, self.step2.value)
+                launch_local_param(self.simulator, self.param_1.value, self.param_2.value, x_values, y_values,
                                    list(self.metrics_sm.value), self.file_name.value)
 
         self.launch_hpc_button.on_click(hpc_launch)
@@ -105,13 +114,20 @@ class PSELauncher(TVBWidget):
 
     def create_metrics(self):
         self.metrics_sm = widgets.SelectMultiple(
-            options=self.metrics.keys(),
+            options=self.metrics,
             description=f"<b>Metrics</b>",
-            value=[list(self.metrics.keys())[0]],
-            disabled=False, layout=widgets.Layout(margin="30px 0px 10px 25px", height="100px"))
+            value=[self.metrics[0]],
+            disabled=False, layout=widgets.Layout(margin="0px 20px 10px 25px", height="115px", width="340px"))
 
-    def create_warning_text(self):
+    def create_informative_texts(self):
         self.warning = widgets.HTML(value="", layout=widgets.Layout(margin="0px 0px 0px 65px"))
+        self.launch_text_information = widgets.HTML(value="", layout=widgets.Layout(margin="7px 0px 0px 8px"))
+
+    def create_input_values(self, min_value, max_value, step):
+        values = []
+        for elem in np.arange(min_value, max_value, step):
+            values.append(elem)
+        return values
 
     def create_params(self):
         self.param_1 = widgets.Dropdown(
@@ -196,18 +212,20 @@ class PSELauncher(TVBWidget):
                               layout=widgets.Layout(margin="0px 0px 0px 60px"))
         range2 = widgets.VBox(children=[self.min_range2, self.max_range2, self.step2],
                               layout=widgets.Layout(margin="0px 0px 0px 60px"))
-        param_box1 = widgets.HBox(children=[self.param_1, range1], layout=widgets.Layout(margin="40px 50px 0px 50px"))
-        param_box2 = widgets.HBox(children=[self.param_2, range2], layout=widgets.Layout(margin="30px 50px 0px 50px"))
-        buttons_box = widgets.VBox(children=[self.launch_local_button, self.launch_hpc_button], layout=widgets.Layout(
-            margin="0px 50px 50px 20px"))
+        param_box1 = widgets.HBox(children=[self.param_1, range1], layout=widgets.Layout(margin="40px 0px 0px 50px"))
+        param_box2 = widgets.HBox(children=[self.param_2, range2], layout=widgets.Layout(margin="30px 0px 0px 50px"))
+        buttons_box = widgets.VBox(
+            children=[self.launch_local_button, self.launch_hpc_button, self.launch_text_information],
+            layout=widgets.Layout(
+                margin="0px 0px 50px 20px"))
 
         metrics_buttons_box = widgets.HBox(children=[self.metrics_sm, self.file_name, buttons_box],
                                            layout=widgets.Layout(margin="40px "
-                                                                        "50px "
+                                                                        "0px "
                                                                         "30px "
                                                                         "3px"))
         return widgets.VBox(children=[self.warning, param_box1, param_box2, metrics_buttons_box],
-                            layout=widgets.Layout(margin="40px 50px 50px 50px"))
+                            layout=self.DEFAULT_BORDER)
 
     def set_range(self):
         self.min_range1 = widgets.FloatText(
