@@ -10,6 +10,7 @@ from IPython.core.display_functions import display
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
 from tvbwidgets.ui.base_widget import TVBWidget
 
+
 class PSEWidget(TVBWidget):
     """Visualize PSE results"""
 
@@ -20,10 +21,10 @@ class PSEWidget(TVBWidget):
         """
         super().__init__(**kwargs)
         self.file_name = file_name
-        self.x_title = None
-        self.y_title = None
-        self.x_value = None
-        self.y_value = None
+        self.param1_title = None
+        self.param2_title = None
+        self.param1_value = None
+        self.param2_value = None
         self.data = None
         self.metrics_names = []
         self.dict_metrics = {}
@@ -38,10 +39,10 @@ class PSEWidget(TVBWidget):
     def read_h5_file(self):
         pse_result = PSEData()
         PSEStorage(self.file_name).load_into(pse_result)
-        self.x_title = pse_result.x_title
-        self.y_title = pse_result.y_title
-        self.x_value = pse_result.x_value
-        self.y_value = pse_result.y_value
+        self.param1_title = pse_result.x_title
+        self.param2_title = pse_result.y_title
+        self.param1_value = pse_result.x_value
+        self.param2_value = pse_result.y_value
         self.metrics_names = pse_result.metrics_names
         self.data = pse_result.results
 
@@ -50,22 +51,19 @@ class PSEWidget(TVBWidget):
             self.dict_metrics[self.metrics_names[index]] = self.data[index]
 
     def _create_visualizer(self):
-        self.x_value = [str(elem) for elem in self.x_value]
-        self.y_value = [str(elem) for elem in self.y_value]
+        self.param1_value = [str(elem) for elem in self.param1_value]
+        self.param2_value = [str(elem) for elem in self.param2_value]
         pse_layout = go.Layout(width=1000, height=500,
-                               xaxis=go.layout.XAxis(linecolor='black', linewidth=1, mirror=True, title=self.y_title),
-                               yaxis=go.layout.YAxis(linecolor='black', linewidth=1, mirror=True, title=self.x_title),
-                               margin=go.layout.Margin(
-                                   l=100,
-                                   r=50,
-                                   b=100,
-                                   t=100,
-                                   pad=4), title="PSE Visualizer", titlefont=dict(size=20, family='Arial, sans-serif'),
-                               )
+                               xaxis=go.layout.XAxis(linecolor='black', linewidth=1, mirror=True,
+                                                     title=self.param2_title),
+                               yaxis=go.layout.YAxis(linecolor='black', linewidth=1, mirror=True,
+                                                     title=self.param1_title),
+                               margin=go.layout.Margin(l=100, r=50, b=100, t=100, pad=4), title="PSE Visualizer",
+                               titlefont=dict(size=20, family='Arial, sans-serif'), )
         self.figure = go.FigureWidget(layout=pse_layout)
 
-        self.figure.add_trace(go.Heatmap(z=list(self.dict_metrics.values())[0], x=self.y_value, y=self.x_value,
-                                         colorscale='RdBu', connectgaps=False, showscale=True, zsmooth='best'))
+        self.figure.add_trace(go.Heatmap(z=list(self.dict_metrics.values())[0], x=self.param2_value, y=self.param1_value
+                                         , colorscale='RdBu', connectgaps=False, showscale=True, zsmooth='best'))
 
         self._populate_features()
 
