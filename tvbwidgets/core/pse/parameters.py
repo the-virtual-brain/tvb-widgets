@@ -15,7 +15,7 @@ from tvb.datatypes.time_series import TimeSeries
 from tvb.simulator.simulator import Simulator
 import os
 from dask.distributed import Client
-
+from joblib import Parallel, delayed
 import logging
 
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
@@ -177,10 +177,12 @@ class SaveDataToDisk(Reduction):
 
         pse_result.metrics_names = self.metrics
         pse_result.results = metrics_data_np.reshape(len(self.metrics), len(self.x_values), len(self.y_values))
-        self.file_name += ".h5"
+        if ".h5" not in self.file_name:
+            self.file_name += ".h5"
 
         f = PSEStorage(self.file_name)
         f.store(pse_result)
+        log.info(str(self.file_name) + " file created")
         f.close()
 
 
@@ -225,8 +227,8 @@ class JobLibExec:
                 np.save(os.path.join(self.checkpoint_dir, 'param_vals.npy'), self.seq.values)
 
     def __call__(self, n_jobs=-1):
+        log.info("Simulation starts")
         self._init_checkpoint()
-        from joblib import Parallel, delayed
         pool = Parallel(n_jobs)
 
         @delayed
@@ -244,6 +246,7 @@ class JobLibExec:
 
         metrics = pool(job(_, i) for i, _ in enumerate(self.seq))
         self.post.reduction(metrics)
+        log.info("Local launch finished")
 
 
 @dataclass
