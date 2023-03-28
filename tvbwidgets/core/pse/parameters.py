@@ -6,8 +6,11 @@ from copy import deepcopy
 from typing import List, Any, Optional
 from dataclasses import dataclass
 import numpy as np
-from tvb.analyzers import compute_variance_global_metric, compute_kuramoto_index_metric, \
-    compute_proxy_metastability_metric, compute_variance_of_node_variance_metric
+from tvb.analyzers.metric_variance_global import compute_variance_global_metric
+from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
+from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
+from tvb.analyzers.metric_variance_of_node_variance import compute_variance_of_node_variance_metric
+
 from tvb.datatypes.time_series import TimeSeries
 from tvb.simulator.simulator import Simulator
 import os
