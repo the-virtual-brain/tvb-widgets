@@ -30,6 +30,7 @@ jobs:
           python -m pip install ipympl mne
           python -m pip install pytest pytest-cov pytest-mock tvb-data
           python -m pip install nbformat nbconvert
+          python -m pip install tvb-framework
 
       - name: Test with pytest
         run: |
