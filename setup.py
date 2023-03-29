@@ -9,9 +9,14 @@ import json
 import setuptools
 import shutil
 from pathlib import Path
+import pkg_resources
 
-REQUIRED_PACKAGES = ["colorcet", "ebrains_drive", "ipympl>0.8.5", "ipywidgets==7.7.2", "mne>=1.0",
-                     "plotly==5.5.0", "pythreejs", "pyvista==0.37.0", "tvb-library>=2.5"]
+with Path('requirements.txt').open() as requirements_txt:
+    REQUIRED_PACKAGES = [
+        str(requirement)
+        for requirement
+        in pkg_resources.parse_requirements(requirements_txt)
+    ]
 
 REQUIRED_EXTRA_EXAMPLES = ["tvb-data"]
 REQUIRED_EXTRA_TESTS = ["pytest", "pytest-mock"]
