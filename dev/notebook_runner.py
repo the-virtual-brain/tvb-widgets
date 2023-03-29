@@ -17,7 +17,7 @@ from nbconvert.preprocessors import ExecutePreprocessor
 def execute_notebook(in_path, notebook):
     with open(os.path.join(in_path, notebook), encoding='utf-8') as f:
         nb = nbformat.read(f, as_version=4)
-        ep = ExecutePreprocessor(timeout=1000)
+        ep = ExecutePreprocessor(timeout=None)
 
     ep.preprocess(nb)
 
