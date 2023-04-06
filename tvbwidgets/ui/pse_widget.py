@@ -4,9 +4,12 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+
+import os.path
 import plotly.graph_objects as go
 import ipywidgets as widgets
 from IPython.core.display_functions import display
+from tvbwidgets.core.exceptions import InvalidInputException
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
 from tvbwidgets.ui.base_widget import TVBWidget
 
@@ -20,6 +23,8 @@ class PSEWidget(TVBWidget):
         :param file_name: path to the file_name that contains the data necessary for the visualization
         """
         super().__init__(**kwargs)
+        if not os.path.exists(file_name):
+            raise InvalidInputException(f"File {file_name} was not found!")
         self.file_name = file_name
         self.param1_title = None
         self.param2_title = None
