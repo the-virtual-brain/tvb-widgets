@@ -6,6 +6,8 @@
 #
 import numpy as np
 from tvb.basic.neotraits._attr import NArray
+
+from tvbwidgets.core.hpc.hpc_launch import HPCLaunch
 from tvbwidgets.core.pse.parameters import launch_local_param
 from tvbwidgets.core.pse.parameters import METRICS
 from tvbwidgets.ui.base_widget import TVBWidget
@@ -34,7 +36,7 @@ class PSELauncher(TVBWidget):
         self.max_range2 = None
         self.step2 = None
         self.launch_local_button = None
-        # self.launch_hpc_button = None
+        self.launch_hpc_button = None
         self.file_name = None
         self.metrics_sm = None
         self.create_informative_texts()
@@ -84,15 +86,26 @@ class PSELauncher(TVBWidget):
             button_style='success',
         )
 
-        # self.launch_hpc_button = widgets.Button(
-        #     description='HPC launch',
-        #     disabled=False,
-        #     button_style='success',
-        # )
-        #
-        # def hpc_launch(change):
-        #     if self.launch_hpc_button.button_style == "success":
-        #         self.launch_text_information.value = f"<font color='gray'>HPC launch in progress"
+        self.launch_hpc_button = widgets.Button(
+            description='HPC launch',
+            disabled=False,
+            button_style='success',
+        )
+
+        def hpc_launch(change):
+            if self.launch_hpc_button.button_style == "success":
+                self.launch_text_information.value = f"<font color='gray'>HPC launch in progress"
+
+                if self.param_1.value == "connectivity":
+                    x_values = self.connectivity_list
+                else:
+                    x_values = self.create_input_values(self.min_range1.value, self.max_range1.value, self.step1.value)
+                if self.param_2.value == "connectivity":
+                    y_values = self.connectivity_list
+                else:
+                    y_values = self.create_input_values(self.min_range2.value, self.max_range2.value, self.step2.value)
+                HPCLaunch('JUSUF', self.param_1.value, self.param_2.value, x_values, y_values,
+                          list(self.metrics_sm.value), self.file_name.value)
 
         def local_launch(change):
             self.logger.info("Local launch in progress")
@@ -110,7 +123,7 @@ class PSELauncher(TVBWidget):
                 launch_local_param(self.simulator, self.param_1.value, self.param_2.value, x_values, y_values,
                                    list(self.metrics_sm.value), self.file_name.value)
 
-        #self.launch_hpc_button.on_click(hpc_launch)
+        self.launch_hpc_button.on_click(hpc_launch)
         self.launch_local_button.on_click(local_launch)
 
     def create_metrics(self):
@@ -216,7 +229,7 @@ class PSELauncher(TVBWidget):
         param_box1 = widgets.HBox(children=[self.param_1, range1], layout=widgets.Layout(margin="40px 0px 0px 50px"))
         param_box2 = widgets.HBox(children=[self.param_2, range2], layout=widgets.Layout(margin="30px 0px 0px 50px"))
         buttons_box = widgets.VBox(
-            children=[self.launch_local_button, self.launch_text_information],
+            children=[self.launch_local_button, self.launch_hpc_button, self.launch_text_information],
             layout=widgets.Layout(
                 margin="0px 0px 50px 20px"))
 

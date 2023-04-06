@@ -1,7 +1,8 @@
 """
 A collection of parameter related classes and functions.
 """
-
+import json
+import sys
 from copy import deepcopy
 from typing import List, Any, Optional
 from dataclasses import dataclass
@@ -10,11 +11,12 @@ from tvb.analyzers.metric_variance_global import compute_variance_global_metric
 from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
 from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
 from tvb.analyzers.metric_variance_of_node_variance import compute_variance_of_node_variance_metric
+from tvb.datatypes.connectivity import Connectivity
 
 from tvb.datatypes.time_series import TimeSeries
 from tvb.simulator.simulator import Simulator
 import os
-from dask.distributed import Client
+# from dask.distributed import Client
 from joblib import Parallel, delayed
 import logging
 
@@ -249,51 +251,51 @@ class JobLibExec:
         log.info("Local launch finished")
 
 
-@dataclass
-class DaskExec(JobLibExec):
-
-    def __call__(self, client: Client):
-        self._init_checkpoint()
-
-        checkpoint_dir = self.checkpoint_dir
-        if checkpoint_dir is not None:
-            checkpoint_dir = os.path.abspath(checkpoint_dir)
-
-        def _checkpoint(result, i):
-            if checkpoint_dir is not None:
-                np.save(os.path.join(checkpoint_dir, f'{i}.npy'), result)
-
-        def _load_checkpoint(i):
-            if checkpoint_dir is None:
-                return None
-            checkpoint_file = os.path.join(checkpoint_dir, f'{i}.npy')
-            if not os.path.exists(checkpoint_file):
-                return None
-            result = np.load(checkpoint_file, allow_pickle=True)
-            return result
-
-        def job(i, sim):
-            result = _load_checkpoint(i)
-            if result is None:
-                if self.backend is not None:
-                    runner = self.backend()
-                    (t, y), = runner.run_sim(sim.configure())
-                else:
-                    (t, y), = sim.configure().run()
-                result = np.hstack([m(t, y) for m in self.post.metrics])
-                _checkpoint(result, i)
-            return result
-
-        def reduction(vals):
-            return self.post.reduction(vals)
-
-        metrics = client.map(job, *list(zip(*enumerate(self.seq))))
-
-        if self.post.reduction is not None:
-            reduced = client.submit(reduction, metrics)
-            return reduced.result()
-        else:
-            return metrics
+# @dataclass
+# class DaskExec(JobLibExec):
+#
+#     def __call__(self, client: Client):
+#         self._init_checkpoint()
+#
+#         checkpoint_dir = self.checkpoint_dir
+#         if checkpoint_dir is not None:
+#             checkpoint_dir = os.path.abspath(checkpoint_dir)
+#
+#         def _checkpoint(result, i):
+#             if checkpoint_dir is not None:
+#                 np.save(os.path.join(checkpoint_dir, f'{i}.npy'), result)
+#
+#         def _load_checkpoint(i):
+#             if checkpoint_dir is None:
+#                 return None
+#             checkpoint_file = os.path.join(checkpoint_dir, f'{i}.npy')
+#             if not os.path.exists(checkpoint_file):
+#                 return None
+#             result = np.load(checkpoint_file, allow_pickle=True)
+#             return result
+#
+#         def job(i, sim):
+#             result = _load_checkpoint(i)
+#             if result is None:
+#                 if self.backend is not None:
+#                     runner = self.backend()
+#                     (t, y), = runner.run_sim(sim.configure())
+#                 else:
+#                     (t, y), = sim.configure().run()
+#                 result = np.hstack([m(t, y) for m in self.post.metrics])
+#                 _checkpoint(result, i)
+#             return result
+#
+#         def reduction(vals):
+#             return self.post.reduction(vals)
+#
+#         metrics = client.map(job, *list(zip(*enumerate(self.seq))))
+#
+#         if self.post.reduction is not None:
+#             reduced = client.submit(reduction, metrics)
+#             return reduced.result()
+#         else:
+#             return metrics
 
 
 def compute_metrics(sim, metrics):
@@ -312,7 +314,7 @@ def compute_metrics(sim, metrics):
     return computed_metrics
 
 
-def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name):
+def launch_local_param(param1, param2, x_values, y_values, metrics, file_name):
     input_values = []
     for elem1 in x_values:
         for elem2 in y_values:
@@ -326,7 +328,7 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
                 el2_value = np.array([elem2])
             input_values.append([el1_value, el2_value])
 
-    sim = simulator.configure()  # deepcopy doesn't work on un-configured simulator o_O
+    sim = Simulator(connectivity=Connectivity.from_file()).configure()  # deepcopy doesn't work on un-configured simulator o_O
     seq = SimSeq(
         template=sim,
         params=[param1, param2],
@@ -338,3 +340,16 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
     )
     exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None)
     exe(n_jobs=4)
+
+
+if __name__ == '__main__':
+    param1 = sys.argv[1]
+    param2 = sys.argv[2]
+    param1_values = json.loads(sys.argv[3])
+    param2_values = json.loads(sys.argv[4])
+    n = len(sys.argv[5])
+    metrics = sys.argv[5][1:n - 1].split(', ')
+    file_name = sys.argv[6]
+
+    launch_local_param(param1, param2, param1_values, param2_values, metrics, file_name)
+
