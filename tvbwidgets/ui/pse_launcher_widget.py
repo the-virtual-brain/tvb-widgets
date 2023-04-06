@@ -48,14 +48,12 @@ class PSELauncher(TVBWidget):
         for elem in type(self.simulator.model).declarative_attrs:
             attribute = getattr(type(self.simulator.model), elem)
             if isinstance(attribute, NArray) and attribute.domain is not None:
-                param_name = "model." + elem
-                self.params_dict[param_name] = [attribute.domain.lo, attribute.domain.hi, attribute.domain.step]
+                self.params_dict[f"model.{elem}"] = [attribute.domain.lo, attribute.domain.hi, attribute.domain.step]
 
         for elem in type(self.simulator.coupling).declarative_attrs:
             attribute = getattr(type(self.simulator.coupling), elem)
             if isinstance(attribute, NArray) and attribute.domain is not None:
-                param_name = "coupling." + elem
-                self.params_dict[param_name] = [attribute.domain.lo, attribute.domain.hi, attribute.domain.step]
+                self.params_dict[f"coupling.{elem}"] = [attribute.domain.lo, attribute.domain.hi, attribute.domain.step]
 
         cond_speed_default_value = self.simulator.conduction_speed
         self.params_dict["conduction_speed"] = [0, 10 * cond_speed_default_value, cond_speed_default_value]
@@ -64,8 +62,8 @@ class PSELauncher(TVBWidget):
             for elem in type(self.simulator.integrator.noise).declarative_attrs:
                 attribute = getattr(type(self.simulator.integrator.noise), elem)
                 if isinstance(attribute, NArray) and attribute.domain is not None:
-                    param_name = "integrator." + elem
-                    self.params_dict[param_name] = [attribute.domain.lo, attribute.domain.hi, attribute.domain.step]
+                    self.params_dict[f"integrator.{elem}"] = [attribute.domain.lo, attribute.domain.hi,
+                                                              attribute.domain.step]
 
         if self.connectivity_list is not None:
             self.params_dict["connectivity"] = [0, 0, 0]
@@ -73,7 +71,7 @@ class PSELauncher(TVBWidget):
     def file_options(self):
         self.file_name = widgets.Text(
             placeholder='Type here',
-            description=f"<b>Name of file</b>",
+            description="<b>Name of file</b>",
             disabled=False
         )
 
@@ -92,12 +90,12 @@ class PSELauncher(TVBWidget):
         #
         # def hpc_launch(change):
         #     if self.launch_hpc_button.button_style == "success":
-        #         self.launch_text_information.value = f"<font color='gray'>HPC launch in progress"
+        #         self.launch_text_information.value = "<font color='gray'>HPC launch in progress"
 
         def local_launch(change):
             self.logger.info("Local launch in progress")
             if self.launch_local_button.button_style == "success":
-                self.launch_text_information.value = f"<font color='gray'>Local launch in progress"
+                self.launch_text_information.value = "<font color='gray'>Local launch in progress"
 
                 if self.param_1.value == "connectivity":
                     x_values = self.connectivity_list
@@ -116,7 +114,7 @@ class PSELauncher(TVBWidget):
     def create_metrics(self):
         self.metrics_sm = widgets.SelectMultiple(
             options=self.metrics,
-            description=f"<b>Metrics</b>",
+            description="<b>Metrics</b>",
             value=[self.metrics[0]],
             disabled=False, layout=widgets.Layout(margin="0px 20px 10px 25px", height="115px", width="340px"))
 
@@ -133,13 +131,13 @@ class PSELauncher(TVBWidget):
     def create_params(self):
         self.param_1 = widgets.Dropdown(
             options=sorted(self.params_dict.keys()),
-            description=f"<b>PSE param1</b>",
+            description="<b>PSE param1</b>",
             value=list(sorted(self.params_dict.keys()))[0],
             disabled=False
         )
         self.param_2 = widgets.Dropdown(
             options=sorted(self.params_dict.keys()),
-            description=f"<b>PSE param2</b>",
+            description="<b>PSE param2</b>",
             value=list(sorted(self.params_dict.keys()))[2],
             disabled=False
         )
@@ -153,7 +151,7 @@ class PSELauncher(TVBWidget):
                 # self.launch_hpc_button.button_style = 'success'
                 self.launch_local_button.button_style = 'success'
             else:
-                self.warning.value = f"<b><font color='red'>The parameters should be different!</b>"
+                self.warning.value = "<b><font color='red'>The parameters should be different!</b>"
                 # self.launch_hpc_button.button_style = 'danger'
                 self.launch_local_button.button_style = 'danger'
 
@@ -231,36 +229,36 @@ class PSELauncher(TVBWidget):
     def set_range(self):
         self.min_range1 = widgets.FloatText(
             value=self.params_dict[self.param_1.value][0],
-            description=f"<b><font color='gray'>Min range</b>",
+            description="<b><font color='gray'>Min range</b>",
             disable=False
         )
 
         self.max_range1 = widgets.FloatText(
             value=self.params_dict[self.param_1.value][1],
-            description=f"<b><font color='gray'>Max range</b>",
+            description="<b><font color='gray'>Max range</b>",
             disable=False
         )
 
         self.step1 = widgets.FloatText(
             value=self.params_dict[self.param_1.value][2],
-            description=f"<b><font color='gray'>Step</b>",
+            description="<b><font color='gray'>Step</b>",
             disable=False
         )
 
         self.min_range2 = widgets.FloatText(
             value=self.params_dict[self.param_2.value][0],
-            description=f"<b><font color='gray'>Min range</b>",
+            description="<b><font color='gray'>Min range</b>",
             disable=False
         )
 
         self.max_range2 = widgets.FloatText(
             value=self.params_dict[self.param_2.value][1],
-            description=f"<b><font color='gray'>Max range</b>",
+            description="<b><font color='gray'>Max range</b>",
             disable=False
         )
 
         self.step2 = widgets.FloatText(
             value=self.params_dict[self.param_2.value][2],
-            description=f"<b><font color='gray'>Step</b>",
+            description="<b><font color='gray'>Step</b>",
             disable=False
         )

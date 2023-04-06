@@ -1,5 +1,14 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2023, TVB Widgets Team
+#
 """
 A collection of parameter related classes and functions.
+- Temporary copy from tvb-inversion package
+
+.. moduleauthor:: Fousek Jan <jan.fousek@univ-amu.fr>
 """
 
 from copy import deepcopy
@@ -10,17 +19,19 @@ from tvb.analyzers.metric_variance_global import compute_variance_global_metric
 from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
 from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
 from tvb.analyzers.metric_variance_of_node_variance import compute_variance_of_node_variance_metric
-
 from tvb.datatypes.time_series import TimeSeries
 from tvb.simulator.simulator import Simulator
 import os
-from dask.distributed import Client
 from joblib import Parallel, delayed
 import logging
-
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
-
 log = logging.getLogger(__name__)
+
+try:
+    from dask.distributed import Client
+except ImportError:
+    log.info("ImportError: Dask dependency is not included, so this functionality won't be available")
+    Client = object
 
 
 class ParamGetter:
@@ -298,17 +309,20 @@ class DaskExec(JobLibExec):
 
 def compute_metrics(sim, metrics):
     computed_metrics = []
+
     for metric in metrics:
         if metric == "GlobalVariance":
-            computed_metrics.append(GlobalVariance(sim.monitors[0].period))
+            resulted_metric = (GlobalVariance(sim.monitors[0].period))
         elif metric == "KuramotoIndex":
-            computed_metrics.append(KuramotoIndex(sim.monitors[0].period))
+            resulted_metric = (KuramotoIndex(sim.monitors[0].period))
         elif metric == "ProxyMetastabilitySynchrony Metastability":
-            computed_metrics.append(ProxyMetastabilitySynchrony("Metastability", sim.monitors[0].period))
+            resulted_metric = (ProxyMetastabilitySynchrony("Metastability", sim.monitors[0].period))
         elif metric == "ProxyMetastabilitySynchrony Synchrony":
-            computed_metrics.append(ProxyMetastabilitySynchrony("Synchrony", sim.monitors[0].period))
+            resulted_metric = (ProxyMetastabilitySynchrony("Synchrony", sim.monitors[0].period))
         else:
-            computed_metrics.append(VarianceNodeVariance(sim.monitors[0].period))
+            resulted_metric = (VarianceNodeVariance(sim.monitors[0].period))
+        computed_metrics.append(resulted_metric)
+
     return computed_metrics
 
 
