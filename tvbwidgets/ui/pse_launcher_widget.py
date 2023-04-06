@@ -89,11 +89,11 @@ class PSELauncher(TVBWidget):
                 if self.param_1.value == "connectivity":
                     x_values = self.connectivity_list
                 else:
-                    x_values = self.create_input_values(self.min_range1.value, self.max_range1.value, self.step1.value)
+                    x_values = self._create_input_values(self.min_range1.value, self.max_range1.value, self.step1.value)
                 if self.param_2.value == "connectivity":
                     y_values = self.connectivity_list
                 else:
-                    y_values = self.create_input_values(self.min_range2.value, self.max_range2.value, self.step2.value)
+                    y_values = self._create_input_values(self.min_range2.value, self.max_range2.value, self.step2.value)
                 launch_local_param(self.simulator, self.param_1.value, self.param_2.value, x_values, y_values,
                                    list(self.metrics_sm.value), self.file_name.value)
 
@@ -110,11 +110,8 @@ class PSELauncher(TVBWidget):
         self.warning = widgets.HTML(value="", layout=widgets.Layout(margin="0px 0px 0px 65px"))
         self.launch_text_information = widgets.HTML(value="", layout=widgets.Layout(margin="7px 0px 0px 8px"))
 
-    def create_input_values(self, min_value, max_value, step):
-        values = []
-        for elem in np.arange(min_value, max_value, step):
-            values.append(elem)
-        return values
+    def _create_input_values(self, min_value, max_value, step):
+        return np.arange(min_value, max_value, step).tolist()
 
     def create_params(self):
         self.param_1 = widgets.Dropdown(
