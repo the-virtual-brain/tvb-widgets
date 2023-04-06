@@ -4,8 +4,6 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
-from IPython.core.display_functions import display
-from tvb.datatypes.time_series import TimeSeries
 
 from .ui.phase_plane_widget import PhasePlaneWidget
 from .ui.storage_widget import StorageWidget
@@ -13,6 +11,9 @@ from .ui.head_widget import HeadBrowser, HeadWidget, HeadWidgetConfig
 from .ui.ts_widget import TimeSeriesWidget, TimeSeriesBrowser
 from .ui.pse_widget import PSEWidget
 from .ui.pse_launcher_widget import PSELauncher
+
+from IPython.core.display_functions import display
+from tvb.datatypes.time_series import TimeSeries
 
 
 def plot_timeseries(data, sample_freq=None, ch_idx=None, backend='matplotlib'):
