@@ -34,7 +34,6 @@ class PSELauncher(TVBWidget):
         self.max_range2 = None
         self.step2 = None
         self.launch_local_button = None
-        # self.launch_hpc_button = None
         self.file_name = None
         self.metrics_sm = None
         self.create_informative_texts()
@@ -82,16 +81,6 @@ class PSELauncher(TVBWidget):
             button_style='success',
         )
 
-        # self.launch_hpc_button = widgets.Button(
-        #     description='HPC launch',
-        #     disabled=False,
-        #     button_style='success',
-        # )
-        #
-        # def hpc_launch(change):
-        #     if self.launch_hpc_button.button_style == "success":
-        #         self.launch_text_information.value = "<font color='gray'>HPC launch in progress"
-
         def local_launch(change):
             self.logger.info("Local launch in progress")
             if self.launch_local_button.button_style == "success":
@@ -108,7 +97,6 @@ class PSELauncher(TVBWidget):
                 launch_local_param(self.simulator, self.param_1.value, self.param_2.value, x_values, y_values,
                                    list(self.metrics_sm.value), self.file_name.value)
 
-        #self.launch_hpc_button.on_click(hpc_launch)
         self.launch_local_button.on_click(local_launch)
 
     def create_metrics(self):
@@ -148,11 +136,9 @@ class PSELauncher(TVBWidget):
 
             if self.param_1.value != self.param_2.value:
                 self.warning.value = ""
-                # self.launch_hpc_button.button_style = 'success'
                 self.launch_local_button.button_style = 'success'
             else:
                 self.warning.value = "<b><font color='red'>The parameters should be different!</b>"
-                # self.launch_hpc_button.button_style = 'danger'
                 self.launch_local_button.button_style = 'danger'
 
             if self.param_1.value == change['new'] and self.param_1.value != self.param_2.value:
