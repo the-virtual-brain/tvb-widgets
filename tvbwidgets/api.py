@@ -4,6 +4,8 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+from IPython.core.display_functions import display
+from tvb.datatypes.time_series import TimeSeries
 
 from .ui.phase_plane_widget import PhasePlaneWidget
 from .ui.storage_widget import StorageWidget
