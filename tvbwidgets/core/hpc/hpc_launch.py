@@ -12,8 +12,8 @@ log = logging.getLogger(__name__)
 
 class HPCLaunch(object):
     storage_name = {'DAINT-CSCS': 'HOME', 'JUSUF': 'PROJECT'}
-    env_dir = 'tvb_widgets'
-    env_name = 'venv'
+    env_dir = 'tvb_widgets_test'
+    env_name = 'venv_test'
     python_dir = {'DAINT-CSCS': 'python3.9', 'JUSUF': 'python3.10'}
     modules = {'DAINT-CSCS': 'cray-python', 'JUSUF': 'Python'}
     pip_libraries = 'tvb-widgets tvb-data joblib'
