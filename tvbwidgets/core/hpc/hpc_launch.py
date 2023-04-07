@@ -12,8 +12,8 @@ log = logging.getLogger(__name__)
 
 class HPCLaunch(object):
     storage_name = {'DAINT-CSCS': 'HOME', 'JUSUF': 'PROJECT'}
-    env_dir = 'tvb_widgets_test'
-    env_name = 'venv_test'
+    env_dir = 'tvb_widgets_t'
+    env_name = 'venv_t'
     python_dir = {'DAINT-CSCS': 'python3.9', 'JUSUF': 'python3.10'}
     modules = {'DAINT-CSCS': 'cray-python', 'JUSUF': 'Python'}
     pip_libraries = 'tvb-widgets tvb-data joblib'
@@ -45,7 +45,7 @@ class HPCLaunch(object):
     def _create_env_command(self):
         return f'cd ${self.storage_name[self.site]}/{self.env_dir} ' \
                f'&& rm -rf {self.env_name} ' \
-               f'&& python -mvenv {self.env_name}'  # why is -mvenv and not -m env?
+               f'&& python -mvenv {self.env_name}'
 
     @property
     def _install_dependencies_command(self):
@@ -168,7 +168,7 @@ class HPCLaunch(object):
         job_description = {
             self.EXECUTABLE_KEY: f"{self._module_load_command} && {self._activate_command} && "
                                  f"python {executable} {self.param1} {self.param2} '{self.param1_values}'  "
-                                 f"'{self.param2_values}' {self.file_name}",
+                                 f"'{self.param2_values}' '{self.metrics}' {self.file_name}",
             self.PROJECT_KEY: self.project}
         job_workflow = client.new_job(job_description, inputs=inputs)
         log.info(f"Job is running at {self.site}: {job_workflow.working_dir.properties['mountPoint']}. "

@@ -10,7 +10,8 @@ A collection of parameter related classes and functions.
 
 .. moduleauthor:: Fousek Jan <jan.fousek@univ-amu.fr>
 """
-
+import json
+import sys
 from copy import deepcopy
 from typing import List, Any, Optional
 from dataclasses import dataclass
@@ -19,6 +20,8 @@ from tvb.analyzers.metric_variance_global import compute_variance_global_metric
 from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
 from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
 from tvb.analyzers.metric_variance_of_node_variance import compute_variance_of_node_variance_metric
+from tvb.datatypes.connectivity import Connectivity
+
 from tvb.datatypes.time_series import TimeSeries
 from tvb.simulator.simulator import Simulator
 import os
@@ -142,8 +145,8 @@ class VarianceNodeVariance(Metric):
                                                          "segment": self.segment})
 
 
-METRICS = ['GlobalVariance', 'KuramotoIndex', 'ProxyMetastabilitySynchrony Metastability',
-           'ProxyMetastabilitySynchrony Synchrony', 'VarianceNodeVariance']
+METRICS = ['GlobalVariance', 'KuramotoIndex', 'ProxyMetastabilitySynchrony-Metastability',
+           'ProxyMetastabilitySynchrony-Synchrony', 'VarianceNodeVariance']
 
 
 class Reduction:
@@ -188,12 +191,10 @@ class SaveDataToDisk(Reduction):
 
         pse_result.metrics_names = self.metrics
         pse_result.results = metrics_data_np.reshape(len(self.metrics), len(self.x_values), len(self.y_values))
-        if ".h5" not in self.file_name:
-            self.file_name += ".h5"
 
         f = PSEStorage(self.file_name)
         f.store(pse_result)
-        log.info(str(self.file_name) + " file created")
+        log.info(f"{self.file_name} file created")
         f.close()
 
 
@@ -315,10 +316,10 @@ def compute_metrics(sim, metrics):
             resulted_metric = (GlobalVariance(sim.monitors[0].period))
         elif metric == "KuramotoIndex":
             resulted_metric = (KuramotoIndex(sim.monitors[0].period))
-        elif metric == "ProxyMetastabilitySynchrony Metastability":
-            resulted_metric = (ProxyMetastabilitySynchrony("Metastability", sim.monitors[0].period))
-        elif metric == "ProxyMetastabilitySynchrony Synchrony":
-            resulted_metric = (ProxyMetastabilitySynchrony("Synchrony", sim.monitors[0].period))
+        elif metric == "ProxyMetastabilitySynchrony-Metastability":
+            computed_metrics.append(ProxyMetastabilitySynchrony("Metastability", sim.monitors[0].period))
+        elif metric == "ProxyMetastabilitySynchrony-Synchrony":
+            computed_metrics.append(ProxyMetastabilitySynchrony("Synchrony", sim.monitors[0].period))
         else:
             resulted_metric = (VarianceNodeVariance(sim.monitors[0].period))
         computed_metrics.append(resulted_metric)
@@ -326,7 +327,7 @@ def compute_metrics(sim, metrics):
     return computed_metrics
 
 
-def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name):
+def launch_local_param(param1, param2, x_values, y_values, metrics, file_name):
     input_values = []
     for elem1 in x_values:
         for elem2 in y_values:
@@ -340,7 +341,7 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
                 el2_value = np.array([elem2])
             input_values.append([el1_value, el2_value])
 
-    sim = simulator.configure()  # deepcopy doesn't work on un-configured simulator o_O
+    sim = Simulator(connectivity=Connectivity.from_file()).configure()  # deepcopy doesn't work on un-configured simulator o_O
     seq = SimSeq(
         template=sim,
         params=[param1, param2],
@@ -352,3 +353,16 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
     )
     exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None)
     exe(n_jobs=4)
+
+
+if __name__ == '__main__':
+    param1 = sys.argv[1]
+    param2 = sys.argv[2]
+    param1_values = json.loads(sys.argv[3])
+    param2_values = json.loads(sys.argv[4])
+    n = len(sys.argv[5])
+    metrics = sys.argv[5][1:n - 1].split(', ')
+    file_name = sys.argv[6]
+
+    launch_local_param(param1, param2, param1_values, param2_values, metrics, file_name)
+
