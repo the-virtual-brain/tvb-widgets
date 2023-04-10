@@ -116,7 +116,7 @@ class PSELauncher(TVBWidget):
                 if self.param_1.value == "connectivity":
                     x_values = self.connectivity_list
                 else:
-                    x_values = self._create_input_values(self.min_range1.value, self.max_range1.value, self.step1.value)
+                    x_values = self.create_input_values(self.min_range1.value, self.max_range1.value, self.step1.value)
                 if self.param_2.value == "connectivity":
                     y_values = self.connectivity_list
                 else:
@@ -125,6 +125,7 @@ class PSELauncher(TVBWidget):
                 launch_local_param(self.param_1.value, self.param_2.value, x_values, y_values,
                                    list(self.metrics_sm.value), file_name)
 
+        self.launch_hpc_button.on_click(hpc_launch)
         self.launch_local_button.on_click(local_launch)
 
     def verify_file_name(self):
@@ -174,9 +175,11 @@ class PSELauncher(TVBWidget):
 
             if self.param_1.value != self.param_2.value:
                 self.warning.value = ""
+                self.launch_hpc_button.button_style = 'success'
                 self.launch_local_button.button_style = 'success'
             else:
                 self.warning.value = "<b><font color='red'>The parameters should be different!</b>"
+                self.launch_hpc_button.button_style = 'danger'
                 self.launch_local_button.button_style = 'danger'
 
             if self.param_1.value == change['new'] and self.param_1.value != self.param_2.value:
@@ -238,7 +241,7 @@ class PSELauncher(TVBWidget):
         param_box1 = widgets.HBox(children=[self.param_1, range1], layout=widgets.Layout(margin="40px 0px 0px 50px"))
         param_box2 = widgets.HBox(children=[self.param_2, range2], layout=widgets.Layout(margin="30px 0px 0px 50px"))
         buttons_box = widgets.VBox(
-            children=[self.launch_local_button, self.launch_text_information],
+            children=[self.launch_local_button, self.launch_hpc_button, self.launch_text_information],
             layout=widgets.Layout(
                 margin="0px 0px 50px 20px"))
 

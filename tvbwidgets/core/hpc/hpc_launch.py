@@ -16,7 +16,7 @@ class HPCLaunch(object):
     env_name = 'venv_t'
     python_dir = {'DAINT-CSCS': 'python3.9', 'JUSUF': 'python3.10'}
     modules = {'DAINT-CSCS': 'cray-python', 'JUSUF': 'Python'}
-    pip_libraries = 'tvb-widgets tvb-data joblib'
+    pip_libraries = 'tvb-widgets tvb-data'
     EXECUTABLE_KEY = 'Executable'
     PROJECT_KEY = 'Project'
     JOB_TYPE_KEY = 'Job type'
