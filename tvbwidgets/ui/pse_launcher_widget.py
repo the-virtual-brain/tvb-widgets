@@ -109,7 +109,7 @@ class PSELauncher(TVBWidget):
                           list(self.metrics_sm.value), file_name)
 
         def local_launch(change):
-            self.logger.info("Local launch in progress")
+            log.info("Local launch in progress")
             if self.launch_local_button.button_style == "success":
                 self.launch_text_information.value = "<font color='gray'>Local launch in progress"
 

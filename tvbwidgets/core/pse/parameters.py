@@ -252,7 +252,13 @@ class JobLibExec:
                     (t, y), = runner.run_sim(sim.configure())
                 else:
                     (t, y), = sim.configure().run()
-                result = np.hstack([m(t, y) for m in self.post.metrics])
+                result = []
+                for m in self.post.metrics:
+                    try:
+                        result.append(m(t, y))
+                    except Exception:
+                        result.append(np.nan)
+                result = np.hstack(result)
                 self._checkpoint(result, i)
             return result
 
@@ -313,15 +319,15 @@ def compute_metrics(sim, metrics):
 
     for metric in metrics:
         if metric == "GlobalVariance":
-            resulted_metric = (GlobalVariance(sim.monitors[0].period))
+            resulted_metric = GlobalVariance(sim.monitors[0].period)
         elif metric == "KuramotoIndex":
-            resulted_metric = (KuramotoIndex(sim.monitors[0].period))
+            resulted_metric = KuramotoIndex(sim.monitors[0].period)
         elif metric == "ProxyMetastabilitySynchrony-Metastability":
-            computed_metrics.append(ProxyMetastabilitySynchrony("Metastability", sim.monitors[0].period))
+            resulted_metric = ProxyMetastabilitySynchrony("Metastability", sim.monitors[0].period)
         elif metric == "ProxyMetastabilitySynchrony-Synchrony":
-            computed_metrics.append(ProxyMetastabilitySynchrony("Synchrony", sim.monitors[0].period))
+            resulted_metric = ProxyMetastabilitySynchrony("Synchrony", sim.monitors[0].period)
         else:
-            resulted_metric = (VarianceNodeVariance(sim.monitors[0].period))
+            resulted_metric = VarianceNodeVariance(sim.monitors[0].period)
         computed_metrics.append(resulted_metric)
 
     return computed_metrics

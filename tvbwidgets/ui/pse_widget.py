@@ -68,7 +68,7 @@ class PSEWidget(TVBWidget):
         self.figure = go.FigureWidget(layout=pse_layout)
 
         self.figure.add_trace(go.Heatmap(z=list(self.dict_metrics.values())[0], x=self.param2_value, y=self.param1_value
-                                         , colorscale='RdBu', connectgaps=False, showscale=True, zsmooth='best'))
+                                         , colorscale='RdBu', connectgaps=False, showscale=True, zsmooth=False))
 
         self._populate_features()
 
@@ -85,7 +85,7 @@ class PSEWidget(TVBWidget):
         display(table)
 
     def _smooth_effect(self):
-        self.smooth_effect_cb = widgets.Checkbox(value=True, description='Smooth visualizer',
+        self.smooth_effect_cb = widgets.Checkbox(value=False, description='Smooth visualizer',
                                                  layout=widgets.Layout(margin='10px 0px 10px 0px'))
 
         def smooth_effect_changed(change):

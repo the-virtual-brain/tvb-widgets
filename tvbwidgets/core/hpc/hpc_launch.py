@@ -203,3 +203,4 @@ class HPCLaunch(object):
             return
         else:
             storage_config_file.download(self.file_name)
+            log.info(f"{self.file_name} file has been downloaded successfully.")
