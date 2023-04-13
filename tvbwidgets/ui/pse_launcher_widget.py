@@ -95,15 +95,8 @@ class PSELauncher(TVBWidget):
         def hpc_launch(change):
             if self.launch_hpc_button.button_style == "success":
                 self.launch_text_information.value = f"<font color='gray'>HPC launch in progress"
-
-                if self.param_1.value == "connectivity":
-                    x_values = self.connectivity_list
-                else:
-                    x_values = self.create_input_values(self.min_range1.value, self.max_range1.value, self.step1.value)
-                if self.param_2.value == "connectivity":
-                    y_values = self.connectivity_list
-                else:
-                    y_values = self.create_input_values(self.min_range2.value, self.max_range2.value, self.step2.value)
+                x_values = self.compute_params_values(self.param_1.value)
+                y_values = self.compute_params_values(self.param_2.value)
                 file_name = self.verify_file_name()
                 HPCLaunch('JUSUF', self.param_1.value, self.param_2.value, x_values, y_values,
                           list(self.metrics_sm.value), file_name)
@@ -112,21 +105,23 @@ class PSELauncher(TVBWidget):
             log.info("Local launch in progress")
             if self.launch_local_button.button_style == "success":
                 self.launch_text_information.value = "<font color='gray'>Local launch in progress"
-
-                if self.param_1.value == "connectivity":
-                    x_values = self.connectivity_list
-                else:
-                    x_values = self.create_input_values(self.min_range1.value, self.max_range1.value, self.step1.value)
-                if self.param_2.value == "connectivity":
-                    y_values = self.connectivity_list
-                else:
-                    y_values = self.create_input_values(self.min_range2.value, self.max_range2.value, self.step2.value)
+                x_values = self.compute_params_values(self.param_1.value)
+                y_values = self.compute_params_values(self.param_2.value)
                 file_name = self.verify_file_name()
                 launch_local_param(self.param_1.value, self.param_2.value, x_values, y_values,
                                    list(self.metrics_sm.value), file_name)
 
         self.launch_hpc_button.on_click(hpc_launch)
         self.launch_local_button.on_click(local_launch)
+
+    def compute_params_values(self, param):
+        if param == "connectivity":
+            return self.connectivity_list
+        else:
+            if param == self.param_1.value:
+                return self.create_input_values(self.min_range1.value, self.max_range1.value, self.step1.value)
+            else:
+                return self.create_input_values(self.min_range2.value, self.max_range2.value, self.step2.value)
 
     def verify_file_name(self):
         file_name = self.file_name.value

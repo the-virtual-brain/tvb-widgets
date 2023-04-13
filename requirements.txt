@@ -9,3 +9,4 @@ pythreejs
 pyvista == 0.37.0
 tvb-library >= 2.5
 tvb-framework
+pyunicore
