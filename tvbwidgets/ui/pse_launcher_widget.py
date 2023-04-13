@@ -8,16 +8,17 @@ import numpy as np
 from tvb.basic.neotraits._attr import NArray
 
 from tvbwidgets.core.hpc.hpc_launch import HPCLaunch
-from tvbwidgets.core.pse.parameters import launch_local_param
+from tvbwidgets.core.pse.parameters import launch_local_param, ProgressHolder
 from tvbwidgets.core.pse.parameters import METRICS
 from tvbwidgets.ui.base_widget import TVBWidget
 from IPython.core.display_functions import display
 import ipywidgets as widgets
 import logging
+
 log = logging.getLogger(__name__)
 
 
-class PSELauncher(TVBWidget):
+class PSELauncher(TVBWidget, ProgressHolder):
 
     def __init__(self, simulator, connectivity_list=None):
         # type: (Simulator, list) -> None
@@ -41,6 +42,8 @@ class PSELauncher(TVBWidget):
         self.launch_hpc_button = None
         self.file_name = None
         self.metrics_sm = None
+        self.progress = None
+        self.init_progress()
         self.create_informative_texts()
         self.handle_launch_buttons()
         self.create_metrics()
@@ -98,6 +101,8 @@ class PSELauncher(TVBWidget):
                 x_values = self.compute_params_values(self.param_1.value)
                 y_values = self.compute_params_values(self.param_2.value)
                 file_name = self.verify_file_name()
+                self.progress.max = len(x_values) * len(y_values)
+
                 HPCLaunch('JUSUF', self.param_1.value, self.param_2.value, x_values, y_values,
                           list(self.metrics_sm.value), file_name)
 
@@ -108,8 +113,10 @@ class PSELauncher(TVBWidget):
                 x_values = self.compute_params_values(self.param_1.value)
                 y_values = self.compute_params_values(self.param_2.value)
                 file_name = self.verify_file_name()
+                self.progress.max = len(x_values) * len(y_values)
+
                 launch_local_param(self.param_1.value, self.param_2.value, x_values, y_values,
-                                   list(self.metrics_sm.value), file_name)
+                                   list(self.metrics_sm.value), file_name, None)
 
         self.launch_hpc_button.on_click(hpc_launch)
         self.launch_local_button.on_click(local_launch)
@@ -132,6 +139,15 @@ class PSELauncher(TVBWidget):
             return f"{file_name}.h5"
         else:
             return file_name
+
+    def update_progress(self, task_nmb):
+        self.progress.value = task_nmb
+
+    def init_progress(self):
+        style = {'description_width': '117px'}
+        self.progress = widgets.IntProgress(value=0, min=0, max=100, description='Simulation Progress:',
+                                            style=style,
+                                            orientation='horizontal')
 
     def create_metrics(self):
         self.metrics_sm = widgets.SelectMultiple(
@@ -236,7 +252,7 @@ class PSELauncher(TVBWidget):
         param_box1 = widgets.HBox(children=[self.param_1, range1], layout=widgets.Layout(margin="40px 0px 0px 50px"))
         param_box2 = widgets.HBox(children=[self.param_2, range2], layout=widgets.Layout(margin="30px 0px 0px 50px"))
         buttons_box = widgets.VBox(
-            children=[self.launch_local_button, self.launch_hpc_button, self.launch_text_information],
+            children=[self.launch_local_button, self.launch_hpc_button, self.launch_text_information,  self.progress],
             layout=widgets.Layout(
                 margin="0px 0px 50px 20px"))
 

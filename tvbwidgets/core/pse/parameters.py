@@ -208,12 +208,18 @@ class Exec:
     pass
 
 
+class ProgressHolder:
+    def update_progress(self, task_nmb):
+        pass
+
+
 @dataclass
 class JobLibExec:
     seq: SimSeq
     post: PostProcess
     backend: Optional[Any]
     checkpoint_dir: Optional[str]
+    progress_holder: Optional[ProgressHolder]
 
     def _checkpoint(self, result, i):
         if self.checkpoint_dir is not None:
@@ -238,6 +244,10 @@ class JobLibExec:
                 np.savetxt(os.path.join(self.checkpoint_dir, 'params.txt'), self.seq.params, fmt='%s')
                 np.save(os.path.join(self.checkpoint_dir, 'param_vals.npy'), self.seq.values)
 
+    def monitor_execution(self, task_nmb):
+        if self.progress_holder is not None:
+            self.progress_holder.update_progress(task_nmb)
+
     def __call__(self, n_jobs=-1):
         log.info("Simulation starts")
         self._init_checkpoint()
@@ -260,9 +270,12 @@ class JobLibExec:
                         result.append(np.nan)
                 result = np.hstack(result)
                 self._checkpoint(result, i)
+            log.info(f"Task {i} in execution")
+            self.monitor_execution(i)
             return result
 
         metrics = pool(job(_, i) for i, _ in enumerate(self.seq))
+        log.info(f"Completed tasks: {pool.n_completed_tasks}")
         self.post.reduction(metrics)
         log.info("Local launch finished")
 
@@ -333,7 +346,7 @@ def compute_metrics(sim, metrics):
     return computed_metrics
 
 
-def launch_local_param(param1, param2, x_values, y_values, metrics, file_name):
+def launch_local_param(param1, param2, x_values, y_values, metrics, file_name, progress_holder):
     input_values = []
     for elem1 in x_values:
         for elem2 in y_values:
@@ -357,7 +370,7 @@ def launch_local_param(param1, param2, x_values, y_values, metrics, file_name):
         metrics=compute_metrics(sim, metrics),
         reduction=SaveDataToDisk(param1, param2, x_values, y_values, metrics, file_name),
     )
-    exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None)
+    exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None, progress_holder=progress_holder)
     exe(n_jobs=4)
 
 
@@ -370,5 +383,4 @@ if __name__ == '__main__':
     metrics = sys.argv[5][1:n - 1].split(', ')
     file_name = sys.argv[6]
 
-    launch_local_param(param1, param2, param1_values, param2_values, metrics, file_name)
-
+    launch_local_param(param1, param2, param1_values, param2_values, metrics, file_name, None)
