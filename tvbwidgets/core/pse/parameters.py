@@ -18,7 +18,7 @@ import sys
 import logging
 import numpy as np
 from copy import deepcopy
-from typing import List, Any, Optional
+from typing import List, Any, Optional, Callable
 from dataclasses import dataclass
 from tvb.analyzers.metric_variance_global import compute_variance_global_metric
 from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
@@ -216,6 +216,7 @@ class JobLibExec:
     post: PostProcess
     backend: Optional[Any]
     checkpoint_dir: Optional[str]
+    update_progress: Optional[Callable]
 
     def _checkpoint(self, result, i):
         if self.checkpoint_dir is not None:
@@ -240,10 +241,14 @@ class JobLibExec:
                 np.savetxt(os.path.join(self.checkpoint_dir, 'params.txt'), self.seq.params, fmt='%s')
                 np.save(os.path.join(self.checkpoint_dir, 'param_vals.npy'), self.seq.values)
 
+    def monitor_execution(self):
+        if self.update_progress is not None:
+            self.update_progress()
+
     def __call__(self, n_jobs=-1):
         log.info("Simulation starts")
         self._init_checkpoint()
-        pool = Parallel(n_jobs)
+        pool = Parallel(n_jobs, prefer="threads")
 
         @delayed
         def job(sim, i):
@@ -262,9 +267,12 @@ class JobLibExec:
                         result.append(np.nan)
                 result = np.hstack(result)
                 self._checkpoint(result, i)
+            log.info(f"Task {i} finished")
+            self.monitor_execution()
             return result
 
         metrics_ = pool(job(_, i) for i, _ in enumerate(self.seq))
+        log.info(f"Completed tasks: {pool.n_completed_tasks}")
         self.post.reduction(metrics_)
         log.info("Local launch finished")
 
@@ -335,7 +343,7 @@ def compute_metrics(sim, metrics_):
     return computed_metrics
 
 
-def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name):
+def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name, update_progress):
     input_values = []
     for elem1 in x_values:
         for elem2 in y_values:
@@ -359,7 +367,7 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
         metrics=compute_metrics(sim, metrics),
         reduction=SaveDataToDisk(param1, param2, x_values, y_values, metrics, file_name),
     )
-    exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None)
+    exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None, update_progress=update_progress)
     exe(n_jobs=4)
 
 
@@ -376,4 +384,4 @@ if __name__ == '__main__':
     # TODO WID-208 deserialize this instance after being passed from the remote launcher
     sim = Simulator(connectivity=Connectivity.from_file()).configure()
 
-    launch_local_param(sim, param1, param2, param1_values, param2_values, metrics, file_name)
+    launch_local_param(sim, param1, param2, param1_values, param2_values, metrics, file_name, None)
