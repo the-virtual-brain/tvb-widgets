@@ -33,6 +33,7 @@ jobs:
           python -m pip install tvb-framework
           python -m pip install dask
           python -m pip install "dask[distributed]" --upgrade
+          python -m pip install pyunicore
 
       - name: Test with pytest
         run: |
