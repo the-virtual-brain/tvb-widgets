@@ -13,25 +13,21 @@ from pyunicore.helpers.jobs import Status
 from pyunicore.credentials import AuthenticationFailedException
 from datetime import datetime
 from tvbwidgets.core.auth import get_current_token
+from tvbwidgets.core.hpc.config import HPCConfig
 
 log = logging.getLogger(__name__)
 
 
 class HPCLaunch(object):
-    storage_name = {'DAINT-CSCS': 'HOME', 'JUSUF': 'PROJECT'}
-    env_dir = 'tvb_widgets_t'
-    env_name = 'venv_t'
-    python_dir = {'DAINT-CSCS': 'python3.9', 'JUSUF': 'python3.10'}
-    modules = {'DAINT-CSCS': 'cray-python', 'JUSUF': 'Python'}
     pip_libraries = 'tvb-widgets tvb-data'
     EXECUTABLE_KEY = 'Executable'
     PROJECT_KEY = 'Project'
     JOB_TYPE_KEY = 'Job type'
     INTERACTIVE_KEY = 'interactive'
-    project = 'icei-hbp-2021-0007'
 
-    def __init__(self, site, param1, param2, param1_values, param2_values, metrics, file_name):
-        self.site = site
+    def __init__(self, hpc_config, param1, param2, param1_values, param2_values, metrics, file_name):
+        # type: (HPCConfig, str, str, list, list, list, str) -> None
+        self.config = hpc_config
         self.param1 = param1
         self.param2 = param2
         self.param1_values = param1_values
@@ -45,24 +41,24 @@ class HPCLaunch(object):
 
     @property
     def _activate_command(self):
-        return f'source ${self.storage_name[self.site]}/{self.env_dir}/{self.env_name}/bin/activate'
+        return f'source ${self.config.storage_name}/{self.config.env_dir}/{self.config.env_name}/bin/activate'
 
     @property
     def _module_load_command(self):
-        return f'module load {self.modules.get(self.site, "")}'
+        return f'module load {self.config.module_to_load}'
 
     @property
     def _create_env_command(self):
-        return f'cd ${self.storage_name[self.site]}/{self.env_dir} ' \
-               f'&& rm -rf {self.env_name} ' \
-               f'&& python -mvenv {self.env_name}'
+        return f'cd ${self.config.storage_name}/{self.config.env_dir} ' \
+               f'&& rm -rf {self.config.env_name} ' \
+               f'&& python -mvenv {self.config.env_name}'
 
     @property
     def _install_dependencies_command(self):
         return f'pip install -U pip && pip install allensdk && pip install {self.pip_libraries}'
 
     def connect_client(self):
-        log.info(f"Connecting to {self.site}...")
+        log.info(f"Connecting to {self.config.site}...")
         token = get_current_token()
         transport = pyunicore.client.Transport(token)
         registry = pyunicore.client.Registry(transport, pyunicore.client._HBP_REGISTRY_URL)
@@ -75,64 +71,58 @@ class HPCLaunch(object):
             return None
 
         try:
-            site_url = sites['JUSUF']
+            site_url = sites[self.config.site]
         except KeyError:
-            log.error(f'Site {self.site} seems to be down for the moment.')
+            log.error(f'Site {self.config.site} seems to be down for the moment.')
             return None
 
         try:
             client = pyunicore.client.Client(transport, site_url)
         except (AuthenticationFailedException, HTTPError):
-            log.error(f'Authentication to {self.site} failed, you might not have permissions to access it.')
+            log.error(f'Authentication to {self.config.site} failed, you might not have permissions to access it.')
             return None
 
-        log.info(f'Authenticated to {self.site} with success.')
+        log.info(f'Authenticated to {self.config.site} with success.')
         return client
 
     def _check_environment_ready(self, home_storage):
         # Pyunicore listdir method returns directory names suffixed by '/'
-        if f"{self.env_dir}/" not in home_storage.listdir():
-            home_storage.mkdir(self.env_dir)
+        if f"{self.config.env_dir}/" not in home_storage.listdir():
+            home_storage.mkdir(self.config.env_dir)
             log.info(f"Environment directory not found in HOME, will be created.")
             return False
 
-        if f"{self.env_dir}/{self.env_name}/" not in home_storage.listdir(self.env_dir):
+        if f"{self.config.env_dir}/{self.config.env_name}/" not in home_storage.listdir(self.config.env_dir):
             log.info(f"Environment not found in HOME, will be created.")
             return False
 
         try:
             # Check whether tvb-widgets is installed in HPC env and if version is updated
-            site_packages_path = f'{self.env_dir}/{self.env_name}/lib/{self.python_dir[self.site]}/site-packages'
+            site_packages_path = f'{self.config.env_dir}/{self.config.env_name}/lib/{self.config.python_dir}/site-packages'
             site_packages = home_storage.listdir(site_packages_path)
             files = [file for file in site_packages if "tvb_widgets" in file]
             assert len(files) >= 1
             remote_version = files[0].split("tvb_widgets-")[1].split('.dist-info')[0]
 
-            # Should have a class which returns the version(as in tvbextxircuits) ?
+            # Should have a class which returns the version(as in tvb-widgets) ?
             local_version = get_distribution("tvb-widgets").version
             if remote_version != local_version:
                 log.info(f"Found an older version {remote_version} of tvb-widgets installed in the "
                          f"environment, will recreate it with {local_version}.")
                 return False
             return True
-        except HTTPError as e:
-            log.info(f"Could not find site-packages in the environment, will recreate it: {e}")
-            return False
-        except AssertionError:
-            log.info(f"Could not find tvb-widgets installed in the environment, will recreate it.")
-            return False
-        except IndexError:
+        except Exception:
             log.info(f"Could not find tvb-widgets installed in the environment, will recreate it.")
             return False
 
     def _search_for_home_dir(self, client):
-        log.info(f"Accessing storages on {self.site}...")
+        log.info(f"Accessing storages on {self.config.site}...")
         num = 10
         offset = 0
         storages = client.get_storages(num=num, offset=offset)
         while len(storages) > 0:
             for storage in storages:
-                if storage.resource_url.endswith(self.storage_name[self.site]):
+                if storage.resource_url.endswith(self.config.storage_name):
                     return storage
             offset += num
             storages = client.get_storages(num=num, offset=offset)
@@ -146,29 +136,29 @@ class HPCLaunch(object):
     def submit_job(self, executable, inputs, do_stage_out):
         client = self.connect_client()
         if client is None:
-            log.error(f"Could not connect to {self.site}, stopping execution.")
+            log.error(f"Could not connect to {self.config.site}, stopping execution.")
             return
 
         home_storage = self._search_for_home_dir(client)
         if home_storage is None:
-            log.error(f"Could not find a {self.storage_name[self.site]} storage on {self.site}, stopping execution.")
+            log.error(f"Could not find a {self.config.storage_name} storage on {self.config.site}, stopping execution.")
             return
 
         is_env_ready = self._check_environment_ready(home_storage)
         if is_env_ready:
             log.info(f"Environment is already prepared, it won't be recreated.")
         else:
-            log.info(f"Preparing environment in your {self.storage_name[self.site]} folder...")
+            log.info(f"Preparing environment in your {self.config.storage_name} folder...")
             job_description = {
                 self.EXECUTABLE_KEY: f"{self._module_load_command} && {self._create_env_command} && "
                                      f"{self._activate_command} && {self._install_dependencies_command}",
-                self.PROJECT_KEY: self.project,
+                self.PROJECT_KEY: self.config.project,
                 self.JOB_TYPE_KEY: self.INTERACTIVE_KEY}
             job_env_prep = client.new_job(job_description, inputs=[])
-            log.info(f"Job is running at {self.site}: {job_env_prep.working_dir.properties['mountPoint']}. "
+            log.info(f"Job is running at {self.config.site}: {job_env_prep.working_dir.properties['mountPoint']}. "
                      f"Submission time is: {self._format_date_for_job(job_env_prep)}. "
                      f"Waiting for job to finish..."
-                     f"It can also be monitored interactively with the Monitor HPC button.")
+                     f"It can also be monitored with the 'Unicore tasks stream' button on the right-side bar.")
             job_env_prep.poll()
             if job_env_prep.properties['status'] == Status.FAILED:
                 log.error(f"Encountered an error during environment setup, stopping execution.")
@@ -180,9 +170,9 @@ class HPCLaunch(object):
             self.EXECUTABLE_KEY: f"{self._module_load_command} && {self._activate_command} && "
                                  f"python {executable} {self.param1} {self.param2} '{self.param1_values}'  "
                                  f"'{self.param2_values}' '{self.metrics}' {self.file_name}",
-            self.PROJECT_KEY: self.project}
+            self.PROJECT_KEY: self.config.project}
         job_workflow = client.new_job(job_description, inputs=inputs)
-        log.info(f"Job is running at {self.site}: {job_workflow.working_dir.properties['mountPoint']}. "
+        log.info(f"Job is running at {self.config.site}: {job_workflow.working_dir.properties['mountPoint']}. "
                  f"Submission time is: {self._format_date_for_job(job_workflow)}.")
         log.info('Finished remote launch.')
 

@@ -45,7 +45,7 @@ class ParamGetter:
 
 @dataclass
 class SimSeq:
-    "A sequence of simulator configurations."
+    """A sequence of simulator configurations."""
     template: Simulator
     params: List[str]
     values: List[List[Any]]
@@ -335,7 +335,7 @@ def compute_metrics(sim, metrics_):
     return computed_metrics
 
 
-def launch_local_param(param1, param2, x_values, y_values, metrics, file_name):
+def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name):
     input_values = []
     for elem1 in x_values:
         for elem2 in y_values:
@@ -349,8 +349,7 @@ def launch_local_param(param1, param2, x_values, y_values, metrics, file_name):
                 el2_value = np.array([elem2])
             input_values.append([el1_value, el2_value])
 
-    sim = Simulator(
-        connectivity=Connectivity.from_file()).configure()  # deepcopy doesn't work on un-configured simulator o_O
+    sim = simulator.configure()  # deepcopy doesn't work on un-configured simulator o_O
     seq = SimSeq(
         template=sim,
         params=[param1, param2],
@@ -373,4 +372,8 @@ if __name__ == '__main__':
     metrics = sys.argv[5][1:n - 1].split(', ')
     file_name = sys.argv[6]
 
-    launch_local_param(param1, param2, param1_values, param2_values, metrics, file_name)
+    # TODO serialize this instance before remote launch
+    sim = Simulator(connectivity=Connectivity.from_file()
+                    ).configure()
+
+    launch_local_param(sim, param1, param2, param1_values, param2_values, metrics, file_name)

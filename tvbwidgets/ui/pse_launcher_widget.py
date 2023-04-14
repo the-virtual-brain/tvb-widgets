@@ -99,7 +99,7 @@ class PSELauncher(TVBWidget):
                 x_values = self.compute_params_values(self.param_1.value)
                 y_values = self.compute_params_values(self.param_2.value)
                 file_name = self.verify_file_name()
-                HPCLaunch(self.hpc_config.site, self.param_1.value, self.param_2.value, x_values, y_values,
+                HPCLaunch(self.hpc_config, self.param_1.value, self.param_2.value, x_values, y_values,
                           list(self.metrics_sm.value), file_name)
 
         def local_launch(change):
@@ -109,7 +109,7 @@ class PSELauncher(TVBWidget):
                 x_values = self.compute_params_values(self.param_1.value)
                 y_values = self.compute_params_values(self.param_2.value)
                 file_name = self.verify_file_name()
-                launch_local_param(self.param_1.value, self.param_2.value, x_values, y_values,
+                launch_local_param(self.simulator, self.param_1.value, self.param_2.value, x_values, y_values,
                                    list(self.metrics_sm.value), file_name)
 
         self.launch_hpc_button.on_click(hpc_launch)
