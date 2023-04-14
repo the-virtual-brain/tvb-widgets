@@ -1,12 +1,19 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2023, TVB Widgets Team
+#
+
 import logging
-import os
+import pyunicore.client
 from urllib.error import HTTPError
 from pkg_resources import get_distribution
-import pyunicore.client as unicore_client
-from pyunicore.helpers.jobs import Status as unicore_status
+from pyunicore.helpers.jobs import Status
 from pyunicore.credentials import AuthenticationFailedException
 from datetime import datetime
 from tvbwidgets.core.auth import get_current_token
+
 log = logging.getLogger(__name__)
 
 
@@ -31,7 +38,10 @@ class HPCLaunch(object):
         self.param2_values = param2_values
         self.metrics = metrics
         self.file_name = file_name
-        self.submit_job("parameters.py", ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py"], True)
+        # TODO: get rid of this hard-coded path
+        self.submit_job("parameters.py",
+                        ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py"],
+                        True)
 
     @property
     def _activate_command(self):
@@ -54,8 +64,8 @@ class HPCLaunch(object):
     def connect_client(self):
         log.info(f"Connecting to {self.site}...")
         token = get_current_token()
-        transport = unicore_client.Transport(token)
-        registry = unicore_client.Registry(transport, unicore_client._HBP_REGISTRY_URL)
+        transport = pyunicore.client.Transport(token)
+        registry = pyunicore.client.Registry(transport, pyunicore.client._HBP_REGISTRY_URL)
 
         try:
             sites = registry.site_urls
@@ -71,7 +81,7 @@ class HPCLaunch(object):
             return None
 
         try:
-            client = unicore_client.Client(transport, site_url)
+            client = pyunicore.client.Client(transport, site_url)
         except (AuthenticationFailedException, HTTPError):
             log.error(f'Authentication to {self.site} failed, you might not have permissions to access it.')
             return None
@@ -128,7 +138,8 @@ class HPCLaunch(object):
             storages = client.get_storages(num=num, offset=offset)
         return None
 
-    def _format_date_for_job(self, job):
+    @staticmethod
+    def _format_date_for_job(job):
         date = datetime.strptime(job.properties['submissionTime'], '%Y-%m-%dT%H:%M:%S+%f')
         return date.strftime('%m.%d.%Y, %H_%M_%S')
 
@@ -159,7 +170,7 @@ class HPCLaunch(object):
                      f"Waiting for job to finish..."
                      f"It can also be monitored interactively with the Monitor HPC button.")
             job_env_prep.poll()
-            if job_env_prep.properties['status'] == unicore_status.FAILED:
+            if job_env_prep.properties['status'] == Status.FAILED:
                 log.error(f"Encountered an error during environment setup, stopping execution.")
                 return
             log.info(f"Successfully finished the environment setup.")
@@ -185,7 +196,7 @@ class HPCLaunch(object):
                  'It can also be monitored interactively with the Monitor HPC button.')
         job.poll()
 
-        if job.properties['status'] == unicore_status.FAILED:
+        if job.properties['status'] == Status.FAILED:
             log.error(f"Job finished with errors.")
             return
         log.info(f"Job finished with success. Staging out the results...")
