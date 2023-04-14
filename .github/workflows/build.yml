@@ -31,8 +31,6 @@ jobs:
           python -m pip install pytest pytest-cov pytest-mock tvb-data
           python -m pip install nbformat nbconvert
           python -m pip install tvb-framework
-          python -m pip install dask
-          python -m pip install "dask[distributed]" --upgrade
           python -m pip install pyunicore
 
       - name: Test with pytest
