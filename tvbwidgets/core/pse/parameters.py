@@ -8,26 +8,28 @@
 A collection of parameter related classes and functions.
 - Temporary copy from tvb-inversion package
 
-.. moduleauthor:: Fousek Jan <jan.fousek@univ-amu.fr>
+.. moduleauthor: Fousek Jan <jan.fousek@univ-amu.fr>
+.. moduleauthor: Teodora Misan <teodora.misan@codemart.ro>
 """
+
+import os
 import json
 import sys
+import logging
+import numpy as np
 from copy import deepcopy
 from typing import List, Any, Optional
 from dataclasses import dataclass
-import numpy as np
 from tvb.analyzers.metric_variance_global import compute_variance_global_metric
 from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
 from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
 from tvb.analyzers.metric_variance_of_node_variance import compute_variance_of_node_variance_metric
 from tvb.datatypes.connectivity import Connectivity
-
 from tvb.datatypes.time_series import TimeSeries
 from tvb.simulator.simulator import Simulator
-import os
 from joblib import Parallel, delayed
-import logging
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
+
 log = logging.getLogger(__name__)
 
 try:
@@ -190,7 +192,7 @@ class SaveDataToDisk(Reduction):
             pse_result.y_value = self.y_values
 
         pse_result.metrics_names = self.metrics
-        pse_result.results = metrics_data_np.reshape(len(self.metrics), len(self.x_values), len(self.y_values))
+        pse_result.results = metrics_data_np.reshape((len(self.metrics), len(self.x_values), len(self.y_values)))
 
         f = PSEStorage(self.file_name)
         f.store(pse_result)
@@ -262,8 +264,8 @@ class JobLibExec:
                 self._checkpoint(result, i)
             return result
 
-        metrics = pool(job(_, i) for i, _ in enumerate(self.seq))
-        self.post.reduction(metrics)
+        metrics_ = pool(job(_, i) for i, _ in enumerate(self.seq))
+        self.post.reduction(metrics_)
         log.info("Local launch finished")
 
 
@@ -305,19 +307,19 @@ class DaskExec(JobLibExec):
         def reduction(vals):
             return self.post.reduction(vals)
 
-        metrics = client.map(job, *list(zip(*enumerate(self.seq))))
+        metrics_var = client.map(job, *list(zip(*enumerate(self.seq))))
 
         if self.post.reduction is not None:
-            reduced = client.submit(reduction, metrics)
+            reduced = client.submit(reduction, metrics_var)
             return reduced.result()
         else:
-            return metrics
+            return metrics_var
 
 
-def compute_metrics(sim, metrics):
+def compute_metrics(sim, metrics_):
     computed_metrics = []
 
-    for metric in metrics:
+    for metric in metrics_:
         if metric == "GlobalVariance":
             resulted_metric = GlobalVariance(sim.monitors[0].period)
         elif metric == "KuramotoIndex":
@@ -347,7 +349,8 @@ def launch_local_param(param1, param2, x_values, y_values, metrics, file_name):
                 el2_value = np.array([elem2])
             input_values.append([el1_value, el2_value])
 
-    sim = Simulator(connectivity=Connectivity.from_file()).configure()  # deepcopy doesn't work on un-configured simulator o_O
+    sim = Simulator(
+        connectivity=Connectivity.from_file()).configure()  # deepcopy doesn't work on un-configured simulator o_O
     seq = SimSeq(
         template=sim,
         params=[param1, param2],
@@ -371,4 +374,3 @@ if __name__ == '__main__':
     file_name = sys.argv[6]
 
     launch_local_param(param1, param2, param1_values, param2_values, metrics, file_name)
-

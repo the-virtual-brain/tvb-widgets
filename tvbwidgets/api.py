@@ -11,7 +11,6 @@ from .ui.head_widget import HeadBrowser, HeadWidget, HeadWidgetConfig
 from .ui.ts_widget import TimeSeriesWidget, TimeSeriesBrowser
 from .ui.pse_widget import PSEWidget
 from .ui.pse_launcher_widget import PSELauncher
-
 from IPython.core.display_functions import display
 from tvb.datatypes.time_series import TimeSeries
 
