@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 from IPython.core.display_functions import display
 import plotly.graph_objects as go
-from plotly_resampler import register_plotly_resampler
 from tvb.datatypes.time_series import TimeSeries
 from tvbwidgets.core.ini_parser import parse_ini_file
 from tvbwidgets.core.exceptions import InvalidInputException
