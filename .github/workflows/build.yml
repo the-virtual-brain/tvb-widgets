@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     name: Build and test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -42,9 +42,9 @@ jobs:
           pytest -v  --cov --cov-report=xml
 
       - name: Run notebooks
-        uses: coactions/setup-xvfb@v1
-        with:
-          run: python ./dev/notebook_runner.py notebooks
+        run: |
+          sudo apt-get install xvfb
+          xvfb-run python ./dev/notebook_runner.py notebooks
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
