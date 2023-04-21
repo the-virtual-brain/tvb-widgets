@@ -42,8 +42,9 @@ jobs:
           pytest -v  --cov --cov-report=xml
 
       - name: Run notebooks
-        run: |
-          xvfb-run python ./dev/notebook_runner.py notebooks
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: python ./dev/notebook_runner.py notebooks
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
