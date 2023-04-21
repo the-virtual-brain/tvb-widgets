@@ -13,6 +13,8 @@ import ipywidgets as widgets
 import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 from IPython.core.display_functions import display
+import plotly.graph_objects as go
+from plotly_resampler import register_plotly_resampler
 from tvb.datatypes.time_series import TimeSeries
 from tvbwidgets.core.ini_parser import parse_ini_file
 from tvbwidgets.core.exceptions import InvalidInputException
@@ -303,6 +305,12 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
         self._populate_from_data_wrapper(data_wrapper)
 
+    def add_data(self, data, sample_freq=None, ch_idx=None):
+        if isinstance(data, TimeSeries):
+            self.add_datatype(data)
+        else:
+            self.add_data_array(data, sample_freq, ch_idx)
+
     # ======================================== CHANNEL VALUE AREA ======================================================
     def _create_annotation_area(self):
         title_label = widgets.Label(value='Channel values:')
@@ -543,6 +551,121 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             self.fig._redraw(annotations=True)
         except:
             self.fig._redraw(update_data=False)  # needed in case of Unselect all
+
+
+class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
+    """ TimeSeries Widget drawn using plotly"""
+
+    def __init__(self, **kwargs):
+        self.fig = None
+        self.data = None
+        self.ch_names = []
+        self.displayed_period = 0
+        self.no_channels = 0
+        self.raw = None
+        self.sample_freq = 0
+
+        self.output = widgets.Output(layout=widgets.Layout(width='auto'))
+
+        self.checkboxes = dict()
+        super().__init__([self.output], layout=self.DEFAULT_BORDER)
+        self.logger.info("TimeSeries Widget with Plotly initialized")
+
+    def add_datatype(self, ts_tvb):
+        # type: (TimeSeries) -> None
+        data_wrapper = WrapperTVB(ts_tvb)
+        self.logger.debug("Adding TVB TS for display...")
+        self._populate_from_data_wrapper(data_wrapper)
+
+    def _populate_from_data_wrapper(self, data_wrapper):
+        # type: (ABCDataWrapper) -> None
+        if self.data is not None:
+            raise InvalidInputException("TSWidget is not yet capable to display more than one TS, "
+                                        "either use wid.reset_data, or create another widget instance!")
+
+        self.data = data_wrapper
+        self.sample_freq = data_wrapper.get_ts_sample_rate()
+        self.displayed_period = data_wrapper.get_ts_period()
+        self.ch_names, _, _ = data_wrapper.get_channels_info()
+        self.no_channels = len(self.ch_names)
+        self.raw = self.data.build_raw()
+        # channels_area = self._create_checkboxes(data_wrapper)
+        # self.title_area.children += (channels_area,)
+        self.plot_ts_with_plotly()
+
+    def add_data_array(self, numpy_array, sample_freq, ch_idx):
+        # type: (np.array, float, int) -> None
+        data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
+        self._populate_from_data_wrapper(data_wrapper)
+
+    def add_data(self, data, sample_freq=None, ch_idx=None):
+        if isinstance(data, TimeSeries):
+            self.add_datatype(data)
+        else:
+            self.add_data_array(data, sample_freq, ch_idx)
+
+    # =========================================== PLOT =================================================================
+    def add_traces(self):
+        # create traces for each signal
+        data, times = self.raw[:, :]
+        std_step = 5 * np.max(np.std(data, axis=1))
+        self.fig.add_traces(
+            [dict(y=ts + i * std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}')
+             for i, (ch_name, ts) in enumerate(zip(self.ch_names, data))]
+        )
+
+        # display channel names for each trace
+        for i, ch_name in enumerate(self.ch_names):
+            self.fig.add_annotation(
+                x=0.0, y=i * std_step,
+                text=ch_name,
+                showarrow=False,
+                xref='paper',
+                xshift=-70
+            )
+
+        # modify axes for better display
+        self.fig.update_yaxes(fixedrange=False, showticklabels=False, ticks='outside', ticklen=3,
+                              tickvals=np.arange(len(self.ch_names)) * std_step)
+
+    def add_selection_buttons(self):
+        # select/deselct all buttons
+        self.fig.update_layout(dict(updatemenus=[dict(type="buttons", direction="left",
+                                                      buttons=list([dict(args=["visible", False], label="Deselect All",
+                                                                         method="restyle"),
+                                                                    dict(args=["visible", True], label="Select All",
+                                                                         method="restyle")]),
+                                                      pad={"r": 10, "t": 10},
+                                                      showactive=False,
+                                                      x=1,
+                                                      xanchor="right",
+                                                      y=1.1,
+                                                      yanchor="top")]
+                                    ))
+
+    def add_timeline_scrollbar(self):
+        self.fig.update_layout(xaxis=dict(rangeslider=dict(visible=True), type="linear"))
+
+    def create_plot(self):
+        # register_plotly_resampler(mode='auto') # could be used for large data
+
+        self.fig = go.FigureWidget()
+
+        self.add_traces()
+        self.fig.update_layout(
+            width=1000, height=800,
+            showlegend=True,
+            template='plotly_white'
+        )
+
+        self.add_selection_buttons()
+        self.add_timeline_scrollbar()
+
+    def plot_ts_with_plotly(self):
+        self.create_plot()
+        with self.output:
+            self.output.clear_output(wait=True)
+            display(self.fig)
 
 
 class TimeSeriesBrowser(widgets.VBox, TVBWidgetWithBrowser):
