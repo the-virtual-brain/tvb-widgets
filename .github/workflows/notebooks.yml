@@ -1,4 +1,4 @@
-name: Build
+name: Test Notebooks
 on:
   push:
     branches:
@@ -8,12 +8,12 @@ on:
 
 jobs:
   build:
-    name: Build and test
+    name: Run notebooks
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.8", "3.9" ]
+        python-version: [ "3.8" ]
     steps:
       - uses: actions/checkout@v2
 
@@ -28,22 +28,13 @@ jobs:
           python -m pip install scipy numpy tvb-library ebrains_drive ipywidgets==7.7.2
           python -m pip install pythreejs pyvista colorcet plotly
           python -m pip install ipympl mne
-          python -m pip install pytest pytest-cov pytest-mock tvb-data
+          python -m pip install tvb-data
           python -m pip install nbformat nbconvert
           python -m pip install tvb-framework
           python -m pip install dask
           python -m pip install "dask[distributed]" --upgrade
 
-      - name: Test with pytest
-        run: |
-          pytest
-
-      - name: Compute coverage
-        run: |
-          pytest -v  --cov --cov-report=xml
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Run notebooks
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: python ./dev/notebook_runner.py notebooks
