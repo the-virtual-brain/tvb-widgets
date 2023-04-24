@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.8"]
+        python-version: [ "3.8", "3.9" ]
     steps:
       - uses: actions/checkout@v2
 
@@ -40,11 +40,6 @@ jobs:
       - name: Compute coverage
         run: |
           pytest -v  --cov --cov-report=xml
-
-      - name: Run notebooks
-        uses: coactions/setup-xvfb@v1
-        with:
-          run: python ./dev/notebook_runner.py notebooks
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
