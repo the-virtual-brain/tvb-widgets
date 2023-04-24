@@ -89,11 +89,11 @@ class HPCLaunch(object):
         # Pyunicore listdir method returns directory names suffixed by '/'
         if f"{self.config.env_dir}/" not in home_storage.listdir():
             home_storage.mkdir(self.config.env_dir)
-            log.info(f"Environment directory not found in HOME, will be created.")
+            log.info("Environment directory not found in HOME, will be created.")
             return False
 
         if f"{self.config.env_dir}/{self.config.env_name}/" not in home_storage.listdir(self.config.env_dir):
-            log.info(f"Environment not found in HOME, will be created.")
+            log.info("Environment not found in HOME, will be created.")
             return False
 
         try:
@@ -112,7 +112,7 @@ class HPCLaunch(object):
                 return False
             return True
         except Exception:
-            log.info(f"Could not find tvb-widgets installed in the environment, will recreate it.")
+            log.info("Could not find tvb-widgets installed in the environment, will recreate it.")
             return False
 
     def _search_for_home_dir(self, client):
@@ -146,7 +146,7 @@ class HPCLaunch(object):
 
         is_env_ready = self._check_environment_ready(home_storage)
         if is_env_ready:
-            log.info(f"Environment is already prepared, it won't be recreated.")
+            log.info("Environment is already prepared, it won't be recreated.")
         else:
             log.info(f"Preparing environment in your {self.config.storage_name} folder...")
             job_description = {
@@ -161,9 +161,9 @@ class HPCLaunch(object):
                      f"It can also be monitored with the 'Unicore tasks stream' button on the right-side bar.")
             job_env_prep.poll()
             if job_env_prep.properties['status'] == Status.FAILED:
-                log.error(f"Encountered an error during environment setup, stopping execution.")
+                log.error("Encountered an error during environment setup, stopping execution.")
                 return
-            log.info(f"Successfully finished the environment setup.")
+            log.info("Successfully finished the environment setup.")
 
         log.info("Launching workflow...")
         job_description = {
@@ -187,11 +187,11 @@ class HPCLaunch(object):
         job.poll()
 
         if job.properties['status'] == Status.FAILED:
-            log.error(f"Job finished with errors.")
+            log.error("Job finished with errors.")
             return
-        log.info(f"Job finished with success. Staging out the results...")
+        log.info("Job finished with success. Staging out the results...")
         self.stage_out_results(job)
-        log.info(f"Finished execution.")
+        log.info("Finished execution.")
 
     def stage_out_results(self, job):
         content = job.working_dir.listdir()
@@ -201,7 +201,6 @@ class HPCLaunch(object):
             log.info(f"Could not find file: {self.file_name}")
             log.info("Could not finalize the stage out. "
                      "Please download your results manually using the Monitor HPC button.")
-            return
         else:
             storage_config_file.download(self.file_name)
             log.info(f"{self.file_name} file has been downloaded successfully.")

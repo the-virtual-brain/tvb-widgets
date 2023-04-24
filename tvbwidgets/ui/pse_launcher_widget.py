@@ -95,7 +95,7 @@ class PSELauncher(TVBWidget):
 
         def hpc_launch(change):
             if self.launch_hpc_button.button_style == "success":
-                self.launch_text_information.value = f"<font color='gray'>HPC launch in progress"
+                self.launch_text_information.value = "<font color='gray'>HPC launch in progress"
                 x_values = self.compute_params_values(self.param_1.value)
                 y_values = self.compute_params_values(self.param_2.value)
                 file_name = self.verify_file_name()
