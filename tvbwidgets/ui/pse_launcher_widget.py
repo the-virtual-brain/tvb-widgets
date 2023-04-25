@@ -9,7 +9,7 @@ import numpy as np
 from tvb.basic.neotraits._attr import NArray
 
 from tvbwidgets.core.hpc.hpc_launch import HPCLaunch
-from tvbwidgets.core.pse.parameters import launch_local_param, ProgressHolder
+from tvbwidgets.core.pse.parameters import launch_local_param
 from tvbwidgets.core.pse.parameters import METRICS
 from tvbwidgets.ui.base_widget import TVBWidget
 from IPython.core.display_functions import display
@@ -19,7 +19,7 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class PSELauncher(TVBWidget, ProgressHolder):
+class PSELauncher(TVBWidget):
 
     def __init__(self, simulator, connectivity_list=None):
         # type: (Simulator, list) -> None
@@ -107,7 +107,7 @@ class PSELauncher(TVBWidget, ProgressHolder):
                 self.progress.max = len(x_values) * len(y_values)
 
                 HPCLaunch('JUSUF', self.param_1.value, self.param_2.value, x_values, y_values,
-                          list(self.metrics_sm.value), file_name, self.update_progress)
+                          list(self.metrics_sm.value), file_name)
 
         def local_launch(change):
             log.info("Local launch in progress")

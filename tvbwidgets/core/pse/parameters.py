@@ -208,11 +208,6 @@ class Exec:
     pass
 
 
-class ProgressHolder:
-    def update_progress(self):
-        pass
-
-
 @dataclass
 class JobLibExec:
     seq: SimSeq
@@ -382,6 +377,5 @@ if __name__ == '__main__':
     n = len(sys.argv[5])
     metrics = sys.argv[5][1:n - 1].split(', ')
     file_name = sys.argv[6]
-    update_progress = sys.argv[7]
 
-    launch_local_param(param1, param2, param1_values, param2_values, metrics, file_name, update_progress)
+    launch_local_param(param1, param2, param1_values, param2_values, metrics, file_name, None)

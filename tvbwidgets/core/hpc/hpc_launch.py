@@ -23,7 +23,7 @@ class HPCLaunch(object):
     INTERACTIVE_KEY = 'interactive'
     project = 'icei-hbp-2021-0007'
 
-    def __init__(self, site, param1, param2, param1_values, param2_values, metrics, file_name, update_progress):
+    def __init__(self, site, param1, param2, param1_values, param2_values, metrics, file_name):
         self.site = site
         self.param1 = param1
         self.param2 = param2
@@ -31,8 +31,8 @@ class HPCLaunch(object):
         self.param2_values = param2_values
         self.metrics = metrics
         self.file_name = file_name
-        self.submit_job("parameters.py", [os.path.join("C:", "Users", "teodora.misan", "Documents", "tvb-widgets", "tvbwidgets", "core", "pse", "parameters.py")], True)
-        self.update_progress = update_progress
+        self.submit_job("parameters.py", ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py"], True)
+
     @property
     def _activate_command(self):
         return f'source ${self.storage_name[self.site]}/{self.env_dir}/{self.env_name}/bin/activate'
