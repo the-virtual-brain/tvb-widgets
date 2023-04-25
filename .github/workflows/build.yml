@@ -25,13 +25,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install scipy numpy tvb-library ebrains_drive ipywidgets==7.7.2
-          python -m pip install pythreejs pyvista colorcet plotly
-          python -m pip install ipympl mne
-          python -m pip install pytest pytest-cov pytest-mock tvb-data
-          python -m pip install nbformat nbconvert
-          python -m pip install tvb-framework
-          python -m pip install pyunicore
+          python -m pip install -r requirements.txt
+          python -m pip install pytest pytest-cov pytest-mock
 
       - name: Test with pytest
         run: |

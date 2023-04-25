@@ -18,12 +18,12 @@ def execute_notebook(in_path, notebook):
     with open(os.path.join(in_path, notebook), encoding='utf-8') as f:
         nb = nbformat.read(f, as_version=4)
         ep = ExecutePreprocessor(timeout=None)
-
-    ep.preprocess(nb)
+        ep.preprocess(nb)
 
     # with open(os.path.join(out_path, notebook), 'w+', encoding='utf-8') as f: # for debug only
     #     nbformat.write(nb, f)
     print(notebook + " - successful execution")
+
 
 
 if __name__ == '__main__':
