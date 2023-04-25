@@ -34,10 +34,8 @@ class HPCLaunch(object):
         self.param2_values = param2_values
         self.metrics = metrics
         self.file_name = file_name
-        # TODO: get rid of this hard-coded path
-        self.submit_job("parameters.py",
-                        ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py"],
-                        True)
+        # TODO WID-208 link here the serialized simulator
+        self.submit_job("parameters.py", [], True)
 
     @property
     def _activate_command(self):

@@ -364,6 +364,7 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
 
 
 if __name__ == '__main__':
+
     param1 = sys.argv[1]
     param2 = sys.argv[2]
     param1_values = json.loads(sys.argv[3])
@@ -372,8 +373,7 @@ if __name__ == '__main__':
     metrics = sys.argv[5][1:n - 1].split(', ')
     file_name = sys.argv[6]
 
-    # TODO serialize this instance before remote launch
-    sim = Simulator(connectivity=Connectivity.from_file()
-                    ).configure()
+    # TODO WID-208 deserialize this instance after being passed from the remote launcher
+    sim = Simulator(connectivity=Connectivity.from_file()).configure()
 
     launch_local_param(sim, param1, param2, param1_values, param2_values, metrics, file_name)
