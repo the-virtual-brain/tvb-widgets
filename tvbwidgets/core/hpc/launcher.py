@@ -7,11 +7,11 @@
 
 import logging
 import pyunicore.client
+from datetime import datetime
 from urllib.error import HTTPError
-from pkg_resources import get_distribution
 from pyunicore.helpers.jobs import Status
 from pyunicore.credentials import AuthenticationFailedException
-from datetime import datetime
+from pkg_resources import get_distribution, DistributionNotFound
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.core.hpc.config import HPCConfig
 
@@ -101,16 +101,23 @@ class HPCLaunch(object):
             files = [file for file in site_packages if "tvb_widgets" in file]
             assert len(files) >= 1
             remote_version = files[0].split("tvb_widgets-")[1].split('.dist-info')[0]
+            log.info(f'Found tvb-widgets version: {remote_version} remotely!')
 
-            # Should have a class which returns the version(as in tvb-widgets) ?
-            local_version = get_distribution("tvb-widgets").version
-            if remote_version != local_version:
-                log.info(f"Found an older version {remote_version} of tvb-widgets installed in the "
-                         f"environment, will recreate it with {local_version}.")
-                return False
+            try:
+                local_version = get_distribution("tvb-widgets").version
+                if remote_version != local_version:
+                    log.info(f"Found a different remote version {remote_version} of tvb-widgets  "
+                             f"installed on the HPC environment, than the local {local_version}, "
+                             f"we will recreate env from Pipy to hopefully match.")
+                    return False
+            except DistributionNotFound:
+                # If local installation is from sources, then we can not install it remotely from Pypi
+                pass
+
             return True
-        except Exception:
-            log.info("Could not find tvb-widgets installed in the environment, will recreate it.")
+        except Exception as ex:
+            log.exception("could not match tvb-widgets ...")
+            log.info("Could not match tvb-widgets installed in the environment, will recreate it.")
             return False
 
     def _search_for_home_dir(self, client):
