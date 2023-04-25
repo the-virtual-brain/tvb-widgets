@@ -34,8 +34,8 @@ class HPCLaunch(object):
         self.param2_values = param2_values
         self.metrics = metrics
         self.file_name = file_name
-        # TODO WID-208 link here the serialized simulator
-        self.submit_job("parameters.py", [], True)
+        # TODO WID-208 link here the serialized simulator in the list of inputs
+        self.submit_job("tvbwidgets.core.pse.parameters", [], True)
 
     @property
     def _activate_command(self):
@@ -53,7 +53,7 @@ class HPCLaunch(object):
 
     @property
     def _install_dependencies_command(self):
-        return f'pip install -U pip && pip install allensdk && pip install {self.pip_libraries}'
+        return f'pip install -U pip && pip install {self.pip_libraries}'
 
     def connect_client(self):
         log.info(f"Connecting to {self.config.site}...")
@@ -166,7 +166,7 @@ class HPCLaunch(object):
         log.info("Launching workflow...")
         job_description = {
             self.EXECUTABLE_KEY: f"{self._module_load_command} && {self._activate_command} && "
-                                 f"python {executable} {self.param1} {self.param2} '{self.param1_values}'  "
+                                 f"python -m  {executable} {self.param1} {self.param2} '{self.param1_values}'  "
                                  f"'{self.param2_values}' '{self.metrics}' {self.file_name}",
             self.PROJECT_KEY: self.config.project}
         job_workflow = client.new_job(job_description, inputs=inputs)
