@@ -23,7 +23,7 @@ class HPCLaunch(object):
     INTERACTIVE_KEY = 'interactive'
     project = 'icei-hbp-2021-0007'
 
-    def __init__(self, site, param1, param2, param1_values, param2_values, metrics, file_name):
+    def __init__(self, site, param1, param2, param1_values, param2_values, metrics, file_name, update_progress):
         self.site = site
         self.param1 = param1
         self.param2 = param2
@@ -31,8 +31,8 @@ class HPCLaunch(object):
         self.param2_values = param2_values
         self.metrics = metrics
         self.file_name = file_name
-        self.submit_job("parameters.py", ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py"], True)
-
+        self.submit_job("parameters.py", [os.path.join("C:", "Users", "teodora.misan", "Documents", "tvb-widgets", "tvbwidgets", "core", "pse", "parameters.py")], True)
+        self.update_progress = update_progress
     @property
     def _activate_command(self):
         return f'source ${self.storage_name[self.site]}/{self.env_dir}/{self.env_name}/bin/activate'
@@ -168,7 +168,7 @@ class HPCLaunch(object):
         job_description = {
             self.EXECUTABLE_KEY: f"{self._module_load_command} && {self._activate_command} && "
                                  f"python {executable} {self.param1} {self.param2} '{self.param1_values}'  "
-                                 f"'{self.param2_values}' '{self.metrics}' {self.file_name}",
+                                 f"'{self.param2_values}' '{self.metrics}' {self.file_name} {self.update_progress}",
             self.PROJECT_KEY: self.project}
         job_workflow = client.new_job(job_description, inputs=inputs)
         log.info(f"Job is running at {self.site}: {job_workflow.working_dir.properties['mountPoint']}. "

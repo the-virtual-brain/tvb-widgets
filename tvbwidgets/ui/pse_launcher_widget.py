@@ -4,6 +4,7 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+import threading
 import numpy as np
 from tvb.basic.neotraits._attr import NArray
 
@@ -43,6 +44,7 @@ class PSELauncher(TVBWidget, ProgressHolder):
         self.file_name = None
         self.metrics_sm = None
         self.progress = None
+        self.progress_lock = threading.Lock()
         self.init_progress()
         self.create_informative_texts()
         self.handle_launch_buttons()
@@ -101,10 +103,11 @@ class PSELauncher(TVBWidget, ProgressHolder):
                 x_values = self.compute_params_values(self.param_1.value)
                 y_values = self.compute_params_values(self.param_2.value)
                 file_name = self.verify_file_name()
+                self.progress.min = 0
                 self.progress.max = len(x_values) * len(y_values)
 
                 HPCLaunch('JUSUF', self.param_1.value, self.param_2.value, x_values, y_values,
-                          list(self.metrics_sm.value), file_name)
+                          list(self.metrics_sm.value), file_name, self.update_progress)
 
         def local_launch(change):
             log.info("Local launch in progress")
@@ -113,10 +116,11 @@ class PSELauncher(TVBWidget, ProgressHolder):
                 x_values = self.compute_params_values(self.param_1.value)
                 y_values = self.compute_params_values(self.param_2.value)
                 file_name = self.verify_file_name()
+                self.progress.min = 0
                 self.progress.max = len(x_values) * len(y_values)
 
                 launch_local_param(self.param_1.value, self.param_2.value, x_values, y_values,
-                                   list(self.metrics_sm.value), file_name, None)
+                                   list(self.metrics_sm.value), file_name, self.update_progress)
 
         self.launch_hpc_button.on_click(hpc_launch)
         self.launch_local_button.on_click(local_launch)
@@ -140,8 +144,9 @@ class PSELauncher(TVBWidget, ProgressHolder):
         else:
             return file_name
 
-    def update_progress(self, task_nmb):
-        self.progress.value = task_nmb
+    def update_progress(self):
+        with self.progress_lock:
+            self.progress.value += 1
 
     def init_progress(self):
         style = {'description_width': '117px'}

@@ -13,7 +13,7 @@ A collection of parameter related classes and functions.
 import json
 import sys
 from copy import deepcopy
-from typing import List, Any, Optional
+from typing import List, Any, Optional, Callable
 from dataclasses import dataclass
 import numpy as np
 from tvb.analyzers.metric_variance_global import compute_variance_global_metric
@@ -209,7 +209,7 @@ class Exec:
 
 
 class ProgressHolder:
-    def update_progress(self, task_nmb):
+    def update_progress(self):
         pass
 
 
@@ -219,7 +219,7 @@ class JobLibExec:
     post: PostProcess
     backend: Optional[Any]
     checkpoint_dir: Optional[str]
-    progress_holder: Optional[ProgressHolder]
+    update_progress: Optional[Callable]
 
     def _checkpoint(self, result, i):
         if self.checkpoint_dir is not None:
@@ -244,14 +244,14 @@ class JobLibExec:
                 np.savetxt(os.path.join(self.checkpoint_dir, 'params.txt'), self.seq.params, fmt='%s')
                 np.save(os.path.join(self.checkpoint_dir, 'param_vals.npy'), self.seq.values)
 
-    def monitor_execution(self, task_nmb):
-        if self.progress_holder is not None:
-            self.progress_holder.update_progress(task_nmb)
+    def monitor_execution(self):
+        if self.update_progress is not None:
+            self.update_progress()
 
     def __call__(self, n_jobs=-1):
         log.info("Simulation starts")
         self._init_checkpoint()
-        pool = Parallel(n_jobs)
+        pool = Parallel(n_jobs, prefer="threads")
 
         @delayed
         def job(sim, i):
@@ -270,8 +270,8 @@ class JobLibExec:
                         result.append(np.nan)
                 result = np.hstack(result)
                 self._checkpoint(result, i)
-            log.info(f"Task {i} in execution")
-            self.monitor_execution(i)
+            log.info(f"Task {i} finished")
+            self.monitor_execution()
             return result
 
         metrics = pool(job(_, i) for i, _ in enumerate(self.seq))
@@ -346,7 +346,7 @@ def compute_metrics(sim, metrics):
     return computed_metrics
 
 
-def launch_local_param(param1, param2, x_values, y_values, metrics, file_name, progress_holder):
+def launch_local_param(param1, param2, x_values, y_values, metrics, file_name, update_progress):
     input_values = []
     for elem1 in x_values:
         for elem2 in y_values:
@@ -370,7 +370,7 @@ def launch_local_param(param1, param2, x_values, y_values, metrics, file_name, p
         metrics=compute_metrics(sim, metrics),
         reduction=SaveDataToDisk(param1, param2, x_values, y_values, metrics, file_name),
     )
-    exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None, progress_holder=progress_holder)
+    exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None, update_progress=update_progress)
     exe(n_jobs=4)
 
 
@@ -382,5 +382,6 @@ if __name__ == '__main__':
     n = len(sys.argv[5])
     metrics = sys.argv[5][1:n - 1].split(', ')
     file_name = sys.argv[6]
+    update_progress = sys.argv[7]
 
-    launch_local_param(param1, param2, param1_values, param2_values, metrics, file_name, None)
+    launch_local_param(param1, param2, param1_values, param2_values, metrics, file_name, update_progress)
