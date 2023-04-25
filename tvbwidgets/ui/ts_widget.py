@@ -565,9 +565,10 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
         self.sample_freq = 0
 
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
+        self.title_area = widgets.HBox()
 
         self.checkboxes = dict()
-        super().__init__([self.output], layout=self.DEFAULT_BORDER)
+        super().__init__([self.output, self.title_area], layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget with Plotly initialized")
 
     def add_datatype(self, ts_tvb):
@@ -588,8 +589,8 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
         self.ch_names, _, _ = data_wrapper.get_channels_info()
         self.no_channels = len(self.ch_names)
         self.raw = self.data.build_raw()
-        # channels_area = self._create_checkboxes(data_wrapper)
-        # self.title_area.children += (channels_area,)
+        channels_area = self._create_checkboxes(data_wrapper)
+        self.title_area.children += (channels_area,)
         self.plot_ts_with_plotly()
 
     def add_data_array(self, numpy_array, sample_freq, ch_idx):
@@ -604,17 +605,20 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
             self.add_data_array(data, sample_freq, ch_idx)
 
     # =========================================== PLOT =================================================================
-    def add_traces(self):
+    def add_traces(self, data=None, ch_names=None):
         # create traces for each signal
-        data, times = self.raw[:, :]
+        data_from_raw, times = self.raw[:, :]
+        data = data if data is not None else data_from_raw
+        ch_names = ch_names if ch_names is not None else self.ch_names
+
         std_step = 5 * np.max(np.std(data, axis=1))
         self.fig.add_traces(
             [dict(y=ts + i * std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}')
-             for i, (ch_name, ts) in enumerate(zip(self.ch_names, data))]
+             for i, (ch_name, ts) in enumerate(zip(ch_names, data))]
         )
 
         # display channel names for each trace
-        for i, ch_name in enumerate(self.ch_names):
+        for i, ch_name in enumerate(ch_names):
             self.fig.add_annotation(
                 x=0.0, y=i * std_step,
                 text=ch_name,
@@ -625,7 +629,7 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
 
         # modify axes for better display
         self.fig.update_yaxes(fixedrange=False, showticklabels=False, ticks='outside', ticklen=3,
-                              tickvals=np.arange(len(self.ch_names)) * std_step)
+                              tickvals=np.arange(len(ch_names)) * std_step)
 
     def add_selection_buttons(self):
         # select/deselct all buttons
@@ -645,12 +649,12 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
     def add_timeline_scrollbar(self):
         self.fig.update_layout(xaxis=dict(rangeslider=dict(visible=True), type="linear"))
 
-    def create_plot(self):
+    def create_plot(self, data=None, ch_names=None):
         # register_plotly_resampler(mode='auto') # could be used for large data
 
         self.fig = go.FigureWidget()
 
-        self.add_traces()
+        self.add_traces(data, ch_names)
         self.fig.update_layout(
             width=1000, height=800,
             showlegend=True,
@@ -660,11 +664,58 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
         self.add_selection_buttons()
         self.add_timeline_scrollbar()
 
-    def plot_ts_with_plotly(self):
-        self.create_plot()
+    def plot_ts_with_plotly(self, data=None, ch_names=None):
+        self.create_plot(data, ch_names)
         with self.output:
             self.output.clear_output(wait=True)
             display(self.fig)
+
+    # =========================================== CHANNELS SELECTION ===================================================
+    def _create_checkboxes(self, array_wrapper):
+        # type: (ABCDataWrapper) -> widgets.Accordion
+        checkboxes_list, checkboxes_stack = [], []
+        labels = array_wrapper.get_channels_info()[0]
+        cb_per_col = math.ceil(len(labels) / 7)  # number of checkboxes in a column; should always display 7 cols
+        for i, label in enumerate(labels):
+            self.checkboxes[label] = widgets.Checkbox(value=True, description=label,
+                                                      disabled=False, indent=False)
+            self.checkboxes[label].observe(self._update_ts, names="value", type="change")
+            if i and i % cb_per_col == 0:
+                checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
+                checkboxes_stack = []
+            checkboxes_stack.append(self.checkboxes[label])
+        checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
+        checkboxes_region = widgets.HBox(children=checkboxes_list, layout={'width': '540px',
+                                                                           'height': 'max-content'})
+
+        channels_region = widgets.VBox(children=[checkboxes_region])
+        channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
+                                          layout=widgets.Layout(width='50%'))
+        channels_area.set_title(0, 'Channels')
+        return channels_area
+
+    def _update_ts(self, val):
+        self.logger.debug('Updating TS')
+        ch_names = list(self.ch_names)
+
+        channel_checkbox = val['owner'].description  # channel for which checkbox was selected/deselected
+        self.logger.debug(f'Checkbox action for channel: {channel_checkbox}')
+
+        # divide list of all channels into checked(picked) and unchecked(not_picked) channels
+        picks = []
+        not_picked = []
+        for cb in list(self.checkboxes.values()):
+            ch_index = ch_names.index(cb.description)  # get the channel index
+            if cb.value:
+                picks.append(ch_index)  # list with number representation of channels
+            else:
+                not_picked.append(ch_index)
+
+        data, _ = self.raw[:, :]
+        data = data[picks, :]
+        ch_names = [ch_names[i] for i in picks]
+
+        self.plot_ts_with_plotly(data, ch_names)
 
 
 class TimeSeriesBrowser(widgets.VBox, TVBWidgetWithBrowser):
