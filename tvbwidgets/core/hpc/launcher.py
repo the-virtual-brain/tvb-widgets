@@ -115,7 +115,7 @@ class HPCLaunch(object):
                 pass
 
             return True
-        except Exception as ex:
+        except Exception:
             log.exception("could not match tvb-widgets ...")
             log.info("Could not match tvb-widgets installed in the environment, will recreate it.")
             return False
