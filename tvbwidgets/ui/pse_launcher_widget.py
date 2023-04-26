@@ -31,8 +31,7 @@ class PSELauncher(TVBWidget):
         self.create_dict()
         self.param_1 = None
         self.param_2 = None
-        self.warning = None
-        self.launch_text_information = None
+        self.message_area = None
         self.min_range1 = None
         self.max_range1 = None
         self.step1 = None
@@ -45,8 +44,7 @@ class PSELauncher(TVBWidget):
         self.metrics_sm = None
         self.progress = None
         self.progress_lock = threading.Lock()
-        self.init_progress()
-        self.create_informative_texts()
+        self._create_infos()
         self.handle_launch_buttons()
         self.create_metrics()
         self.file_options()
@@ -85,13 +83,13 @@ class PSELauncher(TVBWidget):
         )
 
     def _prepare_launch(self, where="Local"):
-        self.launch_text_information.value = f"<font color='gray'>{where} launch in progress"
+        self._update_info_message(f"{where} launch in progress ...")
         x_values = self.compute_params_values(self.param_1.value)
         y_values = self.compute_params_values(self.param_2.value)
         file_name = self.verify_file_name()
         self.progress.min = 0
-        self.progress.max = len(x_values) * len(y_values)
-        self.progress.value = 0
+        self.progress.max = len(x_values) * len(y_values) + 1
+        self.progress.value = 1
         return file_name, x_values, y_values
 
     def handle_launch_buttons(self):
@@ -107,18 +105,20 @@ class PSELauncher(TVBWidget):
             button_style='success',
         )
 
-        def hpc_launch(change):
+        def hpc_launch(_change):
             if self.launch_hpc_button.button_style == "success":
                 file_name, x_values, y_values = self._prepare_launch("HPC")
                 HPCLaunch(self.hpc_config, self.param_1.value, self.param_2.value, x_values, y_values,
                           list(self.metrics_sm.value), file_name)
+                self._update_info_message("PSE completed! ")
 
-        def local_launch(change):
+        def local_launch(_change):
             self.logger.info("Local launch in progress")
             if self.launch_local_button.button_style == "success":
                 file_name, x_values, y_values = self._prepare_launch("Local")
                 launch_local_param(self.simulator, self.param_1.value, self.param_2.value, x_values, y_values,
                                    list(self.metrics_sm.value), file_name, self.update_progress)
+                self._update_info_message("PSE completed! ")
 
         self.launch_hpc_button.on_click(hpc_launch)
         self.launch_local_button.on_click(local_launch)
@@ -146,12 +146,6 @@ class PSELauncher(TVBWidget):
         with self.progress_lock:
             self.progress.value += 1
 
-    def init_progress(self):
-        style = {'description_width': '117px'}
-        self.progress = widgets.IntProgress(value=0, min=0, max=100, description='Simulation Progress:',
-                                            style=style,
-                                            orientation='horizontal')
-
     def create_metrics(self):
         self.metrics_sm = widgets.SelectMultiple(
             options=self.metrics,
@@ -159,9 +153,15 @@ class PSELauncher(TVBWidget):
             value=[self.metrics[0]],
             disabled=False, layout=widgets.Layout(margin="0px 20px 10px 25px", height="115px", width="340px"))
 
-    def create_informative_texts(self):
-        self.warning = widgets.HTML(value="", layout=widgets.Layout(margin="0px 0px 0px 65px"))
-        self.launch_text_information = widgets.HTML(value="", layout=widgets.Layout(margin="7px 0px 0px 8px"))
+    def _create_infos(self):
+        self.title = widgets.HTML(value="<font color='navyblue' size='4'>PSE Launcher</font>",
+                                  layout=widgets.Layout(margin="0px 0px 0px 20px"))
+        self.message_area = widgets.HTML(value="<p></p>", layout=widgets.Layout(margin="0px 0px 0px 20px"))
+        self.progress = widgets.IntProgress(value=0, min=0, max=100, description='Progress:',
+                                            style={'description_width': '60px'}, orientation='horizontal')
+
+    def _update_info_message(self, message, is_error=False):
+        self.message_area.value = f"<p><b><font color='{'red' if is_error else 'green'}'>{message}</font></b></p>"
 
     @staticmethod
     def create_input_values(min_value, max_value, step):
@@ -173,13 +173,13 @@ class PSELauncher(TVBWidget):
     def create_params(self):
         self.param_1 = widgets.Dropdown(
             options=sorted(self.params_dict.keys()),
-            description="<b>PSE param 1</b>",
+            description="<b>Param 1</b>",
             value=list(sorted(self.params_dict.keys()))[0],
             disabled=False
         )
         self.param_2 = widgets.Dropdown(
             options=sorted(self.params_dict.keys()),
-            description="<b>PSE param 2</b>",
+            description="<b>Param 2</b>",
             value=list(sorted(self.params_dict.keys()))[2],
             disabled=False
         )
@@ -189,11 +189,11 @@ class PSELauncher(TVBWidget):
                 return
 
             if self.param_1.value != self.param_2.value:
-                self.warning.value = ""
+                self._update_info_message("")
                 self.launch_hpc_button.button_style = 'success'
                 self.launch_local_button.button_style = 'success'
             else:
-                self.warning.value = "<b><font color='red'>The parameters should be different!</b>"
+                self._update_info_message("The parameters should be different!", True)
                 self.launch_hpc_button.button_style = 'danger'
                 self.launch_local_button.button_style = 'danger'
 
@@ -251,12 +251,12 @@ class PSELauncher(TVBWidget):
         self.min_range2, self.max_range2, self.step2, param_box2 = self._build_for_param(self.param_2)
 
         buttons_box = widgets.VBox(
-            children=[self.launch_local_button, self.launch_hpc_button, self.launch_text_information, self.progress],
+            children=[self.launch_local_button, self.launch_hpc_button, self.progress],
             layout=widgets.Layout(margin="0px 0px 50px 20px"))
 
         metrics_buttons_box = widgets.HBox(children=[self.metrics_sm, self.file_name, buttons_box],
                                            layout=widgets.Layout(margin="20px 0px 0px 0px"))
-        return widgets.VBox(children=[self.warning, param_box1, param_box2, metrics_buttons_box],
+        return widgets.VBox(children=[self.title, self.message_area, param_box1, param_box2, metrics_buttons_box],
                             layout=self.DEFAULT_BORDER)
 
     def _build_for_param(self, param_current):
