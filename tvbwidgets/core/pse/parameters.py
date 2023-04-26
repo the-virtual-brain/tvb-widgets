@@ -15,7 +15,6 @@ A collection of parameter related classes and functions.
 import os
 import json
 import sys
-import logging
 import numpy as np
 from copy import deepcopy
 from typing import List, Any, Optional, Callable
@@ -29,13 +28,15 @@ from tvb.datatypes.time_series import TimeSeries
 from tvb.simulator.simulator import Simulator
 from joblib import Parallel, delayed
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
+from tvbwidgets.core.logger.builder import get_logger
 
-log = logging.getLogger(__name__)
+# Here put explicit module name string, for __name__ == __main__
+LOGGER = get_logger("tvbwidgets.core.pse.parameters")
 
 try:
     from dask.distributed import Client
 except ImportError:
-    log.info("ImportError: Dask dependency is not included, so this functionality won't be available")
+    LOGGER.info("ImportError: Dask dependency is not included, so this functionality won't be available")
     Client = object
 
 
@@ -196,7 +197,7 @@ class SaveDataToDisk(Reduction):
 
         f = PSEStorage(self.file_name)
         f.store(pse_result)
-        log.info(f"{self.file_name} file created")
+        LOGGER.info(f"{self.file_name} file created")
         f.close()
 
 
@@ -234,7 +235,7 @@ class JobLibExec:
     def _init_checkpoint(self):
         if self.checkpoint_dir is not None:
             if os.path.exists(self.checkpoint_dir):
-                log.info(f"Reusing existing checkpoint dir {self.checkpoint_dir}")
+                LOGGER.info(f"Reusing existing checkpoint dir {self.checkpoint_dir}")
                 # TODO consistency check
             else:
                 os.mkdir(self.checkpoint_dir)
@@ -246,7 +247,7 @@ class JobLibExec:
             self.update_progress()
 
     def __call__(self, n_jobs=-1):
-        log.info("Simulation starts")
+        LOGGER.info("Simulation starts")
         self._init_checkpoint()
         pool = Parallel(n_jobs, prefer="threads")
 
@@ -267,14 +268,14 @@ class JobLibExec:
                         result.append(np.nan)
                 result = np.hstack(result)
                 self._checkpoint(result, i)
-            log.info(f"Task {i} finished")
+            LOGGER.info(f"Task {i} finished")
             self.monitor_execution()
             return result
 
         metrics_ = pool(job(_, i) for i, _ in enumerate(self.seq))
-        log.info(f"Completed tasks: {pool.n_completed_tasks}")
+        LOGGER.info(f"Completed tasks: {pool.n_completed_tasks}")
         self.post.reduction(metrics_)
-        log.info("Local launch finished")
+        LOGGER.info("Local launch finished")
 
 
 @dataclass
@@ -343,7 +344,8 @@ def compute_metrics(sim, metrics_):
     return computed_metrics
 
 
-def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name, update_progress):
+def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name,
+                       update_progress=None, n_threads=4):
     input_values = []
     for elem1 in x_values:
         for elem2 in y_values:
@@ -368,11 +370,10 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
         reduction=SaveDataToDisk(param1, param2, x_values, y_values, metrics, file_name),
     )
     exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None, update_progress=update_progress)
-    exe(n_jobs=4)
+    exe(n_jobs=n_threads)
 
 
 if __name__ == '__main__':
-
     param1 = sys.argv[1]
     param2 = sys.argv[2]
     param1_values = json.loads(sys.argv[3])
@@ -380,8 +381,14 @@ if __name__ == '__main__':
     n = len(sys.argv[5])
     metrics = sys.argv[5][1:n - 1].split(', ')
     file_name = sys.argv[6]
+    n_threads = int(sys.argv[7])
+
+    LOGGER.info(f"We are now starting PSE for '{param1}' x '{param2}' on {n_threads} threads\n"
+                f"Expect the result in '{file_name}' \n"
+                f"{n} Metrics {metrics}")
 
     # TODO WID-208 deserialize this instance after being passed from the remote launcher
     sim = Simulator(connectivity=Connectivity.from_file()).configure()
 
-    launch_local_param(sim, param1, param2, param1_values, param2_values, metrics, file_name, None)
+    launch_local_param(sim, param1, param2, param1_values, param2_values, metrics, file_name,
+                       n_threads=n_threads)

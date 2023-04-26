@@ -6,6 +6,7 @@
 #
 
 from dataclasses import dataclass
+from pyunicore.helpers.jobs import Resources
 
 
 @dataclass
@@ -14,6 +15,8 @@ class HPCConfig(object):
     project: str
     env_dir: str
     env_name: str
+    n_threads: int
+    resources: Resources
 
     STORAGES = {'DAINT-CSCS': 'HOME',
                 'JUSUF': 'PROJECT',
@@ -31,6 +34,8 @@ class HPCConfig(object):
             self.env_dir = 'tvb_widgets'
         if self.env_name is None:
             self.env_name = 'venv_tvb'
+        if self.n_threads is None:
+            self.n_threads = 4
 
     @property
     def storage_name(self):
