@@ -58,17 +58,18 @@ class PSEWidget(TVBWidget):
     def _create_visualizer(self):
         self.param1_value = [str(elem) for elem in self.param1_value]
         self.param2_value = [str(elem) for elem in self.param2_value]
-        pse_layout = go.Layout(width=1000, height=500,
+        pse_layout = go.Layout(width=900, height=600,
                                xaxis=go.layout.XAxis(linecolor='black', linewidth=1, mirror=True,
                                                      title=self.param2_title),
                                yaxis=go.layout.YAxis(linecolor='black', linewidth=1, mirror=True,
                                                      title=self.param1_title),
-                               margin=go.layout.Margin(l=100, r=50, b=100, t=100, pad=4), title="PSE Visualizer",
+                               margin=go.layout.Margin(l=80, r=50, b=50, t=80, pad=4), title="PSE Visualizer",
                                titlefont=dict(size=20, family='Arial, sans-serif'), )
         self.figure = go.FigureWidget(layout=pse_layout)
 
-        self.figure.add_trace(go.Heatmap(z=list(self.dict_metrics.values())[0], x=self.param2_value, y=self.param1_value
-                                         , colorscale='RdBu', connectgaps=False, showscale=True, zsmooth='best'))
+        self.figure.add_trace(go.Heatmap(z=list(self.dict_metrics.values())[0], x=self.param2_value,
+                                         y=self.param1_value, colorscale='RdBu', connectgaps=False,
+                                         showscale=True, zsmooth=False))
 
         self._populate_features()
 
@@ -76,16 +77,15 @@ class PSEWidget(TVBWidget):
         self._smooth_effect()
         self._colors_options()
         self._metrics_options()
-        features_vbox = widgets.VBox(children=[self.smooth_effect_cb, self.change_color_dd,
-                                               self.metrics_change_dd])
-        features_accordion = widgets.Accordion(children=[features_vbox], selected_index=None,
-                                               layout=widgets.Layout(width='25%', marginTop='100px'))
+        features_vbox = widgets.VBox(children=[self.smooth_effect_cb, self.change_color_dd, self.metrics_change_dd])
+        features_accordion = widgets.Accordion(children=[features_vbox], selected_index=0,
+                                               layout=widgets.Layout(width='27%', top='80px'))
         features_accordion.set_title(0, 'Features')
-        table = widgets.HBox([features_accordion, self.figure], layout=self.DEFAULT_BORDER)
+        table = widgets.HBox([self.figure, features_accordion], layout=self.DEFAULT_BORDER)
         display(table)
 
     def _smooth_effect(self):
-        self.smooth_effect_cb = widgets.Checkbox(value=True, description='Smooth visualizer',
+        self.smooth_effect_cb = widgets.Checkbox(value=False, description='Smooth visualizer',
                                                  layout=widgets.Layout(margin='10px 0px 10px 0px'))
 
         def smooth_effect_changed(change):

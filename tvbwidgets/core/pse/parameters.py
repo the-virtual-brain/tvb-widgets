@@ -8,23 +8,28 @@
 A collection of parameter related classes and functions.
 - Temporary copy from tvb-inversion package
 
-.. moduleauthor:: Fousek Jan <jan.fousek@univ-amu.fr>
+.. moduleauthor: Fousek Jan <jan.fousek@univ-amu.fr>
+.. moduleauthor: Teodora Misan <teodora.misan@codemart.ro>
 """
 
-from copy import deepcopy
-from typing import List, Any, Optional
-from dataclasses import dataclass
+import os
+import json
+import sys
+import logging
 import numpy as np
+from copy import deepcopy
+from typing import List, Any, Optional, Callable
+from dataclasses import dataclass
 from tvb.analyzers.metric_variance_global import compute_variance_global_metric
 from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
 from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
 from tvb.analyzers.metric_variance_of_node_variance import compute_variance_of_node_variance_metric
+from tvb.datatypes.connectivity import Connectivity
 from tvb.datatypes.time_series import TimeSeries
 from tvb.simulator.simulator import Simulator
-import os
 from joblib import Parallel, delayed
-import logging
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
+
 log = logging.getLogger(__name__)
 
 try:
@@ -40,7 +45,7 @@ class ParamGetter:
 
 @dataclass
 class SimSeq:
-    "A sequence of simulator configurations."
+    """A sequence of simulator configurations."""
     template: Simulator
     params: List[str]
     values: List[List[Any]]
@@ -142,8 +147,8 @@ class VarianceNodeVariance(Metric):
                                                          "segment": self.segment})
 
 
-METRICS = ['GlobalVariance', 'KuramotoIndex', 'ProxyMetastabilitySynchrony Metastability',
-           'ProxyMetastabilitySynchrony Synchrony', 'VarianceNodeVariance']
+METRICS = ['GlobalVariance', 'KuramotoIndex', 'ProxyMetastabilitySynchrony-Metastability',
+           'ProxyMetastabilitySynchrony-Synchrony', 'VarianceNodeVariance']
 
 
 class Reduction:
@@ -187,13 +192,11 @@ class SaveDataToDisk(Reduction):
             pse_result.y_value = self.y_values
 
         pse_result.metrics_names = self.metrics
-        pse_result.results = metrics_data_np.reshape(len(self.metrics), len(self.x_values), len(self.y_values))
-        if ".h5" not in self.file_name:
-            self.file_name += ".h5"
+        pse_result.results = metrics_data_np.reshape((len(self.metrics), len(self.x_values), len(self.y_values)))
 
         f = PSEStorage(self.file_name)
         f.store(pse_result)
-        log.info(str(self.file_name) + " file created")
+        log.info(f"{self.file_name} file created")
         f.close()
 
 
@@ -213,6 +216,7 @@ class JobLibExec:
     post: PostProcess
     backend: Optional[Any]
     checkpoint_dir: Optional[str]
+    update_progress: Optional[Callable]
 
     def _checkpoint(self, result, i):
         if self.checkpoint_dir is not None:
@@ -237,10 +241,14 @@ class JobLibExec:
                 np.savetxt(os.path.join(self.checkpoint_dir, 'params.txt'), self.seq.params, fmt='%s')
                 np.save(os.path.join(self.checkpoint_dir, 'param_vals.npy'), self.seq.values)
 
+    def monitor_execution(self):
+        if self.update_progress is not None:
+            self.update_progress()
+
     def __call__(self, n_jobs=-1):
         log.info("Simulation starts")
         self._init_checkpoint()
-        pool = Parallel(n_jobs)
+        pool = Parallel(n_jobs, prefer="threads")
 
         @delayed
         def job(sim, i):
@@ -251,12 +259,21 @@ class JobLibExec:
                     (t, y), = runner.run_sim(sim.configure())
                 else:
                     (t, y), = sim.configure().run()
-                result = np.hstack([m(t, y) for m in self.post.metrics])
+                result = []
+                for m in self.post.metrics:
+                    try:
+                        result.append(m(t, y))
+                    except Exception:
+                        result.append(np.nan)
+                result = np.hstack(result)
                 self._checkpoint(result, i)
+            log.info(f"Task {i} finished")
+            self.monitor_execution()
             return result
 
-        metrics = pool(job(_, i) for i, _ in enumerate(self.seq))
-        self.post.reduction(metrics)
+        metrics_ = pool(job(_, i) for i, _ in enumerate(self.seq))
+        log.info(f"Completed tasks: {pool.n_completed_tasks}")
+        self.post.reduction(metrics_)
         log.info("Local launch finished")
 
 
@@ -298,35 +315,35 @@ class DaskExec(JobLibExec):
         def reduction(vals):
             return self.post.reduction(vals)
 
-        metrics = client.map(job, *list(zip(*enumerate(self.seq))))
+        metrics_var = client.map(job, *list(zip(*enumerate(self.seq))))
 
         if self.post.reduction is not None:
-            reduced = client.submit(reduction, metrics)
+            reduced = client.submit(reduction, metrics_var)
             return reduced.result()
         else:
-            return metrics
+            return metrics_var
 
 
-def compute_metrics(sim, metrics):
+def compute_metrics(sim, metrics_):
     computed_metrics = []
 
-    for metric in metrics:
+    for metric in metrics_:
         if metric == "GlobalVariance":
-            resulted_metric = (GlobalVariance(sim.monitors[0].period))
+            resulted_metric = GlobalVariance(sim.monitors[0].period)
         elif metric == "KuramotoIndex":
-            resulted_metric = (KuramotoIndex(sim.monitors[0].period))
-        elif metric == "ProxyMetastabilitySynchrony Metastability":
-            resulted_metric = (ProxyMetastabilitySynchrony("Metastability", sim.monitors[0].period))
-        elif metric == "ProxyMetastabilitySynchrony Synchrony":
-            resulted_metric = (ProxyMetastabilitySynchrony("Synchrony", sim.monitors[0].period))
+            resulted_metric = KuramotoIndex(sim.monitors[0].period)
+        elif metric == "ProxyMetastabilitySynchrony-Metastability":
+            resulted_metric = ProxyMetastabilitySynchrony("Metastability", sim.monitors[0].period)
+        elif metric == "ProxyMetastabilitySynchrony-Synchrony":
+            resulted_metric = ProxyMetastabilitySynchrony("Synchrony", sim.monitors[0].period)
         else:
-            resulted_metric = (VarianceNodeVariance(sim.monitors[0].period))
+            resulted_metric = VarianceNodeVariance(sim.monitors[0].period)
         computed_metrics.append(resulted_metric)
 
     return computed_metrics
 
 
-def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name):
+def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name, update_progress):
     input_values = []
     for elem1 in x_values:
         for elem2 in y_values:
@@ -350,5 +367,21 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
         metrics=compute_metrics(sim, metrics),
         reduction=SaveDataToDisk(param1, param2, x_values, y_values, metrics, file_name),
     )
-    exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None)
+    exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None, update_progress=update_progress)
     exe(n_jobs=4)
+
+
+if __name__ == '__main__':
+
+    param1 = sys.argv[1]
+    param2 = sys.argv[2]
+    param1_values = json.loads(sys.argv[3])
+    param2_values = json.loads(sys.argv[4])
+    n = len(sys.argv[5])
+    metrics = sys.argv[5][1:n - 1].split(', ')
+    file_name = sys.argv[6]
+
+    # TODO WID-208 deserialize this instance after being passed from the remote launcher
+    sim = Simulator(connectivity=Connectivity.from_file()).configure()
+
+    launch_local_param(sim, param1, param2, param1_values, param2_values, metrics, file_name, None)
