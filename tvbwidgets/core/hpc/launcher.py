@@ -163,7 +163,7 @@ class HPCLaunch(object):
             log.info(f"Job is running at {self.config.site}: {job_env_prep.working_dir.properties['mountPoint']}. "
                      f"Submission time is: {self._format_date_for_job(job_env_prep)}. "
                      f"Waiting for job to finish..."
-                     f"It can also be monitored with the 'Unicore tasks stream' button on the right-side bar.")
+                     f"It can also be monitored with the 'Unicore tasks stream' tool on the right-side bar.")
             job_env_prep.poll()
             if job_env_prep.properties['status'] == Status.FAILED:
                 log.error("Encountered an error during environment setup, stopping execution.")
@@ -184,11 +184,11 @@ class HPCLaunch(object):
         if do_stage_out:
             self.monitor_job(job_workflow)
         else:
-            log.info('You can use Monitor HPC button to monitor it.')
+            log.info('You can use "Unicore Tasks Stream" tool to monitor it.')
 
     def monitor_job(self, job):
         log.info('Waiting for job to finish...'
-                 'It can also be monitored interactively with the Monitor HPC button.')
+                 'It can also be monitored interactively with the "Unicore Tasks Stream" tool.')
         job.poll()
 
         if job.properties['status'] == Status.FAILED:
@@ -205,7 +205,7 @@ class HPCLaunch(object):
         if storage_config_file is None:
             log.info(f"Could not find file: {self.file_name}")
             log.info("Could not finalize the stage out. "
-                     "Please download your results manually using the Monitor HPC button.")
+                     "Please download your results manually using the 'Unicore Tasks Stream' tool.")
         else:
             storage_config_file.download(self.file_name)
             log.info(f"{self.file_name} file has been downloaded successfully.")
