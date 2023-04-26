@@ -84,6 +84,16 @@ class PSELauncher(TVBWidget):
             disabled=False
         )
 
+    def _prepare_launch(self, where="Local"):
+        self.launch_text_information.value = f"<font color='gray'>{where} launch in progress"
+        x_values = self.compute_params_values(self.param_1.value)
+        y_values = self.compute_params_values(self.param_2.value)
+        file_name = self.verify_file_name()
+        self.progress.min = 0
+        self.progress.max = len(x_values) * len(y_values)
+        self.progress.value = 0
+        return file_name, x_values, y_values
+
     def handle_launch_buttons(self):
         self.launch_local_button = widgets.Button(
             description='Local launch',
@@ -99,26 +109,14 @@ class PSELauncher(TVBWidget):
 
         def hpc_launch(change):
             if self.launch_hpc_button.button_style == "success":
-                self.launch_text_information.value = "<font color='gray'>HPC launch in progress"
-                x_values = self.compute_params_values(self.param_1.value)
-                y_values = self.compute_params_values(self.param_2.value)
-                file_name = self.verify_file_name()
-                self.progress.min = 0
-                self.progress.max = len(x_values) * len(y_values)
-
+                file_name, x_values, y_values = self._prepare_launch("HPC")
                 HPCLaunch(self.hpc_config, self.param_1.value, self.param_2.value, x_values, y_values,
                           list(self.metrics_sm.value), file_name)
 
         def local_launch(change):
             self.logger.info("Local launch in progress")
             if self.launch_local_button.button_style == "success":
-                self.launch_text_information.value = "<font color='gray'>Local launch in progress"
-                x_values = self.compute_params_values(self.param_1.value)
-                y_values = self.compute_params_values(self.param_2.value)
-                file_name = self.verify_file_name()
-                self.progress.min = 0
-                self.progress.max = len(x_values) * len(y_values)
-
+                file_name, x_values, y_values = self._prepare_launch("Local")
                 launch_local_param(self.simulator, self.param_1.value, self.param_2.value, x_values, y_values,
                                    list(self.metrics_sm.value), file_name, self.update_progress)
 
@@ -253,7 +251,7 @@ class PSELauncher(TVBWidget):
         self.min_range2, self.max_range2, self.step2, param_box2 = self._build_for_param(self.param_2)
 
         buttons_box = widgets.VBox(
-            children=[self.launch_local_button, self.launch_hpc_button, self.launch_text_information,  self.progress],
+            children=[self.launch_local_button, self.launch_hpc_button, self.launch_text_information, self.progress],
             layout=widgets.Layout(margin="0px 0px 50px 20px"))
 
         metrics_buttons_box = widgets.HBox(children=[self.metrics_sm, self.file_name, buttons_box],
