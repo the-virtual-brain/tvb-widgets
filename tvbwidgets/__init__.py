@@ -15,7 +15,6 @@ LOGGER = get_logger(__name__)
 
 def _fetch_version():
     here = Path(__file__).parent.parent.resolve()
-    print(here)
 
     for settings in here.rglob("package.json"):
         try:
