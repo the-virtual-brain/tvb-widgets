@@ -263,6 +263,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         self.no_channels = 30
         self.raw = None
         self.sample_freq = 0
+        self.channel_color = False
 
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
         annotation_area = self._create_annotation_area()
@@ -419,7 +420,9 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         select_all_btn.on_click(self._select_all)
         unselect_all_btn = widgets.Button(description="Unselect all", layout=self.BUTTON_STYLE)
         unselect_all_btn.on_click(self._unselect_all)
-        actions = [select_all_btn, unselect_all_btn]
+        color_check_box = widgets.Checkbox(value=False, description="Multi-Color", indent=False)
+        color_check_box.observe(self._update_ts, names="value")
+        actions = [select_all_btn, unselect_all_btn, color_check_box]
 
         # select dimensions region
         self.radio_buttons = []
@@ -475,8 +478,16 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         ch_names = list(self.fig.mne.ch_names)
         self.logger.debug("Update_ts is called for channels " + str(ch_names))
 
+        if val['owner'].description == "Multi-Color":
+            if val.new:
+                self.logger.debug("Color ON")
+                self.channel_color = val.new  
+            else:
+                self.logger.debug("Color OFF")
+                self.channel_color = val.new
+
         # check if newly checked option is before current ch_start in the channels list
-        if (val['old'] is False) and (val['new'] is True):
+        if (val['old'] is False) and (val['new'] is True) and val['owner'].description != "Multi-Color":
             ch_name = val['owner'].description
             ch_number = ch_names.index(ch_name)
             ch_changed_index = list(self.fig.mne.ch_order).index(ch_number)
@@ -537,12 +548,32 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         return ch_start
 
     def _update_fig(self):
+        self.add_colors(self.channel_color)
         self.fig._update_trace_offsets()
         self.fig._update_vscroll()
         try:
-            self.fig._redraw(annotations=True)
+            if self.channel_color:
+                with self.output:
+                    self.output.clear_output(wait=True)
+                    display(self.fig.canvas)
+            else:
+                self.fig._redraw(annotations=True)
         except:
             self.fig._redraw(update_data=False)  # needed in case of Unselect all
+
+    def add_colors(self, color_on):
+                """
+                Function to add colors to channels
+                """
+                if color_on:
+                    colors = ['red', 'green', 'blue', 'black','orange','purple','pink','cyan','olive','brown'] * int(len(self.raw.ch_names)/10)
+                else:
+                    colors = ['black'] * int(len(self.raw.ch_names))
+                fig_color = self.fig.axes[0]
+                for nl, (chan, color) in enumerate(zip(self.raw.ch_names, colors)):
+                    if nl<(self.fig.mne.n_channels):                    
+                        line = fig_color.get_lines()[nl]
+                        line.set_color(color)
 
 
 class TimeSeriesBrowser(widgets.VBox, TVBWidgetWithBrowser):
