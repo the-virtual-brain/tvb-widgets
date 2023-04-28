@@ -15,6 +15,7 @@ A collection of parameter related classes and functions.
 import os
 import json
 import sys
+import threading
 import numpy as np
 from copy import deepcopy
 from typing import List, Any, Optional, Callable
@@ -32,6 +33,8 @@ from tvbwidgets.core.logger.builder import get_logger
 
 # Here put explicit module name string, for __name__ == __main__
 LOGGER = get_logger("tvbwidgets.core.pse.parameters")
+
+PROGRESS_BAR_STATUS_FILE = "progress_bar_status.txt"
 
 try:
     from dask.distributed import Client
@@ -218,6 +221,7 @@ class JobLibExec:
     backend: Optional[Any]
     checkpoint_dir: Optional[str]
     update_progress: Optional[Callable]
+    progress_file_lock: Optional[Any] = threading.Lock()
 
     def _checkpoint(self, result, i):
         if self.checkpoint_dir is not None:
@@ -243,8 +247,21 @@ class JobLibExec:
                 np.save(os.path.join(self.checkpoint_dir, 'param_vals.npy'), self.seq.values)
 
     def monitor_execution(self):
-        if self.update_progress is not None:
-            self.update_progress()
+        try:
+            if self.update_progress is not None:
+                self.update_progress()
+            else:
+                with self.progress_file_lock:
+                    with open(PROGRESS_BAR_STATUS_FILE, "r+") as f:
+                        # set the cursor to the beginning of the file
+                        f.seek(0)
+                        status = int(f.read())
+                        status += 1
+                        f.seek(0)
+                        f.write(str(status))
+        except Exception as e:
+            LOGGER.error("Could not update the progress bar status", exc_info=e)
+
 
     def __call__(self, n_jobs=-1):
         LOGGER.info("Simulation starts")
@@ -389,6 +406,9 @@ if __name__ == '__main__':
 
     # TODO WID-208 deserialize this instance after being passed from the remote launcher
     sim = Simulator(connectivity=Connectivity.from_file()).configure()
+
+    with open(PROGRESS_BAR_STATUS_FILE, "w+") as f:
+        f.write("0")
 
     launch_local_param(sim, param1, param2, param1_values, param2_values, metrics, file_name,
                        n_threads=n_threads)

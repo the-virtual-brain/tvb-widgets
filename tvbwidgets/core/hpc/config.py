@@ -17,6 +17,7 @@ class HPCConfig(object):
     env_name: str
     n_threads: int
     resources: Resources
+    timeout = -1
 
     STORAGES = {'DAINT-CSCS': 'HOME',
                 'JUSUF': 'PROJECT',

@@ -4,6 +4,7 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+import time
 
 import pyunicore.client
 from datetime import datetime
@@ -14,6 +15,7 @@ from pkg_resources import get_distribution, DistributionNotFound
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.core.hpc.config import HPCConfig
 from tvbwidgets.core.logger.builder import get_logger
+from tvbwidgets.core.pse.parameters import PROGRESS_BAR_STATUS_FILE
 
 LOGGER = get_logger(__name__)
 
@@ -25,8 +27,8 @@ class HPCLaunch(object):
     JOB_TYPE_KEY = 'Job type'
     INTERACTIVE_KEY = 'interactive'
 
-    def __init__(self, hpc_config, param1, param2, param1_values, param2_values, metrics, file_name):
-        # type: (HPCConfig, str, str, list, list, list, str) -> None
+    def __init__(self, hpc_config, param1, param2, param1_values, param2_values, metrics, file_name, update_progress):
+        # type: (HPCConfig, str, str, list, list, list, str, Callable) -> None
         self.config = hpc_config
         self.param1 = param1
         self.param2 = param2
@@ -34,6 +36,7 @@ class HPCLaunch(object):
         self.param2_values = param2_values
         self.metrics = metrics
         self.file_name = file_name
+        self.update_progress = update_progress
         # TODO WID-208 link here the serialized simulator in the list of inputs
         self.submit_job("tvbwidgets.core.pse.parameters", [], True)
 
@@ -190,10 +193,33 @@ class HPCLaunch(object):
         else:
             LOGGER.info('You can use "PyUnicore Tasks Stream" tool to monitor it.')
 
+    @staticmethod
+    def read_file_from_hpc(job, file_name):
+        try:
+            content = job.working_dir.listdir()
+            storage_config_file = content.get(file_name)
+            if storage_config_file is None:
+                LOGGER.warning(f"Could not find file: {file_name}")
+                return 0
+            return storage_config_file.raw().read()
+        except Exception as e:
+            LOGGER.error(f"Could not read file: {file_name}", exc_info=e)
+            return 0
+
     def monitor_job(self, job):
         LOGGER.info('Waiting for job to finish...'
                     'It can also be monitored interactively with the "PyUnicore Tasks Stream" tool.')
-        job.poll()
+
+        start_time = int(time.time())
+        # we replaced job.poll to our custom while, to update the progress bar as well
+        while job.status.ordinal() < pyunicore.client.JobStatus.SUCCESSFUL.ordinal():
+            state = int(self.read_file_from_hpc(job, PROGRESS_BAR_STATUS_FILE))
+            self.update_progress(state + 1)
+            time.sleep(2)
+            if self.config.timeout > 0 and int(time.time()) > start_time + self.config.timeout:
+                # signalize an error
+                self.update_progress(error_msg="Connection Timeout")
+                raise TimeoutError(f"Timeout waiting for job to become {state.value}")
 
         if job.properties['status'] == Status.FAILED:
             LOGGER.error("Job finished with errors.")

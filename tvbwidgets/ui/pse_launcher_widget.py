@@ -89,7 +89,7 @@ class PSELauncher(TVBWidget):
         file_name = self.verify_file_name()
         self.progress.min = 0
         self.progress.max = len(x_values) * len(y_values) + 1
-        self.progress.value = 1
+        self.update_progress(1)
         return file_name, x_values, y_values
 
     def handle_launch_buttons(self):
@@ -109,7 +109,7 @@ class PSELauncher(TVBWidget):
             if self.launch_hpc_button.button_style == "success":
                 file_name, x_values, y_values = self._prepare_launch("HPC")
                 HPCLaunch(self.hpc_config, self.param_1.value, self.param_2.value, x_values, y_values,
-                          list(self.metrics_sm.value), file_name)
+                          list(self.metrics_sm.value), file_name, self.update_progress)
                 self._update_info_message("PSE completed! ")
 
         def local_launch(_change):
@@ -142,9 +142,16 @@ class PSELauncher(TVBWidget):
         else:
             return file_name
 
-    def update_progress(self):
+    def update_progress(self, value=None, error_msg=None):
+        if error_msg is None:
+            self._update_info_message(error_msg, is_error=True)
+
         with self.progress_lock:
-            self.progress.value += 1
+            if value is None:
+                self.progress.value += 1
+            elif value >= 0:
+                self.progress.value = value
+
 
     def create_metrics(self):
         self.metrics_sm = widgets.SelectMultiple(
