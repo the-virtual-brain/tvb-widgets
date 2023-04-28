@@ -217,8 +217,9 @@ class HPCLaunch(object):
             self.update_progress(state + 1)
             time.sleep(2)
             if self.config.timeout > 0 and int(time.time()) > start_time + self.config.timeout:
-                raise TimeoutError("Timeout waiting for job to become %s" % state.value)
-
+                # signalize an error
+                self.update_progress(error_msg="Connection Timeout")
+                raise TimeoutError(f"Timeout waiting for job to become {state.value}")
 
         if job.properties['status'] == Status.FAILED:
             LOGGER.error("Job finished with errors.")

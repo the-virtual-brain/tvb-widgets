@@ -142,12 +142,16 @@ class PSELauncher(TVBWidget):
         else:
             return file_name
 
-    def update_progress(self, value=None):
+    def update_progress(self, value=None, error_msg=None):
+        if error_msg is None:
+            self._update_info_message(error_msg, is_error=True)
+
         with self.progress_lock:
             if value is None:
                 self.progress.value += 1
-            else:
+            elif value >= 0:
                 self.progress.value = value
+
 
     def create_metrics(self):
         self.metrics_sm = widgets.SelectMultiple(
