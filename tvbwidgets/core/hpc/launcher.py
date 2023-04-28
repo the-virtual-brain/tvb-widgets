@@ -4,9 +4,10 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
-import time
 
+import time
 import pyunicore.client
+from typing import Callable
 from datetime import datetime
 from urllib.error import HTTPError
 from pyunicore.helpers.jobs import Status, Description
@@ -15,7 +16,7 @@ from pkg_resources import get_distribution, DistributionNotFound
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.core.hpc.config import HPCConfig
 from tvbwidgets.core.logger.builder import get_logger
-from tvbwidgets.core.pse.parameters import PROGRESS_BAR_STATUS_FILE
+from tvbwidgets.core.pse.parameters import PROGRESS_STATUS
 
 LOGGER = get_logger(__name__)
 
@@ -213,13 +214,13 @@ class HPCLaunch(object):
         start_time = int(time.time())
         # we replaced job.poll to our custom while, to update the progress bar as well
         while job.status.ordinal() < pyunicore.client.JobStatus.SUCCESSFUL.ordinal():
-            state = int(self.read_file_from_hpc(job, PROGRESS_BAR_STATUS_FILE))
-            self.update_progress(state + 1)
+            completed_count = int(self.read_file_from_hpc(job, PROGRESS_STATUS))
+            self.update_progress(completed_count)
             time.sleep(2)
             if self.config.timeout > 0 and int(time.time()) > start_time + self.config.timeout:
-                # signalize an error
+                # signalize a problem in the front-end
                 self.update_progress(error_msg="Connection Timeout")
-                raise TimeoutError(f"Timeout waiting for job to become {state.value}")
+                raise TimeoutError(f"Timeout waiting for job to complete. Already completed {completed_count}")
 
         if job.properties['status'] == Status.FAILED:
             LOGGER.error("Job finished with errors.")

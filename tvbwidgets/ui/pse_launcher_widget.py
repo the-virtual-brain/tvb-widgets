@@ -88,8 +88,8 @@ class PSELauncher(TVBWidget):
         y_values = self.compute_params_values(self.param_2.value)
         file_name = self.verify_file_name()
         self.progress.min = 0
-        self.progress.max = len(x_values) * len(y_values) + 1
-        self.update_progress(1)
+        self.progress.max = len(x_values) * len(y_values) + 1   # no of simulations + 1 for preparation step
+        self.update_progress(0)
         return file_name, x_values, y_values
 
     def handle_launch_buttons(self):
@@ -142,16 +142,15 @@ class PSELauncher(TVBWidget):
         else:
             return file_name
 
-    def update_progress(self, value=None, error_msg=None):
-        if error_msg is None:
+    def update_progress(self, jobs_completed=None, error_msg=None):
+        if error_msg is not None:
             self._update_info_message(error_msg, is_error=True)
 
         with self.progress_lock:
-            if value is None:
+            if jobs_completed is None:
                 self.progress.value += 1
-            elif value >= 0:
-                self.progress.value = value
-
+            elif jobs_completed >= 0:
+                self.progress.value = jobs_completed + 1
 
     def create_metrics(self):
         self.metrics_sm = widgets.SelectMultiple(
