@@ -13,7 +13,7 @@ import ipywidgets as widgets
 import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 from IPython.core.display_functions import display
-import plotly.graph_objects as go
+from plotly_resampler import register_plotly_resampler, FigureWidgetResampler
 from tvb.datatypes.time_series import TimeSeries
 from tvbwidgets.core.ini_parser import parse_ini_file
 from tvbwidgets.core.exceptions import InvalidInputException
@@ -556,27 +556,31 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
     """ TimeSeries Widget drawn using plotly"""
 
     def __init__(self, **kwargs):
+        # data
         self.fig = None
         self.data = None
         self.ch_names = []
-        self.displayed_period = 0
-        self.no_channels = 0
         self.raw = None
         self.sample_freq = 0
+        self.start_time = 0
+        self.end_time = 0
+        self.std_step = 0
 
-        self.output = widgets.Output(layout=widgets.Layout(width='auto'))
-        self.title_area = widgets.HBox()
-
+        # plot & UI
         self.checkboxes = dict()
-        super().__init__([self.output, self.title_area], layout=self.DEFAULT_BORDER)
+        self.plot_and_channels_area = widgets.HBox()
+        self.output = widgets.Output(layout=widgets.Layout(width='75%'))
+        self.channel_selection_area = widgets.HBox(layout=widgets.Layout(width='25%', height='700px',
+                                                                         margin="50px 0px 0px 0px"))
+        self.plot_and_channels_area.children += (self.output, self.channel_selection_area)
+        self.timeline_title = widgets.Label(value='Adjust timeframe')
+        self.timeline_scrollbar = widgets.IntRangeSlider(value=[0, 0], layout=widgets.Layout(width='30%'))
+
+        super().__init__([self.plot_and_channels_area, self.timeline_title, self.timeline_scrollbar],
+                         layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget with Plotly initialized")
 
-    def add_datatype(self, ts_tvb):
-        # type: (TimeSeries) -> None
-        data_wrapper = WrapperTVB(ts_tvb)
-        self.logger.debug("Adding TVB TS for display...")
-        self._populate_from_data_wrapper(data_wrapper)
-
+    # =========================================== SETUP ================================================================
     def _populate_from_data_wrapper(self, data_wrapper):
         # type: (ABCDataWrapper) -> None
         if self.data is not None:
@@ -585,13 +589,18 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
 
         self.data = data_wrapper
         self.sample_freq = data_wrapper.get_ts_sample_rate()
-        self.displayed_period = data_wrapper.get_ts_period()
         self.ch_names, _, _ = data_wrapper.get_channels_info()
-        self.no_channels = len(self.ch_names)
         self.raw = self.data.build_raw()
         channels_area = self._create_checkboxes(data_wrapper)
-        self.title_area.children += (channels_area,)
+        self._setup_timeline_scrollbar()
+        self.channel_selection_area.children += (channels_area,)
         self.plot_ts_with_plotly()
+
+    def add_datatype(self, ts_tvb):
+        # type: (TimeSeries) -> None
+        data_wrapper = WrapperTVB(ts_tvb)
+        self.logger.debug("Adding TVB TS for display...")
+        self._populate_from_data_wrapper(data_wrapper)
 
     def add_data_array(self, numpy_array, sample_freq, ch_idx):
         # type: (np.array, float, int) -> None
@@ -611,58 +620,71 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
         data = data if data is not None else data_from_raw
         ch_names = ch_names if ch_names is not None else self.ch_names
 
-        std_step = 5 * np.max(np.std(data, axis=1))
+        # traces will be added from bottom to top, so reverse the lists to put the first channel on top
+        data = data[::-1]
+        ch_names = ch_names[::-1]
+
+        self.std_step = 5 * np.max(np.std(data, axis=1))
         self.fig.add_traces(
-            [dict(y=ts + i * std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}')
+            [dict(y=ts + i * self.std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}')
              for i, (ch_name, ts) in enumerate(zip(ch_names, data))]
         )
 
         # display channel names for each trace
         for i, ch_name in enumerate(ch_names):
             self.fig.add_annotation(
-                x=0.0, y=i * std_step,
+                x=0.0, y=i * self.std_step,
                 text=ch_name,
                 showarrow=False,
                 xref='paper',
                 xshift=-70
             )
 
-        # modify axes for better display
+        # add ticks between channel names and their traces
         self.fig.update_yaxes(fixedrange=False, showticklabels=False, ticks='outside', ticklen=3,
-                              tickvals=np.arange(len(ch_names)) * std_step)
+                              tickvals=np.arange(len(ch_names)) * self.std_step)
 
-    def add_selection_buttons(self):
-        # select/deselct all buttons
+        # configure legend
+        self.fig.update_layout(
+            # traces are added from bottom to top, but legend displays the names from top to bottom
+            legend={'traceorder': 'reversed'}
+        )
+
+        # sync plot timeline with selected slider range
+        self.fig.update_layout(xaxis_range=list(self.timeline_scrollbar.value))
+
+    def add_visibility_buttons(self):
+        # buttons to show/hide all traces
         self.fig.update_layout(dict(updatemenus=[dict(type="buttons", direction="left",
-                                                      buttons=list([dict(args=["visible", False], label="Deselect All",
+                                                      buttons=list([dict(args=["visible", True], label="Show All",
                                                                          method="restyle"),
-                                                                    dict(args=["visible", True], label="Select All",
-                                                                         method="restyle")]),
-                                                      pad={"r": 10, "t": 10},
-                                                      showactive=False,
+                                                                    dict(args=["visible", False], label="Hide All",
+                                                                         method="restyle")
+                                                                    ]),
+                                                      showactive=False,  # personal preference
+                                                      # position buttons in top right corner of plot
                                                       x=1,
                                                       xanchor="right",
                                                       y=1.1,
                                                       yanchor="top")]
                                     ))
 
-    def add_timeline_scrollbar(self):
-        self.fig.update_layout(xaxis=dict(rangeslider=dict(visible=True), type="linear"))
-
     def create_plot(self, data=None, ch_names=None):
-        # register_plotly_resampler(mode='auto') # could be used for large data
+        # register resampler so every plot will benefit from it
+        register_plotly_resampler(mode='auto')
 
-        self.fig = go.FigureWidget()
+        self.fig = FigureWidgetResampler()
 
         self.add_traces(data, ch_names)
+
+        # different visual settings
         self.fig.update_layout(
             width=1000, height=800,
             showlegend=True,
             template='plotly_white'
         )
 
-        self.add_selection_buttons()
-        self.add_timeline_scrollbar()
+        self.add_visibility_buttons()
 
     def plot_ts_with_plotly(self, data=None, ch_names=None):
         self.create_plot(data, ch_names)
@@ -670,51 +692,136 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
             self.output.clear_output(wait=True)
             display(self.fig)
 
+    # ================================================ TIMELINE ========================================================
+    def _setup_timeline_scrollbar(self):
+        # get start and end times
+        _, times = self.raw[:, :]
+        self.start_time = self.raw.time_as_index(times)[0]
+        self.end_time = self.raw.time_as_index(times)[-1]
+
+        # set values from slider
+        self.timeline_scrollbar.min = self.start_time
+        self.timeline_scrollbar.max = self.end_time
+
+        # compute step for slider according to TS length (always try to have 10 steps)
+        ts_length = len(times)
+        step = ts_length // 10
+        step = int(math.ceil(step / 10)) * 10  # round up to nearest 10
+        self.timeline_scrollbar.step = step
+        self.timeline_scrollbar.value = [self.start_time, self.end_time]
+        # self.timeline_scrollbar.continuous_update = False # uncomment this to update plot only on slider release
+        self.timeline_scrollbar.observe(self.update_timeline, names='value', type='change')
+
+    def update_timeline(self, val):
+        """ Set the plot timeline to the values from slider"""
+        new_range = val['new']
+        self.start_time, self.end_time = new_range
+        self.fig.update_layout(xaxis_range=list(new_range))
+
     # =========================================== CHANNELS SELECTION ===================================================
     def _create_checkboxes(self, array_wrapper):
         # type: (ABCDataWrapper) -> widgets.Accordion
+        # checkboxes
         checkboxes_list, checkboxes_stack = [], []
         labels = array_wrapper.get_channels_info()[0]
-        cb_per_col = math.ceil(len(labels) / 7)  # number of checkboxes in a column; should always display 7 cols
+        cb_per_col = math.ceil(len(labels) / 2)  # number of checkboxes in a column; should always display 2 cols
         for i, label in enumerate(labels):
-            self.checkboxes[label] = widgets.Checkbox(value=True, description=label,
-                                                      disabled=False, indent=False)
-            self.checkboxes[label].observe(self._update_ts, names="value", type="change")
+            self.checkboxes[label] = widgets.Checkbox(value=True, description=label, indent=False,
+                                                      layout=widgets.Layout(width='max-content'))
             if i and i % cb_per_col == 0:
-                checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
+                checkboxes_list.append(widgets.VBox(children=checkboxes_stack, layout=widgets.Layout(width='50%')))
                 checkboxes_stack = []
             checkboxes_stack.append(self.checkboxes[label])
         checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
-        checkboxes_region = widgets.HBox(children=checkboxes_list, layout={'width': '540px',
-                                                                           'height': 'max-content'})
+        checkboxes_region = widgets.HBox(children=checkboxes_list)
 
-        channels_region = widgets.VBox(children=[checkboxes_region])
+        # selection submit button
+        self.submit_selection_btn = widgets.Button(description='Submit selection', layout=self.BUTTON_STYLE)
+        self.submit_selection_btn.on_click(self._update_ts)
+
+        # select/unselect all buttons
+        select_all_btn = widgets.Button(description="Select all", layout=self.BUTTON_STYLE)
+        select_all_btn.on_click(self._select_all)
+        unselect_all_btn = widgets.Button(description="Unselect all", layout=self.BUTTON_STYLE)
+        unselect_all_btn.on_click(self._unselect_all)
+
+        # select dimensions buttons
+        self.radio_buttons = []
+        selections = []
+        for idx, info in array_wrapper.extra_dimensions.items():
+            extra_area, extra_radio_btn = self._create_selection(info[0], idx, dim_options=info[1])
+            self.radio_buttons.append(extra_radio_btn)
+            if extra_area is not None:
+                selections.append(extra_area)
+
+        # add all buttons to channel selection area
+        channels_region = widgets.VBox(children=[self.submit_selection_btn, widgets.HBox(selections),
+                                                 widgets.HBox([select_all_btn, unselect_all_btn]),
+                                                 checkboxes_region])
         channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
-                                          layout=widgets.Layout(width='50%'))
+                                          layout=widgets.Layout(width='70%'))
         channels_area.set_title(0, 'Channels')
         return channels_area
 
-    def _update_ts(self, val):
+    def _unselect_all(self, _):
+        self.logger.debug("Unselect all was called!")
+        for cb_name in self.checkboxes:
+            self.checkboxes[cb_name].value = False
+
+    def _select_all(self, _):
+        self.logger.debug("Select all was called!")
+        for cb_name in self.checkboxes:
+            self.checkboxes[cb_name].value = True
+
+    def _create_selection(self, title="Mode", shape_pos=3, dim_options=None):
+        if self.data is None or len(self.data.data_shape) <= max(2, shape_pos):
+            return None, None
+
+        no_dims = self.data.data_shape[shape_pos]
+        if dim_options is None or dim_options == []:
+            dim_options = [i for i in range(no_dims)]
+        sel_radio_btn = widgets.RadioButtons(options=dim_options, layout={'width': 'max-content'})
+        sel_radio_btn.observe(self._dimensions_selection_update, names=['value'])
+        accordion = widgets.Accordion(children=[sel_radio_btn], selected_index=None, layout={'width': 'auto'})
+        accordion.set_title(0, title)
+        return accordion, sel_radio_btn
+
+    def _get_selection_values(self):
+        sel1 = self.radio_buttons[0].value if self.radio_buttons[0] else None
+        sel2 = self.radio_buttons[1].value if self.radio_buttons[1] else None
+        return sel1, sel2
+
+    def _dimensions_selection_update(self, _):
+        # update self.raw
+        sel1, sel2 = self._get_selection_values()
+        new_slice = self.data.get_update_slice(sel1, sel2)
+        self.raw = self.data.build_raw(new_slice)
+
+    def _update_ts(self, btn):
         self.logger.debug('Updating TS')
         ch_names = list(self.ch_names)
 
-        channel_checkbox = val['owner'].description  # channel for which checkbox was selected/deselected
-        self.logger.debug(f'Checkbox action for channel: {channel_checkbox}')
-
-        # divide list of all channels into checked(picked) and unchecked(not_picked) channels
+        # save selected channels using their index in the ch_names list
         picks = []
-        not_picked = []
         for cb in list(self.checkboxes.values()):
             ch_index = ch_names.index(cb.description)  # get the channel index
             if cb.value:
                 picks.append(ch_index)  # list with number representation of channels
-            else:
-                not_picked.append(ch_index)
 
+        # if unselect all
+        # TODO: should we remove just the traces and leave the channel names and the ticks??
+        if not picks:
+            self.fig.data = []  # remove traces
+            self.fig.layout.annotations = []  # remove channel names
+            self.fig.layout.yaxis.tickvals = []  # remove ticks between channel names and traces
+            return
+
+        # get data and names for selected channels
         data, _ = self.raw[:, :]
         data = data[picks, :]
         ch_names = [ch_names[i] for i in picks]
 
+        # redraw the entire plot
         self.plot_ts_with_plotly(data, ch_names)
 
 
