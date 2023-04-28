@@ -2,7 +2,7 @@ colorcet
 ebrains_drive
 ipympl > 0.8.5
 ipywidgets == 7.7.2
-IPython
+IPython <= 8.12
 joblib
 mne >= 1.0
 numpy
