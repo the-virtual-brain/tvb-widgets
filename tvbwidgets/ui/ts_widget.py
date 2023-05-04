@@ -250,7 +250,108 @@ class WrapperNumpy(ABCDataWrapper):
         return ch_value
 
 
-class TimeSeriesWidget(widgets.VBox, TVBWidget):
+class TimeSeriesWidgetBase(widgets.VBox, TVBWidget):
+
+    # =========================================== SETUP ================================================================
+    def add_datatype(self, ts_tvb):
+        # type: (TimeSeries) -> None
+        data_wrapper = WrapperTVB(ts_tvb)
+        self.logger.debug("Adding TVB TS for display...")
+        self._populate_from_data_wrapper(data_wrapper)
+
+    def add_data_array(self, numpy_array, sample_freq, ch_idx):
+        # type: (np.array, float, int) -> None
+        data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
+        self._populate_from_data_wrapper(data_wrapper)
+
+    def add_data(self, data, sample_freq=None, ch_idx=None):
+        if isinstance(data, TimeSeries):
+            self.add_datatype(data)
+        else:
+            self.add_data_array(data, sample_freq, ch_idx)
+
+    def _populate_from_data_wrapper(self, data_wrapper):
+        # type: (ABCDataWrapper) -> None
+        if self.data is not None:
+            raise InvalidInputException("TSWidget is not yet capable to display more than one TS, "
+                                        "either use wid.reset_data, or create another widget instance!")
+
+        self.data = data_wrapper
+        self.sample_freq = data_wrapper.get_ts_sample_rate()
+        self.displayed_period = data_wrapper.get_ts_period()
+        self.ch_names, self.ch_order, self.ch_types = data_wrapper.get_channels_info()
+        self.raw = self.data.build_raw()
+
+    # ======================================== CHANNELS  ==============================================================
+    def _unselect_all(self, _):
+        self.logger.debug("Unselect all was called!")
+        for cb_name in self.checkboxes:
+            self.checkboxes[cb_name].value = False
+
+    def _select_all(self, _):
+        self.logger.debug("Select all was called!")
+        for cb_name in self.checkboxes:
+            self.checkboxes[cb_name].value = True
+
+    def _create_checkboxes(self, array_wrapper, no_checkbox_columns=2):
+        checkboxes_list, checkboxes_stack = [], []
+        labels = array_wrapper.get_channels_info()[0]
+        cb_per_col = math.ceil(len(labels) / no_checkbox_columns)  # number of checkboxes in a column
+        for i, label in enumerate(labels):
+            self.checkboxes[label] = widgets.Checkbox(value=True, description=label, indent=False,
+                                                      layout=widgets.Layout(width='max-content'))
+            if i and i % cb_per_col == 0:
+                checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
+                checkboxes_stack = []
+            checkboxes_stack.append(self.checkboxes[label])
+        checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
+        checkboxes_region = widgets.HBox(children=checkboxes_list)
+        return checkboxes_region
+
+    def _create_select_unselect_all_buttons(self):
+        select_all_btn = widgets.Button(description="Select all", layout=self.BUTTON_STYLE)
+        select_all_btn.on_click(self._select_all)
+        unselect_all_btn = widgets.Button(description="Unselect all", layout=self.BUTTON_STYLE)
+        unselect_all_btn.on_click(self._unselect_all)
+        return select_all_btn, unselect_all_btn
+
+    def _create_dim_selection_buttons(self, array_wrapper):
+        self.radio_buttons = []
+        actions = []
+        for idx, info in array_wrapper.extra_dimensions.items():
+            extra_area, extra_radio_btn = self._create_selection(info[0], idx, dim_options=info[1])
+            self.radio_buttons.append(extra_radio_btn)
+            if extra_area is not None:
+                actions.append(extra_area)
+
+        return actions
+
+    def _get_selection_values(self):
+        sel1 = self.radio_buttons[0].value if self.radio_buttons[0] else None
+        sel2 = self.radio_buttons[1].value if self.radio_buttons[1] else None
+        return sel1, sel2
+
+    def _create_selection(self, title="Mode", shape_pos=3, dim_options=None):
+        if self.data is None or len(self.data.data_shape) <= max(2, shape_pos):
+            return None, None
+
+        no_dims = self.data.data_shape[shape_pos]
+        if dim_options is None or dim_options == []:
+            dim_options = [i for i in range(no_dims)]
+        sel_radio_btn = widgets.RadioButtons(options=dim_options, layout={'width': 'max-content'})
+        sel_radio_btn.observe(self._dimensions_selection_update, names=['value'])
+        accordion = widgets.Accordion(children=[sel_radio_btn], selected_index=None, layout={'width': '20%'})
+        accordion.set_title(0, title)
+        return accordion, sel_radio_btn
+
+    def _dimensions_selection_update(self, _):
+        # update self.raw
+        sel1, sel2 = self._get_selection_values()
+        new_slice = self.data.get_update_slice(sel1, sel2)
+        self.raw = self.data.build_raw(new_slice)
+
+
+class TimeSeriesWidget(TimeSeriesWidgetBase):
     """ Actual TimeSeries Widget """
 
     def __init__(self, **kwargs):
@@ -274,41 +375,16 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
         super().__init__([self.output, annotation_area, self.title_area], layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget initialized")
 
-    def add_datatype(self, ts_tvb):
-        # type: (TimeSeries) -> None
-        data_wrapper = WrapperTVB(ts_tvb)
-        self.logger.debug("Adding TVB TS for display...")
-        self._populate_from_data_wrapper(data_wrapper)
-
+    # =========================================== SETUP ================================================================
     def reset_data(self):
         self.data = None
         self.title_area.children = [self.instr_area]
 
     def _populate_from_data_wrapper(self, data_wrapper):
-        # type: (ABCDataWrapper) -> None
-        if self.data is not None:
-            raise InvalidInputException("TSWidget is not yet capable to display more than one TS, "
-                                        "either use wid.reset_data, or create another widget instance!")
-
-        self.data = data_wrapper
-        self.sample_freq = data_wrapper.get_ts_sample_rate()
-        self.displayed_period = data_wrapper.get_ts_period()
-        self.ch_names, self.ch_order, self.ch_types = data_wrapper.get_channels_info()
-        self.raw = self.data.build_raw()
-        channels_area = self._create_checkboxes(data_wrapper)
-        self.title_area.children += (channels_area,)
+        super()._populate_from_data_wrapper(data_wrapper=data_wrapper)
+        self.channels_area = self._create_channel_selection_area(data_wrapper, 7)
+        self.title_area.children += (self.channels_area,)
         self._redraw()
-
-    def add_data_array(self, numpy_array, sample_freq, ch_idx):
-        # type: (np.array, float, int) -> None
-        data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
-        self._populate_from_data_wrapper(data_wrapper)
-
-    def add_data(self, data, sample_freq=None, ch_idx=None):
-        if isinstance(data, TimeSeries):
-            self.add_datatype(data)
-        else:
-            self.add_data_array(data, sample_freq, ch_idx)
 
     # ======================================== CHANNEL VALUE AREA ======================================================
     def _create_annotation_area(self):
@@ -394,79 +470,38 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
                 display(self.fig.canvas)
 
     # ======================================== CHANNELS  ==============================================================
-    def _unselect_all(self, _):
-        self.logger.debug("Unselect all was called!")
-        for cb_name in self.checkboxes:
-            self.checkboxes[cb_name].value = False
-
-    def _select_all(self, _):
-        self.logger.debug("Select all was called!")
-        for cb_name in self.checkboxes:
-            self.checkboxes[cb_name].value = True
-
-    def _create_checkboxes(self, array_wrapper):
+    def _create_channel_selection_area(self, array_wrapper, no_checkbox_columns=7):
         # type: (ABCDataWrapper) -> widgets.Accordion
-        checkboxes_list, checkboxes_stack = [], []
+        """ Create the whole channel selection area: Select/Uselect all btns, State var. & Mode selection
+            and Channel checkboxes
+        """
+        # checkboxes region
+        checkboxes_region = self._create_checkboxes(array_wrapper=array_wrapper,
+                                                    no_checkbox_columns=no_checkbox_columns)
+        checkboxes_region.layout = widgets.Layout(width='590px', height='max-content')
         labels = array_wrapper.get_channels_info()[0]
-        cb_per_col = math.ceil(len(labels) / 7)  # number of checkboxes in a column; should always display 7 cols
-        for i, label in enumerate(labels):
-            self.checkboxes[label] = widgets.Checkbox(value=True, description=label,
-                                                      disabled=False, indent=False)
+        for label in labels:
             self.checkboxes[label].observe(self._update_ts, names="value", type="change")
-            if i and i % cb_per_col == 0:
-                checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
-                checkboxes_stack = []
-            checkboxes_stack.append(self.checkboxes[label])
-        checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
-        checkboxes_region = widgets.HBox(children=checkboxes_list, layout={'width': '540px',
-                                                                           'height': 'max-content'})
 
-        # buttons region
-        select_all_btn = widgets.Button(description="Select all", layout=self.BUTTON_STYLE)
-        select_all_btn.on_click(self._select_all)
-        unselect_all_btn = widgets.Button(description="Unselect all", layout=self.BUTTON_STYLE)
-        unselect_all_btn.on_click(self._unselect_all)
+        # select/unselec all buttons
+        select_all_btn, unselect_all_btn = self._create_select_unselect_all_buttons()
         actions = [select_all_btn, unselect_all_btn]
 
-        # select dimensions region
-        self.radio_buttons = []
-        for idx, info in array_wrapper.extra_dimensions.items():
-            extra_area, extra_radio_btn = self._create_selection(info[0], idx, dim_options=info[1])
-            self.radio_buttons.append(extra_radio_btn)
-            if extra_area is not None:
-                actions.append(extra_area)
+        # select dimensions buttons (state var. & mode)
+        actions.extend(self._create_dim_selection_buttons(array_wrapper=array_wrapper))
 
+        # add all buttons to channel selection area
         channels_region = widgets.VBox(children=[widgets.HBox(actions), checkboxes_region])
         channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
                                           layout=widgets.Layout(width='50%'))
         channels_area.set_title(0, 'Channels')
         return channels_area
 
-    def _create_selection(self, title="Mode", shape_pos=3, dim_options=None):
-
-        if self.data is None or len(self.data.data_shape) <= max(2, shape_pos):
-            return None, None
-
-        no_dims = self.data.data_shape[shape_pos]
-        if dim_options is None or dim_options == []:
-            dim_options = [i for i in range(no_dims)]
-        sel_radio_btn = widgets.RadioButtons(options=dim_options, layout={'width': 'max-content'})
-        sel_radio_btn.observe(self._dimensions_selection_update, names=['value'])
-        accordion = widgets.Accordion(children=[sel_radio_btn], selected_index=None, layout={'width': '30%'})
-        accordion.set_title(0, title)
-        return accordion, sel_radio_btn
-
-    def _get_selection_values(self):
-        sel1 = self.radio_buttons[0].value if self.radio_buttons[0] else None
-        sel2 = self.radio_buttons[1].value if self.radio_buttons[1] else None
-        return sel1, sel2
-
     def _dimensions_selection_update(self, _):
         # update self.raw and linked parts
-        sel1, sel2 = self._get_selection_values()
-        new_slice = self.data.get_update_slice(sel1, sel2)
-        self.logger.info("New slice " + str(new_slice))
-        self.raw = self.data.build_raw(new_slice)
+        super()._dimensions_selection_update(_)
+
+        # update plot
         self.fig = self.raw.plot(duration=self.displayed_period,
                                  n_channels=self.no_channels,
                                  clipping=None, show=False)
@@ -552,7 +587,7 @@ class TimeSeriesWidget(widgets.VBox, TVBWidget):
             self.fig._redraw(update_data=False)  # needed in case of Unselect all
 
 
-class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
+class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
     """ TimeSeries Widget drawn using plotly"""
 
     def __init__(self, **kwargs):
@@ -582,36 +617,12 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
 
     # =========================================== SETUP ================================================================
     def _populate_from_data_wrapper(self, data_wrapper):
-        # type: (ABCDataWrapper) -> None
-        if self.data is not None:
-            raise InvalidInputException("TSWidget is not yet capable to display more than one TS, "
-                                        "either use wid.reset_data, or create another widget instance!")
-
-        self.data = data_wrapper
-        self.sample_freq = data_wrapper.get_ts_sample_rate()
-        self.ch_names, _, _ = data_wrapper.get_channels_info()
-        self.raw = self.data.build_raw()
-        channels_area = self._create_checkboxes(data_wrapper)
+        super()._populate_from_data_wrapper(data_wrapper=data_wrapper)
+        del self.ch_order, self.ch_types  # delete these as we don't use them in plotly
+        self.channels_area = self._create_channel_selection_area(array_wrapper=data_wrapper)
         self._setup_timeline_scrollbar()
-        self.channel_selection_area.children += (channels_area,)
+        self.channel_selection_area.children += (self.channels_area,)
         self.plot_ts_with_plotly()
-
-    def add_datatype(self, ts_tvb):
-        # type: (TimeSeries) -> None
-        data_wrapper = WrapperTVB(ts_tvb)
-        self.logger.debug("Adding TVB TS for display...")
-        self._populate_from_data_wrapper(data_wrapper)
-
-    def add_data_array(self, numpy_array, sample_freq, ch_idx):
-        # type: (np.array, float, int) -> None
-        data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
-        self._populate_from_data_wrapper(data_wrapper)
-
-    def add_data(self, data, sample_freq=None, ch_idx=None):
-        if isinstance(data, TimeSeries):
-            self.add_datatype(data)
-        else:
-            self.add_data_array(data, sample_freq, ch_idx)
 
     # =========================================== PLOT =================================================================
     def add_traces(self, data=None, ch_names=None):
@@ -719,40 +730,29 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
         self.fig.update_layout(xaxis_range=list(new_range))
 
     # =========================================== CHANNELS SELECTION ===================================================
-    def _create_checkboxes(self, array_wrapper):
+
+    def _create_channel_selection_area(self, array_wrapper, no_checkbox_columns=2):
         # type: (ABCDataWrapper) -> widgets.Accordion
+        """ Create the whole channel selection area: Submit button to update plot, Select/Uselect all btns,
+            State var. & Mode selection and Channel checkboxes
+        """
         # checkboxes
-        checkboxes_list, checkboxes_stack = [], []
-        labels = array_wrapper.get_channels_info()[0]
-        cb_per_col = math.ceil(len(labels) / 2)  # number of checkboxes in a column; should always display 2 cols
-        for i, label in enumerate(labels):
-            self.checkboxes[label] = widgets.Checkbox(value=True, description=label, indent=False,
-                                                      layout=widgets.Layout(width='max-content'))
-            if i and i % cb_per_col == 0:
-                checkboxes_list.append(widgets.VBox(children=checkboxes_stack, layout=widgets.Layout(width='50%')))
-                checkboxes_stack = []
-            checkboxes_stack.append(self.checkboxes[label])
-        checkboxes_list.append(widgets.VBox(children=checkboxes_stack))
-        checkboxes_region = widgets.HBox(children=checkboxes_list)
+        checkboxes_region = self._create_checkboxes(array_wrapper=array_wrapper,
+                                                    no_checkbox_columns=no_checkbox_columns)
+        for cb_stack in checkboxes_region.children:
+            cb_stack.layout = widgets.Layout(width='50%')
 
         # selection submit button
         self.submit_selection_btn = widgets.Button(description='Submit selection', layout=self.BUTTON_STYLE)
         self.submit_selection_btn.on_click(self._update_ts)
 
         # select/unselect all buttons
-        select_all_btn = widgets.Button(description="Select all", layout=self.BUTTON_STYLE)
-        select_all_btn.on_click(self._select_all)
-        unselect_all_btn = widgets.Button(description="Unselect all", layout=self.BUTTON_STYLE)
-        unselect_all_btn.on_click(self._unselect_all)
+        select_all_btn, unselect_all_btn = self._create_select_unselect_all_buttons()
 
-        # select dimensions buttons
-        self.radio_buttons = []
-        selections = []
-        for idx, info in array_wrapper.extra_dimensions.items():
-            extra_area, extra_radio_btn = self._create_selection(info[0], idx, dim_options=info[1])
-            self.radio_buttons.append(extra_radio_btn)
-            if extra_area is not None:
-                selections.append(extra_area)
+        # select dimensions buttons (state var. & mode)
+        selections = self._create_dim_selection_buttons(array_wrapper=array_wrapper)
+        for selection in selections:
+            selection.layout = widgets.Layout(width='50%')
 
         # add all buttons to channel selection area
         channels_region = widgets.VBox(children=[self.submit_selection_btn, widgets.HBox(selections),
@@ -762,40 +762,6 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
                                           layout=widgets.Layout(width='70%'))
         channels_area.set_title(0, 'Channels')
         return channels_area
-
-    def _unselect_all(self, _):
-        self.logger.debug("Unselect all was called!")
-        for cb_name in self.checkboxes:
-            self.checkboxes[cb_name].value = False
-
-    def _select_all(self, _):
-        self.logger.debug("Select all was called!")
-        for cb_name in self.checkboxes:
-            self.checkboxes[cb_name].value = True
-
-    def _create_selection(self, title="Mode", shape_pos=3, dim_options=None):
-        if self.data is None or len(self.data.data_shape) <= max(2, shape_pos):
-            return None, None
-
-        no_dims = self.data.data_shape[shape_pos]
-        if dim_options is None or dim_options == []:
-            dim_options = [i for i in range(no_dims)]
-        sel_radio_btn = widgets.RadioButtons(options=dim_options, layout={'width': 'max-content'})
-        sel_radio_btn.observe(self._dimensions_selection_update, names=['value'])
-        accordion = widgets.Accordion(children=[sel_radio_btn], selected_index=None, layout={'width': 'auto'})
-        accordion.set_title(0, title)
-        return accordion, sel_radio_btn
-
-    def _get_selection_values(self):
-        sel1 = self.radio_buttons[0].value if self.radio_buttons[0] else None
-        sel2 = self.radio_buttons[1].value if self.radio_buttons[1] else None
-        return sel1, sel2
-
-    def _dimensions_selection_update(self, _):
-        # update self.raw
-        sel1, sel2 = self._get_selection_values()
-        new_slice = self.data.get_update_slice(sel1, sel2)
-        self.raw = self.data.build_raw(new_slice)
 
     def _update_ts(self, btn):
         self.logger.debug('Updating TS')
@@ -816,7 +782,7 @@ class TimeSeriesWidgetPlotly(widgets.VBox, TVBWidget):
             self.fig.layout.yaxis.tickvals = []  # remove ticks between channel names and traces
             return
 
-        # get data and names for selected channels
+        # get data and names for selected channels; self.raw is updated before redrawing starts
         data, _ = self.raw[:, :]
         data = data[picks, :]
         ch_names = [ch_names[i] for i in picks]
