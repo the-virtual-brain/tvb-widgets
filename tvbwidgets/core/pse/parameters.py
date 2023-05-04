@@ -20,6 +20,7 @@ import numpy as np
 from copy import deepcopy
 from typing import List, Any, Optional, Callable
 from dataclasses import dataclass
+import toml
 from tvb.analyzers.metric_variance_global import compute_variance_global_metric
 from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
 from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
@@ -391,19 +392,27 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
     exe(n_jobs=n_threads)
 
 
+def read_object_from_toml_file(filename):
+    with open(filename, 'r') as f:
+        obj = toml.load(f)
+    return obj
+
+
 if __name__ == '__main__':
-    param1 = sys.argv[1]
-    param2 = sys.argv[2]
-    param1_values = json.loads(sys.argv[3])
-    param2_values = json.loads(sys.argv[4])
-    n = len(sys.argv[5])
-    metrics = sys.argv[5][1:n - 1].split(', ')
-    file_name = sys.argv[6]
-    n_threads = int(sys.argv[7])
+    file_name = sys.argv[1]
+    obj = read_object_from_toml_file(file_name)
+
+    param1 = obj["param1"]
+    param2 = obj["param2"]
+    param1_values = [float(elem) for elem in obj["param1_values"]]
+    param2_values = [float(elem) for elem in obj["param2_values"]]
+    metrics = obj["metrics"]
+    file_name = obj["file_name"]
+    n_threads = obj["n_threads"]
 
     LOGGER.info(f"We are now starting PSE for '{param1}' x '{param2}' on {n_threads} threads\n"
                 f"Expect the result in '{file_name}' \n"
-                f"{n} Metrics {metrics}")
+                f"Metrics {metrics}")
 
     # TODO WID-208 deserialize this instance after being passed from the remote launcher
     sim = Simulator(connectivity=Connectivity.from_file()).configure()

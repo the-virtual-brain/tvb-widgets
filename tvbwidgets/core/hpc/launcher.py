@@ -7,6 +7,8 @@
 
 import time
 import pyunicore.client
+import toml
+from pathlib import Path
 from typing import Callable
 from datetime import datetime
 from urllib.error import HTTPError
@@ -22,7 +24,7 @@ LOGGER = get_logger(__name__)
 
 
 class HPCLaunch(object):
-    pip_libraries = 'tvb-widgets tvb-data'
+    pip_libraries = 'tvb-widgets tvb-data toml'
     EXECUTABLE_KEY = 'Executable'
     PROJECT_KEY = 'Project'
     JOB_TYPE_KEY = 'Job type'
@@ -38,8 +40,10 @@ class HPCLaunch(object):
         self.metrics = metrics
         self.file_name = file_name
         self.update_progress = update_progress
+        self.stage_in_obj = None
         # TODO WID-208 link here the serialized simulator in the list of inputs
-        self.submit_job("tvbwidgets.core.pse.parameters", [], True)
+        self.stage_in_params()
+        # self.submit_job("parameters.py", ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py", "C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\notebooks\\params.toml"], True)
 
     @property
     def _activate_command(self):
@@ -58,6 +62,17 @@ class HPCLaunch(object):
     @property
     def _install_dependencies_command(self):
         return f'pip install -U pip && pip install {self.pip_libraries}'
+
+    def stage_in_params(self):
+        self.stage_in_obj = Path("params.toml")
+        if not self.stage_in_obj.exists():
+            self.stage_in_obj.touch()
+
+        with open(self.stage_in_obj, "w") as f:
+            data = {"param1": self.param1, "param2": self.param2, "param1_values": self.param1_values,
+                    "param2_values": self.param2_values, "metrics": self.metrics, "file_name": self.file_name,
+                    "n_threads": self.config.n_threads}
+            toml.dump(data, f)
 
     def connect_client(self):
         LOGGER.info(f"Connecting to {self.config.site}...")
@@ -176,8 +191,7 @@ class HPCLaunch(object):
             LOGGER.info("Successfully finished the environment setup.")
 
         command = f"{self._module_load_command} && {self._activate_command} && " \
-                  f"python -m  {executable} {self.param1} {self.param2} '{self.param1_values}' " \
-                  f"'{self.param2_values}' '{self.metrics}' {self.file_name} {self.config.n_threads}"
+                  f"python  {executable} {self.stage_in_obj}"
         LOGGER.info(f"Launching workflow for command: \n {command}")
         job = Description(
             executable=command,
