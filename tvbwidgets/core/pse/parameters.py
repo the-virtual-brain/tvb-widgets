@@ -13,25 +13,22 @@ A collection of parameter related classes and functions.
 """
 
 import os
-import json
 import sys
 import threading
 import numpy as np
 from copy import deepcopy
 from typing import List, Any, Optional, Callable
 from dataclasses import dataclass
-import toml
 from tvb.analyzers.metric_variance_global import compute_variance_global_metric
 from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
 from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
 from tvb.analyzers.metric_variance_of_node_variance import compute_variance_of_node_variance_metric
-from tvb.datatypes.connectivity import Connectivity
 from tvb.datatypes.time_series import TimeSeries
-from tvb.simulator.models.epileptor import Epileptor
 from tvb.simulator.simulator import Simulator
 from joblib import Parallel, delayed
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
 from tvbwidgets.core.logger.builder import get_logger
+from tvbwidgets.core.pse.toml_storage import TOMLStorage
 
 # Here put explicit module name string, for __name__ == __main__
 LOGGER = get_logger("tvbwidgets.core.pse.parameters")
@@ -393,37 +390,10 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
     exe(n_jobs=n_threads)
 
 
-def read_object_from_toml_file(filename):
-    with open(filename, 'r') as f:
-        obj = toml.load(f)
-    return obj
-
-
-def stage_out_simulator(simulator_data):
-    simulator = Simulator()
-    model = simulator_data["model"].split(" ")[0]
-    if model == "Epileptor":
-        simulator.model = Epileptor()
-    LOGGER.info(simulator.model)
-    # simulator.model = simulator.model(**{k: np.r_[v[0]] for k, v in simulator_data['parameters'].items()})
-    voi = simulator_data['attributes'].get('variables_of_interest', None)
-    if voi:
-        simulator.model.variables_of_interest = voi
-
-    stvar_range = simulator_data['attributes'].get('state_variable_range', None)
-    if stvar_range:
-        for k, val in stvar_range.items():
-            simulator.model.state_variable_range[k] = np.array(val)
-    LOGGER.info(simulator.model)
-    for k in simulator_data['attributes'].keys():
-        if k not in ['state_variable_range', 'variables_of_interests']:
-            raise NotImplementedError(f'unsupported attribute: {k}')
-    return simulator
-
-
 if __name__ == '__main__':
-    file_name = sys.argv[1]
-    obj = read_object_from_toml_file(file_name)
+    file = sys.argv[1]
+    toml_storage = TOMLStorage()
+    obj = toml_storage.read_from_file(file)
 
     param1 = obj["parameters"]["param1"]
     param2 = obj["parameters"]["param2"]
@@ -432,18 +402,14 @@ if __name__ == '__main__':
     metrics = obj["parameters"]["metrics"]
     file_name = obj["parameters"]["file_name"]
     n_threads = obj["parameters"]["n_threads"]
-    simulator = stage_out_simulator(obj["simulator"])
+    simulator = toml_storage.stage_out_simulator(obj["simulator"])
 
     LOGGER.info(f"We are now starting PSE for '{param1}' x '{param2}' on {n_threads} threads\n"
                 f"Expect the result in '{file_name}' \n"
-                f"Metrics {metrics}")
-    LOGGER.info(f"SIMULATOR -> {simulator}")
+                f"Metrics {metrics} \n"
+                f"Simulator {simulator}")
 
-    # TODO WID-208 deserialize this instance after being passed from the remote launcher
-    sim = Simulator(connectivity=Connectivity.from_file()).configure()
+    with open(PROGRESS_STATUS, "w+") as f:
+        f.write("0")
 
-    # with open(PROGRESS_STATUS, "w+") as f:
-    #     f.write("0")
-
-    # launch_local_param(sim, param1, param2, param1_values, param2_values, metrics, file_name,
-    # n_threads=n_threads)
+    launch_local_param(simulator, param1, param2, param1_values, param2_values, metrics, file_name, n_threads=n_threads)

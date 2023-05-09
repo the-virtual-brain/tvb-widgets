@@ -7,21 +7,19 @@
 
 import time
 import pyunicore.client
-import toml
-from pathlib import Path
 from typing import Callable
 from datetime import datetime
 from urllib.error import HTTPError
 from pyunicore.helpers.jobs import Status, Description
 from pyunicore.credentials import AuthenticationFailedException
 from pkg_resources import get_distribution, DistributionNotFound
-from tvb.basic.neotraits._attr import NArray
 
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.core.hpc.config import HPCConfig
 from tvbwidgets.core.logger.builder import get_logger
 from tvbwidgets.core.pse.parameters import PROGRESS_STATUS
 from tvb.simulator.simulator import Simulator
+from tvbwidgets.core.pse.toml_storage import TOMLStorage
 
 LOGGER = get_logger(__name__)
 
@@ -33,7 +31,8 @@ class HPCLaunch(object):
     JOB_TYPE_KEY = 'Job type'
     INTERACTIVE_KEY = 'interactive'
 
-    def __init__(self, simulator, hpc_config, param1, param2, param1_values, param2_values, metrics, file_name, update_progress):
+    def __init__(self, simulator, hpc_config, param1, param2, param1_values, param2_values, metrics, file_name,
+                 update_progress):
         # type: (Simulator, HPCConfig, str, str, list, list, list, str, Callable) -> None
         self.simulator = simulator
         self.config = hpc_config
@@ -45,9 +44,8 @@ class HPCLaunch(object):
         self.file_name = file_name
         self.update_progress = update_progress
         self.stage_in_obj = None
-        # TODO WID-208 link here the serialized simulator in the list of inputs
         self.stage_in_params()
-        # self.submit_job("parameters.py", ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py", "C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\notebooks\\params.toml"], True)
+        self.submit_job("parameters.py", ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py"], True)
 
     @property
     def _activate_command(self):
@@ -68,51 +66,20 @@ class HPCLaunch(object):
         return f'pip install -U pip && pip install {self.pip_libraries}'
 
     def stage_in_params(self):
-        data = {}
-        self.stage_in_obj = Path("params.toml")
-        if not self.stage_in_obj.exists():
-            self.stage_in_obj.touch()
+        # TODO for connectivity parameters store the file names of the connectivities(ex: "connectivity_66.zip")
+        if self.param1 == "connectivity":
+            param1_values = self.subtract_regions(self.param1_values)
+            param2_values = self.param2_values
+        elif self.param2 == "connectivity":
+            param1_values = self.param2_values
+            param2_values = self.subtract_regions(self.param2_values)
+        else:
+            param1_values = self.param1_values
+            param2_values = self.param2_values
 
-        with open(self.stage_in_obj, "w") as f:
-            data["parameters"] = {"param1": self.param1, "param2": self.param2, "metrics": self.metrics,
-                                  "file_name": self.file_name, "n_threads": self.config.n_threads}
-
-            if self.param1 == "connectivity":
-                data["parameters"].update({"param2_values": self.param2_values})
-
-                regions = self.subtract_regions(self.param1_values)
-                data["connectivity"] = {"param1_values": regions}
-
-            elif self.param2 == "connectivity":
-                data["parameters"].update({"param1_values": self.param1_values})
-
-                regions = self.subtract_regions(self.param2_values)
-                data["connectivity"] = {"param2_values": regions}
-            else:
-                data["parameters"].update({"param1_values": self.param1_values, "param2_values": self.param2_values})
-
-            data_sim = self.stage_in_simulator(data)
-
-            toml.dump(data_sim, f)
-
-    def stage_in_simulator(self, data):
-        data["simulator"] = {"parameters": {}, "attributes": {"state_variable_range": {}}}
-
-        data["simulator"]["model"] = self.simulator.model.title
-
-        for elem in type(self.simulator.model).declarative_attrs:
-            attribute = getattr(type(self.simulator.model), elem)
-            if isinstance(attribute, NArray):
-                value = attribute.default.tolist()
-                data["simulator"]["parameters"].update({elem: value})
-
-        data["simulator"]["attributes"]["variables_of_interests"] = self.simulator.model.variables_of_interest
-        # TODO add the 'stvar' attribute to the stage-in simulator
-        # data["simulator"]["attributes"]["state_variable_range"]["stvar"] = self.simulator.model.stvar
-        items = self.simulator.model.state_variable_range
-        for elem in items.keys():
-            data["simulator"]["attributes"]["state_variable_range"][elem] = items[elem].tolist()
-        return data
+        storage = TOMLStorage()
+        self.stage_in_obj = storage.write_in_file(self.simulator, self.param1, self.param2, param1_values,
+                                                  param2_values, self.metrics, self.config.n_threads, self.file_name)
 
     def subtract_regions(self, values):
         regions = []
