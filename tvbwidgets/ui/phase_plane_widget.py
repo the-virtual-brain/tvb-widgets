@@ -479,7 +479,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         for param_name in type(self.model).declarative_attrs:
             param_def = getattr(type(self.model), param_name)
-            if not isinstance(param_def, NArray) or param_def.dtype != np.float:
+            if not isinstance(param_def, NArray) or param_def.dtype != np.float_:
                 continue
             param_range = param_def.domain
             if param_range is None:
