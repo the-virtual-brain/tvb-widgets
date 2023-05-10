@@ -608,10 +608,8 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.channel_selection_area = widgets.HBox(layout=widgets.Layout(width='25%', height='700px',
                                                                          margin="50px 0px 0px 0px"))
         self.plot_and_channels_area.children += (self.output, self.channel_selection_area)
-        self.timeline_title = widgets.Label(value='Adjust timeframe')
-        self.timeline_scrollbar = widgets.IntRangeSlider(value=[0, 0], layout=widgets.Layout(width='30%'))
 
-        super().__init__([self.plot_and_channels_area, self.timeline_title, self.timeline_scrollbar],
+        super().__init__([self.plot_and_channels_area],
                          layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget with Plotly initialized")
 
@@ -620,7 +618,6 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         super()._populate_from_data_wrapper(data_wrapper=data_wrapper)
         del self.ch_order, self.ch_types  # delete these as we don't use them in plotly
         self.channels_area = self._create_channel_selection_area(array_wrapper=data_wrapper)
-        self._setup_timeline_scrollbar()
         self.channel_selection_area.children += (self.channels_area,)
         self.plot_ts_with_plotly()
 
@@ -661,9 +658,6 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
             legend={'traceorder': 'reversed'}
         )
 
-        # sync plot timeline with selected slider range
-        self.fig.update_layout(xaxis_range=list(self.timeline_scrollbar.value))
-
     def add_visibility_buttons(self):
         # buttons to show/hide all traces
         self.fig.update_layout(dict(updatemenus=[dict(type="buttons", direction="left",
@@ -703,34 +697,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
             self.output.clear_output(wait=True)
             display(self.fig)
 
-    # ================================================ TIMELINE ========================================================
-    def _setup_timeline_scrollbar(self):
-        # get start and end times
-        _, times = self.raw[:, :]
-        self.start_time = self.raw.time_as_index(times)[0]
-        self.end_time = self.raw.time_as_index(times)[-1]
-
-        # set values from slider
-        self.timeline_scrollbar.min = self.start_time
-        self.timeline_scrollbar.max = self.end_time
-
-        # compute step for slider according to TS length (always try to have 10 steps)
-        ts_length = len(times)
-        step = ts_length // 10
-        step = int(math.ceil(step / 10)) * 10  # round up to nearest 10
-        self.timeline_scrollbar.step = step
-        self.timeline_scrollbar.value = [self.start_time, self.end_time]
-        # self.timeline_scrollbar.continuous_update = False # uncomment this to update plot only on slider release
-        self.timeline_scrollbar.observe(self.update_timeline, names='value', type='change')
-
-    def update_timeline(self, val):
-        """ Set the plot timeline to the values from slider"""
-        new_range = val['new']
-        self.start_time, self.end_time = new_range
-        self.fig.update_layout(xaxis_range=list(new_range))
-
     # =========================================== CHANNELS SELECTION ===================================================
-
     def _create_channel_selection_area(self, array_wrapper, no_checkbox_columns=2):
         # type: (ABCDataWrapper) -> widgets.Accordion
         """ Create the whole channel selection area: Submit button to update plot, Select/Uselect all btns,
