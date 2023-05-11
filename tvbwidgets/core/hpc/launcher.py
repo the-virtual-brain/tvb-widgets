@@ -169,6 +169,7 @@ class HPCLaunch(object):
         return date.strftime('%m.%d.%Y, %H_%M_%S')
 
     def submit_job(self, executable, path_input, do_stage_out):
+        # type (str, Path, bool) -> None
         client = self.connect_client()
         if client is None:
             LOGGER.error(f"Could not connect to {self.config.site}, stopping execution.")
@@ -209,7 +210,7 @@ class HPCLaunch(object):
             project=self.config.project,
             resources=self.config.resources
         )
-        job_workflow = client.new_job(job.to_dict(), inputs=[path_input])
+        job_workflow = client.new_job(job.to_dict(), inputs=[path_input.as_posix()])
         LOGGER.info(f"Job is running at {self.config.site}: {job_workflow.working_dir.properties['mountPoint']}. "
                     f"Submission time is: {self._format_date_for_job(job_workflow)}.")
         LOGGER.info('Finished remote launch.')

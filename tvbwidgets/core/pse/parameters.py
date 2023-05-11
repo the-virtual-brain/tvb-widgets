@@ -79,8 +79,6 @@ class SimSeq:
             exec(f'obj.{key} = val',
                  {'obj': obj, 'val': val})
         self.pos += 1
-        # Configure sim again after setting the new values (critical when changing the connectivity, for example)
-        obj.configure()
         return obj
 
 
