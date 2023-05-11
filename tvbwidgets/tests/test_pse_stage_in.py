@@ -25,6 +25,7 @@ def custom_simulator():
     simulator.model = Epileptor(a=np.array([2.0]), b=np.array([4.0]))
     simulator.model.variables_of_interest = ['x1', 'x2', 'x2 - x1']
     simulator.model.state_variable_range['x1'] = np.array([-4., 1.])
+    simulator.configure()
 
     return simulator
 
