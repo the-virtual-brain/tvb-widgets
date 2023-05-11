@@ -7,13 +7,13 @@
 
 import time
 import pyunicore.client
+from pathlib import Path
 from typing import Callable
 from datetime import datetime
 from urllib.error import HTTPError
 from pyunicore.helpers.jobs import Status, Description
 from pyunicore.credentials import AuthenticationFailedException
 from pkg_resources import get_distribution, DistributionNotFound
-
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.core.hpc.config import HPCConfig
 from tvbwidgets.core.logger.builder import get_logger
@@ -25,7 +25,7 @@ LOGGER = get_logger(__name__)
 
 
 class HPCLaunch(object):
-    pip_libraries = 'tvb-widgets tvb-data toml'
+    pip_libraries = 'tvb-widgets tvb-data'
     EXECUTABLE_KEY = 'Executable'
     PROJECT_KEY = 'Project'
     JOB_TYPE_KEY = 'Job type'
@@ -34,7 +34,6 @@ class HPCLaunch(object):
     def __init__(self, simulator, hpc_config, param1, param2, param1_values, param2_values, metrics, file_name,
                  update_progress):
         # type: (Simulator, HPCConfig, str, str, list, list, list, str, Callable) -> None
-        self.simulator = simulator
         self.config = hpc_config
         self.param1 = param1
         self.param2 = param2
@@ -43,11 +42,8 @@ class HPCLaunch(object):
         self.metrics = metrics
         self.file_name = file_name
         self.update_progress = update_progress
-        self.storage_file = None
-        self.stage_in_params()
-        self.submit_job("parameters.py",
-                        ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py"],
-                        True)
+        serialized_config = self._serialize_configuration(simulator)
+        self.submit_job("tvbwidgets.core.pse.parameters", serialized_config, True)
 
     @property
     def _activate_command(self):
@@ -67,7 +63,8 @@ class HPCLaunch(object):
     def _install_dependencies_command(self):
         return f'pip install -U pip && pip install {self.pip_libraries}'
 
-    def stage_in_params(self):
+    def _serialize_configuration(self, sim):
+        # type: (Simulator) -> Path
         if self.param1 == "connectivity":
             param1_values = self.get_connectivity_files(self.param1_values)
             param2_values = self.param2_values
@@ -78,10 +75,8 @@ class HPCLaunch(object):
             param1_values = self.param1_values
             param2_values = self.param2_values
 
-        toml_storage = TOMLStorage()
-        self.storage_file = toml_storage.write_in_file(self.simulator, self.param1, self.param2, param1_values,
-                                                       param2_values, self.metrics, self.config.n_threads,
-                                                       self.file_name)
+        return TOMLStorage.write_pse_in_file(sim, self.param1, self.param2, param1_values, param2_values,
+                                             self.metrics, self.config.n_threads, self.file_name)
 
     def get_connectivity_files(self, values):
         connectivity_files = []
@@ -173,7 +168,7 @@ class HPCLaunch(object):
         date = datetime.strptime(job.properties['submissionTime'], '%Y-%m-%dT%H:%M:%S+%f')
         return date.strftime('%m.%d.%Y, %H_%M_%S')
 
-    def submit_job(self, executable, inputs, do_stage_out):
+    def submit_job(self, executable, path_input, do_stage_out):
         client = self.connect_client()
         if client is None:
             LOGGER.error(f"Could not connect to {self.config.site}, stopping execution.")
@@ -207,14 +202,14 @@ class HPCLaunch(object):
             LOGGER.info("Successfully finished the environment setup.")
 
         command = f"{self._module_load_command} && {self._activate_command} && " \
-                  f"python  {executable} {self.storage_file}"
+                  f"python -m {executable} {path_input}"
         LOGGER.info(f"Launching workflow for command: \n {command}")
         job = Description(
             executable=command,
             project=self.config.project,
             resources=self.config.resources
         )
-        job_workflow = client.new_job(job.to_dict(), inputs=inputs)
+        job_workflow = client.new_job(job.to_dict(), inputs=[path_input])
         LOGGER.info(f"Job is running at {self.config.site}: {job_workflow.working_dir.properties['mountPoint']}. "
                     f"Submission time is: {self._format_date_for_job(job_workflow)}.")
         LOGGER.info('Finished remote launch.')

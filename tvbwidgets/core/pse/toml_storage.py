@@ -1,26 +1,47 @@
-import importlib
-from dataclasses import dataclass
-from pathlib import Path
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2023, TVB Widgets Team
+#
 
-import numpy as np
 import toml
+import importlib
+import numpy as np
+from pathlib import Path
+from datetime import datetime
 from tvb.basic.neotraits._attr import NArray
 from tvb.datatypes.connectivity import Connectivity
 from tvb.simulator.simulator import Simulator
-from tvbwidgets.core.logger.builder import get_logger
-LOGGER = get_logger("tvbwidgets.core.pse.parameters")
 
 
-def read_from_file(file_name):
-    with open(file_name, 'r') as f:
-        obj = toml.load(f)
-    return obj
+class TOMLStorage:
 
+    @staticmethod
+    def read_pse_from_file(file_name):
 
-@dataclass()
-class TOMLStorage(object):
+        with open(file_name, 'r') as f:
+            obj = toml.load(f)
 
-    def stage_out_simulator(self, simulator_data):
+        param1 = obj["parameters"]["param1"]
+        param2 = obj["parameters"]["param2"]
+        if param1 != "connectivity":
+            param1_values = [float(elem) for elem in obj["parameters"]["param1_values"]]
+        else:
+            param1_values = [Connectivity.from_file(elem) for elem in obj["connectivity"]["param1_values"]]
+        if param2 != "connectivity":
+            param2_values = [float(elem) for elem in obj["parameters"]["param2_values"]]
+        else:
+            param2_values = [Connectivity.from_file(elem) for elem in obj["connectivity"]["param2_values"]]
+        metrics = obj["parameters"]["metrics"]
+        file_name = obj["parameters"]["file_name"]
+        n_threads = obj["parameters"]["n_threads"]
+
+        simulator = TOMLStorage._stage_out_simulator(obj["simulator"])
+        return param1, param1_values, param2, param2_values, metrics, file_name, n_threads, simulator
+
+    @staticmethod
+    def _stage_out_simulator(simulator_data):
         simulator = Simulator()
 
         model = simulator_data["model_class"]
@@ -50,9 +71,10 @@ class TOMLStorage(object):
         simulator.connectivity = Connectivity.from_file()
         return simulator
 
-    def write_in_file(self, simulator, param1, param2, param1_values, param2_values, metrics, n_threads, file_name):
+    @staticmethod
+    def write_pse_in_file(simulator, param1, param2, param1_values, param2_values, metrics, n_threads, file_name):
         data = {}
-        stage_in_obj = Path("pse.toml")
+        stage_in_obj = Path(f"pse_{datetime.now().strftime('%Y%m%d_%H%M%S')}.toml")
         if not stage_in_obj.exists():
             stage_in_obj.touch()
 
@@ -70,11 +92,12 @@ class TOMLStorage(object):
             else:
                 data["parameters"].update({"param1_values": param1_values, "param2_values": param2_values})
 
-            data_sim = self.stage_in_simulator(data, simulator)
+            data_sim = TOMLStorage._stage_in_simulator(data, simulator)
             toml.dump(data_sim, f)
         return stage_in_obj
 
-    def stage_in_simulator(self, data, simulator):
+    @staticmethod
+    def _stage_in_simulator(data, simulator):
         # TODO add the 'stvar' attribute to stage-in simulator, if needed
         data["simulator"] = {"model_parameters": {}, "attributes": {"state_variable_range": {}}}
 

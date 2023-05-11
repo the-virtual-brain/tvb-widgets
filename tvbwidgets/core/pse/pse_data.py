@@ -5,7 +5,7 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 
-from tvb.basic.neotraits.api import NArray, HasTraits, Range, List, Attr
+from tvb.basic.neotraits.api import NArray, HasTraits, Attr
 from tvb.core.neotraits.h5 import H5File, DataSet, Scalar, Json
 
 

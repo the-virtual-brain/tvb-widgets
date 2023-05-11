@@ -24,12 +24,11 @@ from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
 from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
 from tvb.analyzers.metric_variance_of_node_variance import compute_variance_of_node_variance_metric
 from tvb.datatypes.time_series import TimeSeries
-from tvb.datatypes import connectivity
 from tvb.simulator.simulator import Simulator
 from joblib import Parallel, delayed
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
 from tvbwidgets.core.logger.builder import get_logger
-from tvbwidgets.core.pse.toml_storage import TOMLStorage, read_from_file
+from tvbwidgets.core.pse.toml_storage import TOMLStorage
 
 # Here put explicit module name string, for __name__ == __main__
 LOGGER = get_logger("tvbwidgets.core.pse.parameters")
@@ -362,7 +361,7 @@ def compute_metrics(sim, metrics_):
     return computed_metrics
 
 
-def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name,
+def launch_local_param(sim, param1, param2, x_values, y_values, metrics, file_name,
                        update_progress=None, n_threads=4):
     input_values = []
     for elem1 in x_values:
@@ -377,14 +376,14 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
                 el2_value = np.array([elem2])
             input_values.append([el1_value, el2_value])
 
-    sim2 = simulator.configure()  # deepcopy doesn't work on un-configured simulator o_O
+    sim = sim.configure()  # deepcopy doesn't work on un-configured simulator o_O
     seq = SimSeq(
-        template=sim2,
+        template=sim,
         params=[param1, param2],
         values=input_values
     )
     pp = PostProcess(
-        metrics=compute_metrics(sim2, metrics),
+        metrics=compute_metrics(sim, metrics),
         reduction=SaveDataToDisk(param1, param2, x_values, y_values, metrics, file_name),
     )
     exe = JobLibExec(seq=seq, post=pp, backend=None, checkpoint_dir=None, update_progress=update_progress)
@@ -392,31 +391,17 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
 
 
 if __name__ == '__main__':
-    file = sys.argv[1]
-    toml_storage = TOMLStorage()
-    obj = read_from_file(file)
+    in_file = sys.argv[1]
+    name_param1, vals_param1, name_param2, vals_param2, \
+        metrics_list, result_file, n_th, sim_obj = TOMLStorage.read_pse_from_file(in_file)
 
-    param1 = obj["parameters"]["param1"]
-    param2 = obj["parameters"]["param2"]
-    if param1 != "connectivity":
-        param1_values = [float(elem) for elem in obj["parameters"]["param1_values"]]
-    else:
-        param1_values = [connectivity.Connectivity.from_file(elem) for elem in obj["connectivity"]["param1_values"]]
-    if param2 != "connectivity":
-        param2_values = [float(elem) for elem in obj["parameters"]["param2_values"]]
-    else:
-        param2_values = [connectivity.Connectivity.from_file(elem) for elem in obj["connectivity"]["param2_values"]]
-    metrics = obj["parameters"]["metrics"]
-    file_name = obj["parameters"]["file_name"]
-    n_threads = obj["parameters"]["n_threads"]
-    simulator = toml_storage.stage_out_simulator(obj["simulator"])
-
-    LOGGER.info(f"We are now starting PSE for '{param1}' x '{param2}' on {n_threads} threads\n"
-                f"Expect the result in '{file_name}' \n"
-                f"Metrics {metrics} \n"
-                f"Simulator {simulator}")
+    LOGGER.info(f"We are now starting PSE for '{name_param1}' x '{name_param2}' on {n_th} threads\n"
+                f"Expect the result in '{result_file}' \n"
+                f"Metrics {metrics_list} \n"
+                f"Simulator {sim_obj}")
 
     with open(PROGRESS_STATUS, "w+") as f:
         f.write("0")
 
-    launch_local_param(simulator, param1, param2, param1_values, param2_values, metrics, file_name, n_threads=n_threads)
+    launch_local_param(sim_obj, name_param1, name_param2, vals_param1, vals_param2, metrics_list, result_file,
+                       n_threads=n_th)
