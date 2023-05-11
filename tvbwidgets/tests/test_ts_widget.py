@@ -174,7 +174,7 @@ def test_create_selection(tsw_tvb_data):
 
 def test_create_checkboxes(tsw_tvb_data):
     tsw_tvb_data.data.get_channels_info()  # need to initialize ch_names for wrapper
-    channels_area = tsw_tvb_data._create_checkboxes(tsw_tvb_data.data)
+    channels_area = tsw_tvb_data._create_channel_selection_area(tsw_tvb_data.data)
     assert len(tsw_tvb_data.checkboxes) == 76
     assert len(tsw_tvb_data.radio_buttons) == 2
     assert channels_area.get_title(0) == 'Channels'
