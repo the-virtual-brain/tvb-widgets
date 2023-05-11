@@ -10,13 +10,15 @@ from tvb.simulator.simulator import Simulator
 from tvbwidgets.core.logger.builder import get_logger
 LOGGER = get_logger("tvbwidgets.core.pse.parameters")
 
+
+def read_from_file(file_name):
+    with open(file_name, 'r') as f:
+        obj = toml.load(f)
+    return obj
+
+
 @dataclass()
 class TOMLStorage(object):
-
-    def read_from_file(self, file_name):
-        with open(file_name, 'r') as f:
-            obj = toml.load(f)
-        return obj
 
     def stage_out_simulator(self, simulator_data):
         simulator = Simulator()
@@ -73,7 +75,7 @@ class TOMLStorage(object):
         return stage_in_obj
 
     def stage_in_simulator(self, data, simulator):
-        # TODO add the 'stvar' attribute to the stage-in simulator
+        # TODO add the 'stvar' attribute to stage-in simulator, if needed
         data["simulator"] = {"model_parameters": {}, "attributes": {"state_variable_range": {}}}
 
         data["simulator"]["model_class"] = simulator.model.__class__.__name__
@@ -84,8 +86,8 @@ class TOMLStorage(object):
         for elem in type(simulator.model).declarative_attrs:
             attribute = getattr(type(simulator.model), elem)
             if isinstance(attribute, NArray):
-                value = attribute.default.tolist()
-                data["simulator"]["model_parameters"].update({elem: value})
+                values_list = getattr(simulator.model, elem).tolist()
+                data["simulator"]["model_parameters"].update({elem: values_list})
 
         data["simulator"]["attributes"]["variables_of_interests"] = simulator.model.variables_of_interest
 

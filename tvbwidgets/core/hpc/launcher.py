@@ -43,9 +43,11 @@ class HPCLaunch(object):
         self.metrics = metrics
         self.file_name = file_name
         self.update_progress = update_progress
-        self.stage_in_obj = None
+        self.storage_file = None
         self.stage_in_params()
-        self.submit_job("parameters.py", ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py"], True)
+        self.submit_job("parameters.py",
+                        ["C:\\Users\\teodora.misan\\Documents\\tvb-widgets\\tvbwidgets\\core\\pse\\parameters.py"],
+                        True)
 
     @property
     def _activate_command(self):
@@ -66,27 +68,27 @@ class HPCLaunch(object):
         return f'pip install -U pip && pip install {self.pip_libraries}'
 
     def stage_in_params(self):
-        # TODO for connectivity parameters store the file names of the connectivities(ex: "connectivity_66.zip")
         if self.param1 == "connectivity":
-            param1_values = self.subtract_regions(self.param1_values)
+            param1_values = self.get_connectivity_files(self.param1_values)
             param2_values = self.param2_values
         elif self.param2 == "connectivity":
-            param1_values = self.param2_values
-            param2_values = self.subtract_regions(self.param2_values)
+            param1_values = self.param1_values
+            param2_values = self.get_connectivity_files(self.param2_values)
         else:
             param1_values = self.param1_values
             param2_values = self.param2_values
 
-        storage = TOMLStorage()
-        self.stage_in_obj = storage.write_in_file(self.simulator, self.param1, self.param2, param1_values,
-                                                  param2_values, self.metrics, self.config.n_threads, self.file_name)
+        toml_storage = TOMLStorage()
+        self.storage_file = toml_storage.write_in_file(self.simulator, self.param1, self.param2, param1_values,
+                                                       param2_values, self.metrics, self.config.n_threads,
+                                                       self.file_name)
 
-    def subtract_regions(self, values):
-        regions = []
+    def get_connectivity_files(self, values):
+        connectivity_files = []
         for connectivity in values:
-            regions.append(connectivity.tract_lengths.shape[0])
+            connectivity_files.append(f"connectivity_{connectivity.tract_lengths.shape[0]}.zip")
 
-        return regions
+        return connectivity_files
 
     def connect_client(self):
         LOGGER.info(f"Connecting to {self.config.site}...")
@@ -205,7 +207,7 @@ class HPCLaunch(object):
             LOGGER.info("Successfully finished the environment setup.")
 
         command = f"{self._module_load_command} && {self._activate_command} && " \
-                  f"python  {executable} {self.stage_in_obj}"
+                  f"python  {executable} {self.storage_file}"
         LOGGER.info(f"Launching workflow for command: \n {command}")
         job = Description(
             executable=command,

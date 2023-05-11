@@ -24,11 +24,12 @@ from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
 from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
 from tvb.analyzers.metric_variance_of_node_variance import compute_variance_of_node_variance_metric
 from tvb.datatypes.time_series import TimeSeries
+from tvb.datatypes import connectivity
 from tvb.simulator.simulator import Simulator
 from joblib import Parallel, delayed
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
 from tvbwidgets.core.logger.builder import get_logger
-from tvbwidgets.core.pse.toml_storage import TOMLStorage
+from tvbwidgets.core.pse.toml_storage import TOMLStorage, read_from_file
 
 # Here put explicit module name string, for __name__ == __main__
 LOGGER = get_logger("tvbwidgets.core.pse.parameters")
@@ -393,12 +394,18 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
 if __name__ == '__main__':
     file = sys.argv[1]
     toml_storage = TOMLStorage()
-    obj = toml_storage.read_from_file(file)
+    obj = read_from_file(file)
 
     param1 = obj["parameters"]["param1"]
     param2 = obj["parameters"]["param2"]
-    param1_values = [float(elem) for elem in obj["parameters"]["param1_values"]]
-    param2_values = [float(elem) for elem in obj["parameters"]["param2_values"]]
+    if param1 != "connectivity":
+        param1_values = [float(elem) for elem in obj["parameters"]["param1_values"]]
+    else:
+        param1_values = [connectivity.Connectivity.from_file(elem) for elem in obj["connectivity"]["param1_values"]]
+    if param2 != "connectivity":
+        param2_values = [float(elem) for elem in obj["parameters"]["param2_values"]]
+    else:
+        param2_values = [connectivity.Connectivity.from_file(elem) for elem in obj["connectivity"]["param2_values"]]
     metrics = obj["parameters"]["metrics"]
     file_name = obj["parameters"]["file_name"]
     n_threads = obj["parameters"]["n_threads"]
