@@ -10,7 +10,10 @@ import logging
 import numpy as np
 from ipywidgets import Checkbox
 from tvbwidgets.tests.ts_generator import generate_ts_with_mode_and_sv
-from tvbwidgets.ui.ts_widget import TimeSeriesWidget, WrapperTVB, WrapperNumpy
+from tvbwidgets.ui.ts.mne_ts_widget import TimeSeriesWidgetMNE
+from tvbwidgets.ui.ts.plotly_ts_widget import TimeSeriesWidgetPlotly
+from tvbwidgets.ui.ts.data_wrappers.tvb_data_wrapper import WrapperTVB
+from tvbwidgets.ui.ts.data_wrappers.numpy_data_wrapper import WrapperNumpy
 
 
 # =========================================== TEST WRAPPER NUMPY =======================================================
