@@ -107,6 +107,7 @@ class TOMLStorage:
         # TODO add the 'stvar' attribute to stage-in simulator, if needed
         data["simulator"] = {"model_parameters": {}, "attributes": {"state_variable_range": {}}}
 
+        simulator.configure()
         data["simulator"]["model_class"] = simulator.model.__class__.__name__
         data["simulator"]["coupling_class"] = simulator.coupling.__class__.__name__
         data["simulator"]["conduction_speed"] = simulator.conduction_speed
