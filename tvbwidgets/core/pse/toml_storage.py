@@ -68,7 +68,12 @@ class TOMLStorage:
             if k not in ['state_variable_range', 'variables_of_interests']:
                 raise NotImplementedError(f'unsupported attribute: {k}')
 
-        simulator.connectivity = Connectivity.from_file()
+        # Here we might have various other loading mechanisms for the conn - such as from Siibra
+        if 'connectivity_from_file' in simulator_data:
+            from_file = simulator_data["connectivity_from_file"]
+            simulator.connectivity = Connectivity.from_file(from_file)
+        else:
+            simulator.connectivity = Connectivity.from_file()
         return simulator
 
     @staticmethod
@@ -98,6 +103,7 @@ class TOMLStorage:
 
     @staticmethod
     def _stage_in_simulator(data, simulator):
+        # type (dict, Simulator) -> dict
         # TODO add the 'stvar' attribute to stage-in simulator, if needed
         data["simulator"] = {"model_parameters": {}, "attributes": {"state_variable_range": {}}}
 
@@ -105,6 +111,8 @@ class TOMLStorage:
         data["simulator"]["coupling_class"] = simulator.coupling.__class__.__name__
         data["simulator"]["conduction_speed"] = simulator.conduction_speed
         data["simulator"]["length"] = simulator.simulation_length
+        # TODO this is far from ideal for a Connectivity
+        data["simulator"]["connectivity_from_file"] = f"connectivity_{simulator.connectivity.number_of_regions}.zip"
 
         for elem in type(simulator.model).declarative_attrs:
             attribute = getattr(type(simulator.model), elem)
