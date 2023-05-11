@@ -134,13 +134,13 @@ def test_get_hover_channel_value_wrapper_tvb(wrapper_tvb):
 @pytest.fixture
 def tsw():
     """ Returns an empty TS widget """
-    return TimeSeriesWidget()
+    return TimeSeriesWidgetMNE()
 
 
 @pytest.fixture
 def tsw_tvb_data(tsr_4d):
     """ Returns a TS widget initialized with a tvb data wrapper"""
-    tsw_tvb_data = TimeSeriesWidget()
+    tsw_tvb_data = TimeSeriesWidgetMNE()
     tsw_tvb_data.add_datatype(tsr_4d)
     return tsw_tvb_data
 
@@ -182,7 +182,7 @@ def test_create_checkboxes(tsw_tvb_data):
 
 def test_get_widget(tsw_tvb_data):
     tsw_tvb_data.get_widget()
-    assert type(tsw_tvb_data) == TimeSeriesWidget
+    assert type(tsw_tvb_data) == TimeSeriesWidgetMNE
 
 
 def test_update_ts(caplog, tsw_tvb_data):
@@ -199,7 +199,7 @@ def test_update_ts(caplog, tsw_tvb_data):
 
 
 def test_create_instructions_region():
-    instr_area = TimeSeriesWidget._create_instructions_region()
+    instr_area = TimeSeriesWidgetMNE._create_instructions_region()
 
     shortcuts = instr_area.children[0].children[0].children
     descriptions = instr_area.children[0].children[1].children
@@ -215,4 +215,4 @@ def test_get_next_checked_channel():
     ch_start = 0
     checked_list = [2, 3, 4, 5]
     ch_order = [0, 1, 2, 3, 4, 5]
-    assert TimeSeriesWidget._get_next_checked_channel(ch_start, checked_list, ch_order) == 2
+    assert TimeSeriesWidgetMNE._get_next_checked_channel(ch_start, checked_list, ch_order) == 2
