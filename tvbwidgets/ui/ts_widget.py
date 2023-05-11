@@ -600,6 +600,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.start_time = 0
         self.end_time = 0
         self.std_step = 0
+        self.amplitude = 1
 
         # plot & UI
         self.checkboxes = dict()
@@ -608,8 +609,10 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.channel_selection_area = widgets.HBox(layout=widgets.Layout(width='25%', height='700px',
                                                                          margin="50px 0px 0px 0px"))
         self.plot_and_channels_area.children += (self.output, self.channel_selection_area)
+        self.scaling_title = widgets.Label(value='Increase/Decrease signal scaling (scaling value to the right)')
+        self.scaling_slider = widgets.IntSlider(value=1, layout=widgets.Layout(width='30%'))
 
-        super().__init__([self.plot_and_channels_area],
+        super().__init__([self.plot_and_channels_area, self.scaling_title, self.scaling_slider],
                          layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget with Plotly initialized")
 
@@ -618,28 +621,33 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         super()._populate_from_data_wrapper(data_wrapper=data_wrapper)
         del self.ch_order, self.ch_types  # delete these as we don't use them in plotly
         self.channels_area = self._create_channel_selection_area(array_wrapper=data_wrapper)
+        self._setup_scaling_slider()
         self.channel_selection_area.children += (self.channels_area,)
         self.plot_ts_with_plotly()
 
     # =========================================== PLOT =================================================================
-    def add_traces(self, data=None, ch_names=None):
-        # create traces for each signal
-        data_from_raw, times = self.raw[:, :]
-        data = data if data is not None else data_from_raw
-        ch_names = ch_names if ch_names is not None else self.ch_names
-
+    def add_traces_to_plot(self, data, ch_names):
+        """ Draw the traces """
         # traces will be added from bottom to top, so reverse the lists to put the first channel on top
         data = data[::-1]
         ch_names = ch_names[::-1]
 
-        self.std_step = 5 * np.max(np.std(data, axis=1))
         self.fig.add_traces(
-            [dict(y=ts + i * self.std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}')
+            [dict(y=ts * self.amplitude + i * self.std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}')
              for i, (ch_name, ts) in enumerate(zip(ch_names, data))]
         )
 
+    def _populate_plot(self, data=None, ch_names=None):
+        # create traces for each signal
+        data_from_raw, times = self.raw[:, :]
+        data = data if data is not None else data_from_raw
+        ch_names = ch_names if ch_names is not None else self.ch_names
+        self.std_step = 5 * np.max(np.std(data, axis=1))
+
+        self.add_traces_to_plot(data, ch_names)
+
         # display channel names for each trace
-        for i, ch_name in enumerate(ch_names):
+        for i, ch_name in enumerate(ch_names[::-1]):
             self.fig.add_annotation(
                 x=0.0, y=i * self.std_step,
                 text=ch_name,
@@ -680,7 +688,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
 
         self.fig = FigureWidgetResampler()
 
-        self.add_traces(data, ch_names)
+        self._populate_plot(data, ch_names)
 
         # different visual settings
         self.fig.update_layout(
@@ -696,6 +704,24 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         with self.output:
             self.output.clear_output(wait=True)
             display(self.fig)
+
+    # ================================================ TIMELINE ========================================================
+    def _setup_scaling_slider(self):
+        # set min and max scaling values
+        self.scaling_slider.min = 1
+        self.scaling_slider.max = 10
+        self.scaling_slider.observe(self.update_scaling, names='value', type='change')
+
+    def update_scaling(self, val):
+        """ Update the amplitude of traces based on slider value """
+        new_val = val['new']
+        self.amplitude = new_val
+
+        # delete old traces
+        self.fig.data = []
+        data =  self.raw[:, :][0]
+
+        self.add_traces_to_plot(data, self.ch_names)
 
     # =========================================== CHANNELS SELECTION ===================================================
     def _create_channel_selection_area(self, array_wrapper, no_checkbox_columns=2):
