@@ -80,18 +80,20 @@ class SimSeq:
             exec(f'obj.{key} = val',
                  {'obj': obj, 'val': val})
         self.pos += 1
+        # Configure sim again after setting the new values (critical when changing the connectivity, for example)
+        obj.configure()
         return obj
 
 
 class Metric:
-    "A summary statistic for a simulation."
+    """A summary statistic for a simulation."""
 
     def __call__(self, t, y) -> np.ndarray:  # what about multi metric returning dict of statistics? Also, chaining?
         pass
 
 
 class NodeVariability(Metric):
-    "A simplistic simulation statistic."
+    """A simplistic simulation statistic."""
 
     def __call__(self, t, y):
         return np.std(y[t > (t[-1] / 2), 0, :, 0], axis=0)
@@ -198,10 +200,10 @@ class SaveDataToDisk(Reduction):
         pse_result.metrics_names = self.metrics
         pse_result.results = metrics_data_np.reshape((len(self.metrics), len(self.x_values), len(self.y_values)))
 
-        f = PSEStorage(self.file_name)
-        f.store(pse_result)
+        pse_file = PSEStorage(self.file_name)
+        pse_file.store(pse_result)
         LOGGER.info(f"{self.file_name} file created")
-        f.close()
+        pse_file.close()
 
 
 @dataclass
