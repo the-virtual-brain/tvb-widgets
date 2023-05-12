@@ -7,8 +7,10 @@
 
 import numpy as np
 import ipywidgets as widgets
+from IPython.core.display_functions import display
 from plotly_resampler import register_plotly_resampler, FigureWidgetResampler
 from tvbwidgets.ui.ts.base_ts_widget import TimeSeriesWidgetBase
+
 
 class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
     """ TimeSeries Widget drawn using plotly"""
@@ -31,11 +33,12 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.output = widgets.Output(layout=widgets.Layout(width='75%'))
         self.channel_selection_area = widgets.HBox(layout=widgets.Layout(width='25%', height='700px',
                                                                          margin="50px 0px 0px 0px"))
+        self.info_area = widgets.HBox(layout=widgets.Layout(width='100%'))
         self.plot_and_channels_area.children += (self.output, self.channel_selection_area)
         self.scaling_title = widgets.Label(value='Increase/Decrease signal scaling (scaling value to the right)')
         self.scaling_slider = widgets.IntSlider(value=1, layout=widgets.Layout(width='30%'))
 
-        super().__init__([self.plot_and_channels_area, self.scaling_title, self.scaling_slider],
+        super().__init__([self.plot_and_channels_area, self.scaling_title, self.scaling_slider, self.info_area],
                          layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget with Plotly initialized")
 
@@ -43,9 +46,13 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
     def _populate_from_data_wrapper(self, data_wrapper):
         super()._populate_from_data_wrapper(data_wrapper=data_wrapper)
         del self.ch_order, self.ch_types  # delete these as we don't use them in plotly
+        # populate channel selection area
         self.channels_area = self._create_channel_selection_area(array_wrapper=data_wrapper)
         self._setup_scaling_slider()
         self.channel_selection_area.children += (self.channels_area,)
+        # populate info area
+        info = self._create_info_area()
+        self.info_area.children += (info,)
         self.plot_ts_with_plotly()
 
     # =========================================== PLOT =================================================================
@@ -142,7 +149,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
 
         # delete old traces
         self.fig.data = []
-        data =  self.raw[:, :][0]
+        data = self.raw[:, :][0]
 
         self.add_traces_to_plot(data, self.ch_names)
 
@@ -205,3 +212,47 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
 
         # redraw the entire plot
         self.plot_ts_with_plotly(data, ch_names)
+
+    # ================================================ INFO AREA =======================================================
+    def _create_info_area(self):
+        # navigate through timeline
+        navigate_timeline_title = widgets.HTML(value=f'<b>Navigate timeline</b>')
+        navigate_timeline_text = 'To navigate through the timeline, go with your cursor over the timeline (bottom ' \
+                                 'area of the plot). When you see the \'↔\' symbol,<br>' \
+                                 'click and drag your cursor to the left/right to navigate through the timeline.'
+        navigate_timeline_label = widgets.HTML(value=navigate_timeline_text)
+
+        # modify spacing between channels
+        modify_spacing_title = widgets.HTML(value=f'<b>Modify spacing</b>')
+
+        modify_spacing_text = 'To increase the spacing between the channels, go with your cursor over the' \
+                              ' very bottom or very top part of the y-axis. When you see the \'↕\' symbol, <br>' \
+                              'click and drag your cursor outside the plot area to increase the spacing between ' \
+                              'the channels. ' \
+                              'To decrease the spacing, click and drag towards the plot area.'
+        modify_spacing_label = widgets.HTML(value=f'{modify_spacing_text}')
+
+        # modify signal amplitude
+        modify_amplitude_title = widgets.HTML(value=f'<b>Modify signal amplitude</b>')
+        modify_amplitude_text = 'To modify the amplitude of the signals, use the above slider. Dragging to the' \
+                                'right means increasing the amplitude, dragging to the left means decreasing it. <br>' \
+                                'The value by which the signals are multiplied is written to the right.'
+        modify_amplitude_label = widgets.HTML(value=f'{modify_amplitude_text}')
+
+        # additional info and link to wiki
+        additional_info_title = widgets.HTML(value=f'<b>Additional information</b>')
+        additional_info_text = 'For more information about this widget and and example videos on how to use it, ' \
+                               'visit: '
+        additional_info_label = widgets.HTML(value=f"{additional_info_text} "
+                                                   f"<a href=https://wiki.ebrains.eu/bin/view/Collabs/tvb-widgets/Widget%20TimeSeries/ target='_blank'>"
+                                                   f"https://wiki.ebrains.eu/bin/view/Collabs/tvb-widgets/Widget%20TimeSeries/"
+                                                   f"</a>")
+
+        more_info_container = widgets.VBox(children=[navigate_timeline_title, navigate_timeline_label,
+                                                     modify_spacing_title, modify_spacing_label, modify_amplitude_title,
+                                                     modify_amplitude_label, additional_info_title,
+                                                     additional_info_label])
+        info_area = widgets.Accordion(children=[more_info_container], selected_index=None,
+                                      layout=widgets.Layout(width='max-content'))
+        info_area.set_title(0, 'More info')
+        return info_area
