@@ -69,7 +69,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
 
     def _populate_plot(self, data=None, ch_names=None):
         # create traces for each signal
-        data_from_raw, times = self.raw[:, :]
+        data_from_raw = self.raw[:, :][0]
         data = data if data is not None else data_from_raw
         ch_names = ch_names if ch_names is not None else self.ch_names
         self.std_step = 10 * np.max(np.std(data, axis=1))
@@ -216,14 +216,14 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
     # ================================================ INFO AREA =======================================================
     def _create_info_area(self):
         # navigate through timeline
-        navigate_timeline_title = widgets.HTML(value=f'<b>Navigate timeline</b>')
+        navigate_timeline_title = widgets.HTML(value='<b>Navigate timeline</b>')
         navigate_timeline_text = 'To navigate through the timeline, go with your cursor over the timeline (bottom ' \
                                  'area of the plot). When you see the \'↔\' symbol,<br>' \
                                  'click and drag your cursor to the left/right to navigate through the timeline.'
         navigate_timeline_label = widgets.HTML(value=navigate_timeline_text)
 
         # modify spacing between channels
-        modify_spacing_title = widgets.HTML(value=f'<b>Modify spacing</b>')
+        modify_spacing_title = widgets.HTML(value='<b>Modify spacing</b>')
 
         modify_spacing_text = 'To increase the spacing between the channels, go with your cursor over the' \
                               ' very bottom or very top part of the y-axis. When you see the \'↕\' symbol, <br>' \
@@ -233,14 +233,14 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         modify_spacing_label = widgets.HTML(value=f'{modify_spacing_text}')
 
         # modify signal amplitude
-        modify_amplitude_title = widgets.HTML(value=f'<b>Modify signal amplitude</b>')
+        modify_amplitude_title = widgets.HTML(value='<b>Modify signal amplitude</b>')
         modify_amplitude_text = 'To modify the amplitude of the signals, use the above slider. Dragging to the' \
                                 'right means increasing the amplitude, dragging to the left means decreasing it. <br>' \
                                 'The value by which the signals are multiplied is written to the right.'
         modify_amplitude_label = widgets.HTML(value=f'{modify_amplitude_text}')
 
         # additional info and link to wiki
-        additional_info_title = widgets.HTML(value=f'<b>Additional information</b>')
+        additional_info_title = widgets.HTML(value='<b>Additional information</b>')
         additional_info_text = 'For more information about this widget and and example videos on how to use it, ' \
                                'visit: '
         additional_info_label = widgets.HTML(value=f"{additional_info_text} "

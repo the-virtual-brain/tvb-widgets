@@ -11,11 +11,11 @@ import numpy as np
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 from IPython.core.display_functions import display
-from tvb.datatypes.time_series import TimeSeries
 from tvbwidgets.core.ini_parser import parse_ini_file
 from tvbwidgets.ui.ts.base_ts_widget import TimeSeriesWidgetBase
 
 mne.set_config('MNE_BROWSER_BACKEND', 'matplotlib')
+
 
 class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
     """ Actual TimeSeries Widget """
@@ -81,41 +81,42 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         return instr_accordion
 
     # =========================================== PLOT =================================================================
+    def update_on_plot_interaction(self, _):
+        """
+        Function that updates the checkboxes when the user navigates through the plot
+        using either the mouse or the keyboard
+        """
+        picks = list(self.fig.mne.picks)
+        for ch in picks:
+            ch_name = self.fig.mne.ch_names[ch]
+            cb = self.checkboxes[ch_name]
+            if not cb.value:
+                cb.value = True
+        self._update_fig()
+
+    def hover(self, event):
+        """ Display the channel value when hovering over the plot"""
+        self.channel_val_area.children = []
+
+        values = []  # list of label values for channels we are hovering over
+        x = event.xdata  # time unit (s, ms) we are hovering over
+        lines = self.fig.mne.traces  # all currently visible channels
+        sel1, sel2 = self._get_selection_values()
+        if event.inaxes == self.fig.mne.ax_main:
+            for line in lines:
+                if line.contains(event)[0]:
+                    line_index = lines.index(line)  # channel index among displayed channels
+                    ch_index = self.fig.mne.picks[line_index]  # channel index among all channels
+                    ch_name = self.fig.mne.ch_names[ch_index]
+
+                    ch_value = self.data.get_hover_channel_value(x, ch_index, sel1, sel2)
+                    label_val = f'{ch_name}: {ch_value}'
+                    values.append(label_val)
+            for v in values:
+                val_label = widgets.Label(value=v)
+                self.channel_val_area.children += (val_label,)
+
     def _redraw(self):
-        def update_on_plot_interaction(_):
-            """
-            Function that updates the checkboxes when the user navigates through the plot
-            using either the mouse or the keyboard
-            """
-            picks = list(self.fig.mne.picks)
-            for ch in picks:
-                ch_name = self.fig.mne.ch_names[ch]
-                cb = self.checkboxes[ch_name]
-                if not cb.value:
-                    cb.value = True
-            self._update_fig()
-
-        def hover(event):
-            self.channel_val_area.children = []
-
-            values = []  # list of label values for channels we are hovering over
-            x = event.xdata  # time unit (s, ms) we are hovering over
-            lines = self.fig.mne.traces  # all currently visible channels
-            sel1, sel2 = self._get_selection_values()
-            if event.inaxes == self.fig.mne.ax_main:
-                for line in lines:
-                    if line.contains(event)[0]:
-                        line_index = lines.index(line)  # channel index among displayed channels
-                        ch_index = self.fig.mne.picks[line_index]  # channel index among all channels
-                        ch_name = self.fig.mne.ch_names[ch_index]
-
-                        ch_value = self.data.get_hover_channel_value(x, ch_index, sel1, sel2)
-                        label_val = f'{ch_name}: {ch_value}'
-                        values.append(label_val)
-                for v in values:
-                    val_label = widgets.Label(value=v)
-                    self.channel_val_area.children += (val_label,)
-
         # display the plot
         with plt.ioff():
             # create the plot
@@ -128,9 +129,9 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
             self.fig.mne.ch_types = np.array(self.ch_types)
 
             # add custom widget handling on keyboard and mouse events
-            self.fig.canvas.mpl_connect('key_press_event', update_on_plot_interaction)
-            self.fig.canvas.mpl_connect('button_press_event', update_on_plot_interaction)
-            self.fig.canvas.mpl_connect("motion_notify_event", hover)
+            self.fig.canvas.mpl_connect('key_press_event', self.update_on_plot_interaction)
+            self.fig.canvas.mpl_connect('button_press_event', self.update_on_plot_interaction)
+            self.fig.canvas.mpl_connect("motion_notify_event", self.hover)
             with self.output:
                 self.output.clear_output(wait=True)
                 display(self.fig.canvas)
@@ -249,5 +250,5 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         self.fig._update_vscroll()
         try:
             self.fig._redraw(annotations=True)
-        except:
+        except ValueError:
             self.fig._redraw(update_data=False)  # needed in case of Unselect all
