@@ -7,6 +7,7 @@
 
 import time
 import pyunicore.client
+from pathlib import Path
 from typing import Callable
 from datetime import datetime
 from urllib.error import HTTPError
@@ -17,6 +18,8 @@ from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.core.hpc.config import HPCConfig
 from tvbwidgets.core.logger.builder import get_logger
 from tvbwidgets.core.pse.parameters import PROGRESS_STATUS
+from tvb.simulator.simulator import Simulator
+from tvbwidgets.core.pse.toml_storage import TOMLStorage
 
 LOGGER = get_logger(__name__)
 
@@ -28,8 +31,9 @@ class HPCLaunch(object):
     JOB_TYPE_KEY = 'Job type'
     INTERACTIVE_KEY = 'interactive'
 
-    def __init__(self, hpc_config, param1, param2, param1_values, param2_values, metrics, file_name, update_progress):
-        # type: (HPCConfig, str, str, list, list, list, str, Callable) -> None
+    def __init__(self, simulator, hpc_config, param1, param2, param1_values, param2_values, metrics, file_name,
+                 update_progress):
+        # type: (Simulator, HPCConfig, str, str, list, list, list, str, Callable) -> None
         self.config = hpc_config
         self.param1 = param1
         self.param2 = param2
@@ -38,8 +42,8 @@ class HPCLaunch(object):
         self.metrics = metrics
         self.file_name = file_name
         self.update_progress = update_progress
-        # TODO WID-208 link here the serialized simulator in the list of inputs
-        self.submit_job("tvbwidgets.core.pse.parameters", [], True)
+        serialized_config = self._serialize_configuration(simulator)
+        self.submit_job("tvbwidgets.core.pse.parameters", serialized_config, True)
 
     @property
     def _activate_command(self):
@@ -58,6 +62,28 @@ class HPCLaunch(object):
     @property
     def _install_dependencies_command(self):
         return f'pip install -U pip && pip install {self.pip_libraries}'
+
+    def _serialize_configuration(self, sim):
+        # type: (Simulator) -> Path
+        if self.param1 == "connectivity":
+            param1_values = self.get_connectivity_files(self.param1_values)
+            param2_values = self.param2_values
+        elif self.param2 == "connectivity":
+            param1_values = self.param1_values
+            param2_values = self.get_connectivity_files(self.param2_values)
+        else:
+            param1_values = self.param1_values
+            param2_values = self.param2_values
+
+        return TOMLStorage.write_pse_in_file(sim, self.param1, self.param2, param1_values, param2_values,
+                                             self.metrics, self.config.n_threads, self.file_name)
+
+    def get_connectivity_files(self, values):
+        connectivity_files = []
+        for connectivity in values:
+            connectivity_files.append(f"connectivity_{connectivity.tract_lengths.shape[0]}.zip")
+
+        return connectivity_files
 
     def connect_client(self):
         LOGGER.info(f"Connecting to {self.config.site}...")
@@ -142,7 +168,8 @@ class HPCLaunch(object):
         date = datetime.strptime(job.properties['submissionTime'], '%Y-%m-%dT%H:%M:%S+%f')
         return date.strftime('%m.%d.%Y, %H_%M_%S')
 
-    def submit_job(self, executable, inputs, do_stage_out):
+    def submit_job(self, executable, path_input, do_stage_out):
+        # type (str, Path, bool) -> None
         client = self.connect_client()
         if client is None:
             LOGGER.error(f"Could not connect to {self.config.site}, stopping execution.")
@@ -176,15 +203,14 @@ class HPCLaunch(object):
             LOGGER.info("Successfully finished the environment setup.")
 
         command = f"{self._module_load_command} && {self._activate_command} && " \
-                  f"python -m  {executable} {self.param1} {self.param2} '{self.param1_values}' " \
-                  f"'{self.param2_values}' '{self.metrics}' {self.file_name} {self.config.n_threads}"
+                  f"python -m {executable} {path_input}"
         LOGGER.info(f"Launching workflow for command: \n {command}")
         job = Description(
             executable=command,
             project=self.config.project,
             resources=self.config.resources
         )
-        job_workflow = client.new_job(job.to_dict(), inputs=inputs)
+        job_workflow = client.new_job(job.to_dict(), inputs=[path_input.as_posix()])
         LOGGER.info(f"Job is running at {self.config.site}: {job_workflow.working_dir.properties['mountPoint']}. "
                     f"Submission time is: {self._format_date_for_job(job_workflow)}.")
         LOGGER.info('Finished remote launch.')

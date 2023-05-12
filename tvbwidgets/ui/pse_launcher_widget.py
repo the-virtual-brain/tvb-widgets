@@ -88,7 +88,7 @@ class PSELauncher(TVBWidget):
         y_values = self.compute_params_values(self.param_2.value)
         file_name = self.verify_file_name()
         self.progress.min = 0
-        self.progress.max = len(x_values) * len(y_values) + 1   # no of simulations + 1 for preparation step
+        self.progress.max = len(x_values) * len(y_values) + 1  # no of simulations + 1 for preparation step
         self.update_progress(0)
         return file_name, x_values, y_values
 
@@ -108,7 +108,7 @@ class PSELauncher(TVBWidget):
         def hpc_launch(_change):
             if self.launch_hpc_button.button_style == "success":
                 file_name, x_values, y_values = self._prepare_launch("HPC")
-                HPCLaunch(self.hpc_config, self.param_1.value, self.param_2.value, x_values, y_values,
+                HPCLaunch(self.simulator, self.hpc_config, self.param_1.value, self.param_2.value, x_values, y_values,
                           list(self.metrics_sm.value), file_name, self.update_progress)
                 self._update_info_message("PSE completed! ")
 

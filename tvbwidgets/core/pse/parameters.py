@@ -13,7 +13,6 @@ A collection of parameter related classes and functions.
 """
 
 import os
-import json
 import sys
 import threading
 import numpy as np
@@ -24,12 +23,12 @@ from tvb.analyzers.metric_variance_global import compute_variance_global_metric
 from tvb.analyzers.metric_kuramoto_index import compute_kuramoto_index_metric
 from tvb.analyzers.metric_proxy_metastability import compute_proxy_metastability_metric
 from tvb.analyzers.metric_variance_of_node_variance import compute_variance_of_node_variance_metric
-from tvb.datatypes.connectivity import Connectivity
 from tvb.datatypes.time_series import TimeSeries
 from tvb.simulator.simulator import Simulator
 from joblib import Parallel, delayed
 from tvbwidgets.core.pse.pse_data import PSEData, PSEStorage
 from tvbwidgets.core.logger.builder import get_logger
+from tvbwidgets.core.pse.toml_storage import TOMLStorage
 
 # Here put explicit module name string, for __name__ == __main__
 LOGGER = get_logger("tvbwidgets.core.pse.parameters")
@@ -80,8 +79,6 @@ class SimSeq:
             exec(f'obj.{key} = val',
                  {'obj': obj, 'val': val})
         self.pos += 1
-        # Configure sim again after setting the new values (critical when changing the connectivity, for example)
-        obj.configure()
         return obj
 
 
@@ -362,7 +359,7 @@ def compute_metrics(sim, metrics_):
     return computed_metrics
 
 
-def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, file_name,
+def launch_local_param(sim, param1, param2, x_values, y_values, metrics, file_name,
                        update_progress=None, n_threads=4):
     input_values = []
     for elem1 in x_values:
@@ -377,7 +374,7 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
                 el2_value = np.array([elem2])
             input_values.append([el1_value, el2_value])
 
-    sim = simulator.configure()  # deepcopy doesn't work on un-configured simulator o_O
+    sim = sim.configure()  # deepcopy doesn't work on un-configured simulator o_O
     seq = SimSeq(
         template=sim,
         params=[param1, param2],
@@ -392,24 +389,17 @@ def launch_local_param(simulator, param1, param2, x_values, y_values, metrics, f
 
 
 if __name__ == '__main__':
-    param1 = sys.argv[1]
-    param2 = sys.argv[2]
-    param1_values = json.loads(sys.argv[3])
-    param2_values = json.loads(sys.argv[4])
-    n = len(sys.argv[5])
-    metrics = sys.argv[5][1:n - 1].split(', ')
-    file_name = sys.argv[6]
-    n_threads = int(sys.argv[7])
+    in_file = sys.argv[1]
+    name_param1, vals_param1, name_param2, vals_param2, \
+        metrics_list, result_file, n_th, sim_obj = TOMLStorage.read_pse_from_file(in_file)
 
-    LOGGER.info(f"We are now starting PSE for '{param1}' x '{param2}' on {n_threads} threads\n"
-                f"Expect the result in '{file_name}' \n"
-                f"{n} Metrics {metrics}")
-
-    # TODO WID-208 deserialize this instance after being passed from the remote launcher
-    sim = Simulator(connectivity=Connectivity.from_file()).configure()
+    LOGGER.info(f"We are now starting PSE for '{name_param1}' x '{name_param2}' on {n_th} threads\n"
+                f"Expect the result in '{result_file}' \n"
+                f"Metrics {metrics_list} \n"
+                f"Simulator {sim_obj}")
 
     with open(PROGRESS_STATUS, "w+") as f:
         f.write("0")
 
-    launch_local_param(sim, param1, param2, param1_values, param2_values, metrics, file_name,
-                       n_threads=n_threads)
+    launch_local_param(sim_obj, name_param1, name_param2, vals_param1, vals_param2, metrics_list, result_file,
+                       n_threads=n_th)
