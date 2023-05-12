@@ -13,6 +13,7 @@ from datetime import datetime
 from tvb.basic.neotraits._attr import NArray
 from tvb.datatypes.connectivity import Connectivity
 from tvb.simulator.simulator import Simulator
+from tvbwidgets.core.pse.storage import StoreObj
 
 
 class TOMLStorage:
@@ -38,7 +39,7 @@ class TOMLStorage:
         n_threads = obj["parameters"]["n_threads"]
 
         simulator = TOMLStorage._stage_out_simulator(obj["simulator"])
-        return param1, param1_values, param2, param2_values, metrics, file_name, n_threads, simulator
+        return StoreObj(simulator, param1, param2, param1_values, param2_values, metrics, n_threads, file_name)
 
     @staticmethod
     def _stage_out_simulator(simulator_data):
@@ -77,27 +78,29 @@ class TOMLStorage:
         return simulator
 
     @staticmethod
-    def write_pse_in_file(simulator, param1, param2, param1_values, param2_values, metrics, n_threads, file_name):
+    def write_pse_in_file(store_obj):
         data = {}
         stage_in_obj = Path(f"pse_{datetime.now().strftime('%Y%m%d_%H%M%S')}.toml")
         if not stage_in_obj.exists():
             stage_in_obj.touch()
 
         with open(stage_in_obj, "w") as f:
-            data["parameters"] = {"param1": param1, "param2": param2, "metrics": metrics,
-                                  "file_name": file_name, "n_threads": n_threads}
+            data["parameters"] = {"param1": store_obj.param1, "param2": store_obj.param2,
+                                  "metrics": store_obj.metrics, "file_name": store_obj.file_name,
+                                  "n_threads": store_obj.n_threads}
 
-            if param1 == "connectivity":
-                data["parameters"].update({"param2_values": param2_values})
-                data["connectivity"] = {"param1_values": param1_values}
+            if store_obj.param1 == "connectivity":
+                data["parameters"].update({"param2_values": store_obj.param2_values})
+                data["connectivity"] = {"param1_values": store_obj.param1_values}
 
-            elif param2 == "connectivity":
-                data["parameters"].update({"param1_values": param1_values})
-                data["connectivity"] = {"param2_values": param2_values}
+            elif store_obj.param2 == "connectivity":
+                data["parameters"].update({"param1_values": store_obj.param1_values})
+                data["connectivity"] = {"param2_values": store_obj.param2_values}
             else:
-                data["parameters"].update({"param1_values": param1_values, "param2_values": param2_values})
+                data["parameters"].update({"param1_values": store_obj.param1_values,
+                                           "param2_values": store_obj.param2_values})
 
-            data_sim = TOMLStorage._stage_in_simulator(data, simulator)
+            data_sim = TOMLStorage._stage_in_simulator(data, store_obj.sim)
             toml.dump(data_sim, f)
         return stage_in_obj
 

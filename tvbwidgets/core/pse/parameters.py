@@ -390,16 +390,17 @@ def launch_local_param(sim, param1, param2, x_values, y_values, metrics, file_na
 
 if __name__ == '__main__':
     in_file = sys.argv[1]
-    name_param1, vals_param1, name_param2, vals_param2, \
-        metrics_list, result_file, n_th, sim_obj = TOMLStorage.read_pse_from_file(in_file)
+    stored_obj = TOMLStorage.read_pse_from_file(in_file)
 
-    LOGGER.info(f"We are now starting PSE for '{name_param1}' x '{name_param2}' on {n_th} threads\n"
-                f"Expect the result in '{result_file}' \n"
-                f"Metrics {metrics_list} \n"
-                f"Simulator {sim_obj}")
+    LOGGER.info(f"We are now starting PSE for '{stored_obj.param1}' x '{stored_obj.param2}' on "
+                f"{stored_obj.n_threads} threads\n"
+                f"Expect the result in '{stored_obj.file_name}' \n"
+                f"Metrics {stored_obj.metrics} \n"
+                f"Simulator {stored_obj.sim}")
 
     with open(PROGRESS_STATUS, "w+") as f:
         f.write("0")
 
-    launch_local_param(sim_obj, name_param1, name_param2, vals_param1, vals_param2, metrics_list, result_file,
-                       n_threads=n_th)
+    launch_local_param(stored_obj.sim, stored_obj.param1, stored_obj.param2, stored_obj.param1_values,
+                       stored_obj.param2_values, stored_obj.metrics, stored_obj.file_name,
+                       n_threads=stored_obj.n_threads)

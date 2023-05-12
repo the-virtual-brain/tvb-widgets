@@ -19,6 +19,7 @@ from tvbwidgets.core.hpc.config import HPCConfig
 from tvbwidgets.core.logger.builder import get_logger
 from tvbwidgets.core.pse.parameters import PROGRESS_STATUS
 from tvb.simulator.simulator import Simulator
+from tvbwidgets.core.pse.storage import StoreObj
 from tvbwidgets.core.pse.toml_storage import TOMLStorage
 
 LOGGER = get_logger(__name__)
@@ -75,8 +76,8 @@ class HPCLaunch(object):
             param1_values = self.param1_values
             param2_values = self.param2_values
 
-        return TOMLStorage.write_pse_in_file(sim, self.param1, self.param2, param1_values, param2_values,
-                                             self.metrics, self.config.n_threads, self.file_name)
+        return TOMLStorage.write_pse_in_file(StoreObj(sim, self.param1, self.param2, param1_values, param2_values,
+                                                      self.metrics, self.config.n_threads, self.file_name))
 
     def get_connectivity_files(self, values):
         connectivity_files = []
