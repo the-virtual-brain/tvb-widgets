@@ -7,6 +7,7 @@
 
 from abc import ABC, abstractmethod
 
+
 class ABCDataWrapper(ABC):
     """ Wrap any TimeSeries for TSWidget to read/parse uniformly"""
     extra_dimensions = {1: ("State var.", None),

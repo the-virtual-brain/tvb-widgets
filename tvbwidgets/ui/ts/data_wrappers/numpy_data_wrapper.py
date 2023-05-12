@@ -10,6 +10,7 @@ import numpy as np
 from tvbwidgets.core.exceptions import InvalidInputException
 from tvbwidgets.ui.ts.data_wrappers.base_data_wrapper import ABCDataWrapper
 
+
 class WrapperNumpy(ABCDataWrapper):
     """ Wrap a numpy array for tsWidget """
 

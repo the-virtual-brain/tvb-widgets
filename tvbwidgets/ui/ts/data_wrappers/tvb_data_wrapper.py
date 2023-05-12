@@ -11,6 +11,7 @@ from tvb.datatypes.time_series import TimeSeries
 from tvbwidgets.core.exceptions import InvalidInputException
 from tvbwidgets.ui.ts.data_wrappers.base_data_wrapper import ABCDataWrapper
 
+
 class WrapperTVB(ABCDataWrapper):
     """ Wrap TVB TimeSeries object for tsWidget"""
 
