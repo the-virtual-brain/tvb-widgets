@@ -9,6 +9,8 @@ import math
 import numpy as np
 import ipywidgets as widgets
 from tvb.datatypes.time_series import TimeSeries
+
+from tvbwidgets.core.exceptions import InvalidInputException
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.ts.data_wrappers.tvb_data_wrapper import WrapperTVB
 from tvbwidgets.ui.ts.data_wrappers.numpy_data_wrapper import WrapperNumpy

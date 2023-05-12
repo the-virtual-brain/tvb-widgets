@@ -135,7 +135,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
             self.output.clear_output(wait=True)
             display(self.fig)
 
-    # ================================================ TIMELINE ========================================================
+    # ================================================= SCALING ========================================================
     def _setup_scaling_slider(self):
         # set min and max scaling values
         self.scaling_slider.min = 1
