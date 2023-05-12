@@ -7,6 +7,7 @@
 
 import ipywidgets as widgets
 from tvb.datatypes.time_series import TimeSeries
+from tvbwidgets.ui.ts.mne_ts_widget import TimeSeriesWidgetMNE
 from tvbwidgets.ui.widget_with_browser import TVBWidgetWithBrowser
 
 
@@ -16,7 +17,7 @@ class TimeSeriesBrowser(widgets.VBox, TVBWidgetWithBrowser):
         super().__init__(**{'collab': collab, 'folder': folder})
         timeseries_button = widgets.Button(description='View time series')
         self.buttons = widgets.HBox([timeseries_button], layout=widgets.Layout(margin="0px 0px 0px 20px"))
-        self.timeseries_widget = TimeSeriesWidget()
+        self.timeseries_widget = TimeSeriesWidgetMNE()
         self.children = [self.storage_widget, self.buttons, self.message_label, self.timeseries_widget]
 
         def add_timeseries_datatype(_):
