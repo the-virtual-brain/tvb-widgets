@@ -15,8 +15,8 @@ class StoreObj(object):
     sim: Simulator
     param1: str
     param2: str
-    param1_values: list[float | str | Connectivity]
-    param2_values: list[float | str | Connectivity]
-    metrics: list[str]
+    param1_values: list
+    param2_values: list
+    metrics: list
     n_threads: int
     file_name: str
