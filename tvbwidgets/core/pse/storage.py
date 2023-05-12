@@ -6,7 +6,6 @@
 #
 
 from dataclasses import dataclass
-from tvb.datatypes.connectivity import Connectivity
 from tvb.simulator.simulator import Simulator
 
 

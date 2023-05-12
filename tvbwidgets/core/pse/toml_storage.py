@@ -80,6 +80,9 @@ class TOMLStorage:
     @staticmethod
     def write_pse_in_file(store_obj):
         data = {}
+        param1_values, param2_values = TOMLStorage.serialize_params_values(store_obj.param1, store_obj.param2,
+                                                                           store_obj.param1_values,
+                                                                           store_obj.param2_values)
         stage_in_obj = Path(f"pse_{datetime.now().strftime('%Y%m%d_%H%M%S')}.toml")
         if not stage_in_obj.exists():
             stage_in_obj.touch()
@@ -90,19 +93,36 @@ class TOMLStorage:
                                   "n_threads": store_obj.n_threads}
 
             if store_obj.param1 == "connectivity":
-                data["parameters"].update({"param2_values": store_obj.param2_values})
-                data["connectivity"] = {"param1_values": store_obj.param1_values}
+                data["parameters"].update({"param2_values": param2_values})
+                data["connectivity"] = {"param1_values": param1_values}
 
             elif store_obj.param2 == "connectivity":
-                data["parameters"].update({"param1_values": store_obj.param1_values})
-                data["connectivity"] = {"param2_values": store_obj.param2_values}
+                data["parameters"].update({"param1_values": param1_values})
+                data["connectivity"] = {"param2_values": param2_values}
             else:
-                data["parameters"].update({"param1_values": store_obj.param1_values,
-                                           "param2_values": store_obj.param2_values})
+                data["parameters"].update({"param1_values": param1_values,
+                                           "param2_values": param2_values})
 
             data_sim = TOMLStorage._stage_in_simulator(data, store_obj.sim)
             toml.dump(data_sim, f)
         return stage_in_obj
+
+    @staticmethod
+    def serialize_params_values(param1, param2, param1_values, param2_values):
+        if param1 == "connectivity":
+            return TOMLStorage.get_connectivity_files(param1_values), param2_values
+        elif param2 == "connectivity":
+            return param1_values, TOMLStorage.get_connectivity_files(param2_values)
+        else:
+            return param1_values, param2_values
+
+    @staticmethod
+    def get_connectivity_files(values):
+        connectivity_files = []
+        for connectivity in values:
+            connectivity_files.append(f"connectivity_{connectivity.tract_lengths.shape[0]}.zip")
+
+        return connectivity_files
 
     @staticmethod
     def _stage_in_simulator(data, simulator):
