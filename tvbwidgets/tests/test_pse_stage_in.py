@@ -31,17 +31,18 @@ def custom_simulator():
 
 
 def test_stage_in_pse(custom_simulator):
+    file_name = "test.h5"
     store_test(StoreObj(custom_simulator, "conduction_speed", "coupling.a",
                         [0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0], [0.0, 0.3, 0.6, 0.9],
-                        ["GlobalVariance", "KuramotoIndex"], 4, "test.h5"))
+                        ["GlobalVariance", "KuramotoIndex"], 4, file_name))
     store_test(StoreObj(custom_simulator, "connectivity", "model.Kf",
                         [connectivity.Connectivity.from_file("connectivity_66.zip"),
                          connectivity.Connectivity.from_file("connectivity_68.zip")], [0.0, 1.6, 3.2],
-                        ["GlobalVariance", "KuramotoIndex"], 4, "test.h5"))
+                        ["GlobalVariance", "KuramotoIndex"], 4, file_name))
     store_test(StoreObj(custom_simulator, "model.slope", "connectivity",
                         [-16.0, -6.0, 4.0], [connectivity.Connectivity.from_file("connectivity_68.zip"),
                                              connectivity.Connectivity.from_file()],
-                        ["GlobalVariance", "KuramotoIndex"], 4, "test.h5"))
+                        ["GlobalVariance", "KuramotoIndex"], 4, file_name))
 
 
 def store_test(custom_obj):
