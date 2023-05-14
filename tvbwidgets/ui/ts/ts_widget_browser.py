@@ -35,5 +35,5 @@ class TimeSeriesBrowser(widgets.VBox, TVBWidgetWithBrowser):
         btn_plotly.on_click(load_ts_for_plotly)
 
     def add_datatype(self, datatype):  # type: (TimeSeries) -> None
-        # self.timeseries_widget.reset_data()
+        # Maybe we want to go back to self.timeseries_widget.reset_data() (but that is currently only working for MNE)
         self.timeseries_widget.add_datatype(datatype)
