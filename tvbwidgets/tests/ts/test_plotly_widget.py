@@ -55,7 +55,7 @@ def test_create_ts_widget(tsw):
     assert tsw.end_time == 0
     assert tsw.std_step == 0
     assert tsw.amplitude == 1
-    assert len(tsw.children) == 4
+    assert len(tsw.children) == 3
 
 
 # =============================================== SETUP ================================================================
