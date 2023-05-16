@@ -34,7 +34,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.channel_selection_area = widgets.HBox(layout=widgets.Layout(width='90%'))
         self.info_and_channels_area = widgets.HBox(layout=widgets.Layout(margin='0px 0px 0px 80px'))
         self.plot_area.children += (self.output,)
-        self.scaling_title = widgets.Label(value='Increase/Decrease signal scaling (scaling value to the right)')
+        self.scaling_title = widgets.Label(value='Increase/Decrease signal scaling (current scaling value to the right)')
         self.scaling_slider = widgets.IntSlider(value=1, layout=widgets.Layout(width='30%'))
 
         super().__init__([self.plot_area, widgets.VBox([self.scaling_title, self.scaling_slider],
