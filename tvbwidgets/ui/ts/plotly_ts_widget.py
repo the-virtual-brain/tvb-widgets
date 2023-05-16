@@ -29,16 +29,17 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
 
         # plot & UI
         self.checkboxes = dict()
-        self.plot_and_channels_area = widgets.HBox()
-        self.output = widgets.Output(layout=widgets.Layout(width='75%'))
-        self.channel_selection_area = widgets.HBox(layout=widgets.Layout(width='25%', height='700px',
-                                                                         margin="50px 0px 0px 0px"))
-        self.info_area = widgets.HBox(layout=widgets.Layout(width='100%'))
-        self.plot_and_channels_area.children += (self.output, self.channel_selection_area)
+        self.plot_area = widgets.HBox()
+        self.output = widgets.Output()
+        self.channel_selection_area = widgets.HBox(layout=widgets.Layout(width='90%'))
+        self.info_and_channels_area = widgets.HBox(layout=widgets.Layout(margin='0px 0px 0px 80px'))
+        self.plot_area.children += (self.output,)
         self.scaling_title = widgets.Label(value='Increase/Decrease signal scaling (scaling value to the right)')
         self.scaling_slider = widgets.IntSlider(value=1, layout=widgets.Layout(width='30%'))
 
-        super().__init__([self.plot_and_channels_area, self.scaling_title, self.scaling_slider, self.info_area],
+        super().__init__([self.plot_area, widgets.VBox([self.scaling_title, self.scaling_slider],
+                                                       layout=widgets.Layout(margin='0px 0px 0px 80px')),
+                          self.info_and_channels_area],
                          layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget with Plotly initialized")
 
@@ -52,7 +53,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.channel_selection_area.children += (self.channels_area,)
         # populate info area
         info = self._create_info_area()
-        self.info_area.children += (info,)
+        self.info_and_channels_area.children += (info, self.channel_selection_area)
         self.plot_ts_with_plotly()
 
     # =========================================== PLOT =================================================================
@@ -101,15 +102,16 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.fig.update_layout(dict(updatemenus=[dict(type="buttons", direction="left",
                                                       buttons=list([dict(args=["visible", True], label="Show All",
                                                                          method="restyle"),
-                                                                    dict(args=["visible", False], label="Hide All",
+                                                                    dict(args=["visible", 'legendonly'],
+                                                                         label="Hide All",
                                                                          method="restyle")
                                                                     ]),
                                                       showactive=False,  # personal preference
-                                                      # position buttons in top right corner of plot
-                                                      x=1,
-                                                      xanchor="right",
-                                                      y=1.1,
-                                                      yanchor="top")]
+                                                      # position buttons in bottom left corner of plot
+                                                      x=0,
+                                                      xanchor="left",
+                                                      y=-0.1,
+                                                      yanchor="bottom")]
                                     ))
 
     def create_plot(self, data=None, ch_names=None):
@@ -154,16 +156,16 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.add_traces_to_plot(data, self.ch_names)
 
     # =========================================== CHANNELS SELECTION ===================================================
-    def _create_channel_selection_area(self, array_wrapper, no_checkbox_columns=2):
+    def _create_channel_selection_area(self, array_wrapper, no_checkbox_columns=5):
         # type: (ABCDataWrapper) -> widgets.Accordion
-        """ Create the whole channel selection area: Submit button to update plot, Select/Uselect all btns,
+        """ Create the whole channel selection area: Submit button to update plot, Select/Uselect all buttons,
             State var. & Mode selection and Channel checkboxes
         """
         # checkboxes
         checkboxes_region = self._create_checkboxes(array_wrapper=array_wrapper,
                                                     no_checkbox_columns=no_checkbox_columns)
         for cb_stack in checkboxes_region.children:
-            cb_stack.layout = widgets.Layout(width='50%')
+            cb_stack.layout = widgets.Layout(width='100%')
 
         # selection submit button
         self.submit_selection_btn = widgets.Button(description='Submit selection', layout=self.BUTTON_STYLE)
@@ -178,8 +180,9 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
             selection.layout = widgets.Layout(width='50%')
 
         # add all buttons to channel selection area
-        channels_region = widgets.VBox(children=[self.submit_selection_btn, widgets.HBox(selections),
-                                                 widgets.HBox([select_all_btn, unselect_all_btn]),
+        channels_region = widgets.VBox(children=[widgets.HBox([self.submit_selection_btn,
+                                                               select_all_btn, unselect_all_btn]),
+                                                 widgets.HBox(selections),
                                                  checkboxes_region])
         channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
                                           layout=widgets.Layout(width='70%'))
@@ -218,15 +221,15 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         # navigate through timeline
         navigate_timeline_title = widgets.HTML(value='<b>Navigate timeline</b>')
         navigate_timeline_text = 'To navigate through the timeline, go with your cursor over the timeline (bottom ' \
-                                 'area of the plot). When you see the \'↔\' symbol,<br>' \
-                                 'click and drag your cursor to the left/right to navigate through the timeline.'
+                                 'area of the plot). When you see the \'↔\' symbol, click and drag your ' \
+                                 'cursor to the left/right to navigate through the timeline.'
         navigate_timeline_label = widgets.HTML(value=navigate_timeline_text)
 
         # modify spacing between channels
         modify_spacing_title = widgets.HTML(value='<b>Modify spacing</b>')
 
         modify_spacing_text = 'To increase the spacing between the channels, go with your cursor over the' \
-                              ' very bottom or very top part of the y-axis. When you see the \'↕\' symbol, <br>' \
+                              ' very bottom or very top part of the y-axis. When you see the \'↕\' symbol, ' \
                               'click and drag your cursor outside the plot area to increase the spacing between ' \
                               'the channels. ' \
                               'To decrease the spacing, click and drag towards the plot area.'
@@ -235,7 +238,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         # modify signal amplitude
         modify_amplitude_title = widgets.HTML(value='<b>Modify signal amplitude</b>')
         modify_amplitude_text = 'To modify the amplitude of the signals, use the above slider. Dragging to the' \
-                                'right means increasing the amplitude, dragging to the left means decreasing it. <br>' \
+                                'right means increasing the amplitude, dragging to the left means decreasing it. ' \
                                 'The value by which the signals are multiplied is written to the right.'
         modify_amplitude_label = widgets.HTML(value=f'{modify_amplitude_text}')
 
@@ -251,8 +254,9 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         more_info_container = widgets.VBox(children=[navigate_timeline_title, navigate_timeline_label,
                                                      modify_spacing_title, modify_spacing_label, modify_amplitude_title,
                                                      modify_amplitude_label, additional_info_title,
-                                                     additional_info_label])
+                                                     additional_info_label],
+                                           layout=widgets.Layout(height='370px'))
         info_area = widgets.Accordion(children=[more_info_container], selected_index=None,
-                                      layout=widgets.Layout(width='max-content'))
+                                      layout=widgets.Layout(width='50%'))
         info_area.set_title(0, 'More info')
         return info_area

@@ -130,7 +130,7 @@ def test_setup_scaling_slider(tsw_tvb_data):
 # ================================================ INFO AREA =======================================================
 def test_create_info_area(tsw_tvb_data):
     tsw_tvb_data._create_info_area()
-    info_container = tsw_tvb_data.info_area.children[0].children[0]
+    info_container = tsw_tvb_data.info_and_channels_area.children[0].children[0]
     for info in info_container.children:
         assert type(info) == widgets.HTML
 
