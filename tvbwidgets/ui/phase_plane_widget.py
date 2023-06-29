@@ -95,6 +95,9 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         # Toggle variable for trajectory
         self.traj_out = None
 
+        # Create message area
+        self.message_area = widgets.HTML(value="", layout=widgets.Layout(margin="0px 0px 0px 22px"))
+
     def plotter(self, **plot_params):
         """
         Main plotter function, (re)drawing the main Phase Plane canvases.
@@ -116,11 +119,12 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
 
         noise_element_exists = 'noise_slider_' + str(self.model.state_variables[0])
         if noise_element_exists in plot_params:
-            # Update integrator noise based on the noise slider value, for stohastic integrators
+            # Update integrator noise based on the noise slider value, for stochastic integrators
             noise_sliders = []
             for state_variable in self.model.state_variables:
                 noise_sliders.append([[plot_params.pop('noise_slider_' + str(state_variable))]])
-            self.integrator.noise.nsig = np.array(noise_sliders)
+            if hasattr(self.integrator, 'noise'):
+                self.integrator.noise.nsig = np.array(noise_sliders)
 
         # Set State Vector
         sv_mean = np.array([plot_params[key] for key in self.model.state_variables])
@@ -307,8 +311,8 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self._add_integrator_selector()
         widgets_integrator = self.add_integrator_widgets()
         self.param_widgets = widgets.VBox([self.model_selector] + list(self.param_sliders.values()) +
-                                          [self.reset_param_button, self.integrator_selector] + widgets_integrator,
-                                          layout=self.box_layout)
+                                          [self.reset_param_button, self.integrator_selector, self.message_area] +
+                                          widgets_integrator, layout=self.box_layout)
 
         # Exports
         self.build_export_section()
@@ -688,9 +692,11 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
             if change['type'] != 'change' or change['name'] != 'value':
                 return
             self.integrator = integrators_dict[change['new']]()
-            self.noise_slider_valinit = self.integrator.noise.nsig[0]
-            self._rebuild_widget()
-
+            if hasattr(self.integrator, 'noise'):
+                self.noise_slider_valinit = self.integrator.noise.nsig[0]
+                self._rebuild_widget()
+            else:
+                self.message_area.value = f"{self.integrator.__class__.__name__} integrator has no noise parameter."
         self.integrator_selector.observe(on_change_callback)
 
     def _rebuild_widget(self):
@@ -701,6 +707,7 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         for wid in self.hbox.children:
             wid.close()
 
+        self.message_area.value = ""
         self.model.configure()
         self.ui = self.create_ui()
         self.clear_traj.value = True

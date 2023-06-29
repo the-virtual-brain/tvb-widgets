@@ -152,7 +152,7 @@ class PythonCodeExporter(ABCModelExporter):
     a python file
     """
     file_name = 'model_instances'
-    file_extension = 'json'
+    file_extension = 'py'
     numpy_import = 'import numpy'
     module_name = 'models'
     models_import = f'from tvb.simulator import {module_name}'
