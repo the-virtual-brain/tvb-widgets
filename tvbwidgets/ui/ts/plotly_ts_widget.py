@@ -168,7 +168,8 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
             cb_stack.layout = widgets.Layout(width='100%')
 
         # selection submit button
-        self.submit_selection_btn = widgets.Button(description='Submit selection', layout=self.BUTTON_STYLE)
+        self.submit_selection_btn = widgets.Button(description='Submit selection', layout=self.BUTTON_STYLE,
+                                                   button_style="info")
         self.submit_selection_btn.on_click(self._update_ts)
 
         # select/unselect all buttons
