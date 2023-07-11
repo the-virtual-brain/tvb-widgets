@@ -21,7 +21,7 @@ jobs:
           python setup.py bdist_wheel
       - name: Release on Pypi
         env:
-          TWINE_USERNAME: tvb
+          TWINE_USERNAME: ${{ secrets.PYPI_USER }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASS }}
         run: |
           echo "Publishing on pypi..."
