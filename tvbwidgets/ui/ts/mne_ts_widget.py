@@ -31,6 +31,7 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         self.no_channels = 30
         self.raw = None
         self.sample_freq = 0
+        self.channel_color = False
 
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
         annotation_area = self._create_annotation_area()
@@ -134,12 +135,13 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
             self.fig.canvas.mpl_connect("motion_notify_event", self.hover)
             with self.output:
                 self.output.clear_output(wait=True)
+                self.add_colors(self.channel_color)
                 display(self.fig.canvas)
 
     # ======================================== CHANNELS  ==============================================================
     def _create_channel_selection_area(self, array_wrapper, no_checkbox_columns=7):
         # type: (ABCDataWrapper) -> widgets.Accordion
-        """ Create the whole channel selection area: Select/Uselect all btns, State var. & Mode selection
+        """ Create the whole channel selection area: Select/Unselect all btns, State var. & Mode selection
             and Channel checkboxes
         """
         # checkboxes region
@@ -150,9 +152,11 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         for label in labels:
             self.checkboxes[label].observe(self._update_ts, names="value", type="change")
 
-        # select/unselec all buttons
+        # select/unselect all buttons
         select_all_btn, unselect_all_btn = self._create_select_unselect_all_buttons()
-        actions = [select_all_btn, unselect_all_btn]
+        color_check_box = widgets.Checkbox(value=False, description="Multi-Color", indent=False)
+        color_check_box.observe(self._update_ts, names="value")
+        actions = [select_all_btn, unselect_all_btn, color_check_box]
 
         # select dimensions buttons (state var. & mode)
         actions.extend(self._create_dim_selection_buttons(array_wrapper=array_wrapper))
@@ -173,7 +177,6 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
                                  n_channels=self.no_channels,
                                  clipping=None, show=False)
         self.fig.set_size_inches(11, 5)
-
         self._redraw()
 
         # refresh the checkboxes if they were unselected
@@ -184,8 +187,15 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         ch_names = list(self.fig.mne.ch_names)
         self.logger.debug("Update_ts is called for channels " + str(ch_names))
 
+        if val['owner'].description == "Multi-Color":
+            self.channel_color = val.new
+            if val.new:
+                self.logger.debug("Color ON")
+            else:
+                self.logger.debug("Color OFF")
+
         # check if newly checked option is before current ch_start in the channels list
-        if (val['old'] is False) and (val['new'] is True):
+        if (val['old'] is False) and (val['new'] is True) and val['owner'].description != "Multi-Color":
             ch_name = val['owner'].description
             ch_number = ch_names.index(ch_name)
             ch_changed_index = list(self.fig.mne.ch_order).index(ch_number)
@@ -246,9 +256,35 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         return ch_start
 
     def _update_fig(self):
+        self.add_colors(self.channel_color)
         self.fig._update_trace_offsets()
         self.fig._update_vscroll()
         try:
-            self.fig._redraw(annotations=True)
+            if self.channel_color:
+                with self.output:
+                    self.add_colors(self.channel_color)
+                    self.output.clear_output(wait=True)
+                    display(self.fig.canvas)
+            else:
+                self.fig._redraw(annotations=True)
         except ValueError:
             self.fig._redraw(update_data=False)  # needed in case of Unselect all
+
+    def add_colors(self, color_on):
+        """
+        Function to add colors to channels
+        """
+        self.logger.info("-------------------------- BADS -------------")
+        self.logger.info(self.raw.info["bads"])
+        self.logger.info("-------------------------- BADS end -------------")
+        if color_on:
+            colors = ['red', 'green', 'blue', 'black', 'orange', 'purple', 'pink', 'cyan', 'olive', 'brown'] * \
+                     int(len(self.raw.ch_names)/10)
+        else:
+            colors = ['black'] * int(len(self.raw.ch_names))
+        fig_color = self.fig.axes[0]
+        channel_types = self.raw.info.get_channel_types()
+        for nl, (chan, color) in enumerate(zip(self.raw.ch_names, colors)):
+            if nl < self.fig.mne.n_channels and (channel_types[nl] != "bad"):
+                line = fig_color.get_lines()[nl]
+                line.set_color(color)
