@@ -218,7 +218,7 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         if not picks:
             self.fig.mne.picks = picks
             self.fig.mne.n_channels = 0
-            self._update_fig()
+            self._update_fig(True)
             return
 
         # if not enough values are checked, force the plot to display less channels
@@ -257,21 +257,21 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
                 break
         return ch_start
 
-    def _update_fig(self):
+    def _update_fig(self, unselect_all_flag=False):
         self.fig._update_trace_offsets()
         self.fig._update_vscroll()
         try:
             if self.channel_color.value:
                 with self.output:
-                    self.output.clear_output(wait=True)
-                    self.fig._redraw(annotations=True)
-                    self.add_colors(self.channel_color.value)
-                    display(self.fig.canvas)
+                    if not unselect_all_flag:
+                        self.fig._redraw(annotations=True)
+                        self.add_colors(self.channel_color.value)
+                    else:
+                        self.fig._redraw(update_data=False)
             else:
-                self.add_colors(self.channel_color.value)
                 self.fig._redraw(annotations=True)
         except ValueError:
-            self.fig._redraw(update_data=False)  # needed in case of Unselect all
+            self.fig._redraw(update_data=False)
 
     def add_colors(self, color_on):
         """
