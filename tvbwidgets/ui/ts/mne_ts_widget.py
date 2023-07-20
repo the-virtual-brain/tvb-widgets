@@ -32,6 +32,7 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         self.raw = None
         self.sample_freq = 0
         self.picked_channels = []
+        self.plot_psd_toggle = None
 
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
         annotation_area = self._create_annotation_area()
@@ -120,9 +121,16 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
     def _redraw(self):
         # display the plot
         with plt.ioff():
+            if self.plot_psd_toggle is not None:
+                with self.output:
+                    self.output.clear_output(wait=True)
+                    if self.plot_psd_toggle.value:
+                        self.raw.plot_psd(picks="all")
+                    display(self.fig.canvas)
+                    return
+
             # create the plot
-            self.fig = self.raw.plot(duration=self.displayed_period,
-                                     n_channels=self.no_channels, show_first_samp=True,
+            self.fig = self.raw.plot(duration=self.displayed_period, n_channels=self.no_channels, show_first_samp=True,
                                      clipping=None, show=False)
             self.fig.set_size_inches(11, 5)
             # self.fig.figure.canvas.set_window_title('TimeSeries plot')
@@ -166,13 +174,24 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
             self._update_fig()
 
         self.channel_color.observe(update_channels_color)
+        self.plot_psd_toggle = widgets.ToggleButton(value=False, description="Power Spectral Density", disabled=False,
+                                                    button_style='', tooltip='Power Spectral Density', layout=self.BUTTON_STYLE)
+
+        def update_to_plot_psd(change):
+            if change['type'] != 'change' or change['name'] != 'value':
+                return
+
+            self.plot_psd_toggle.value = change["new"]
+            self._redraw()
+
+        self.plot_psd_toggle.observe(update_to_plot_psd)
         actions = [select_all_btn, unselect_all_btn]
 
         # select dimensions buttons (state var. & mode)
         actions.extend(self._create_dim_selection_buttons(array_wrapper=array_wrapper))
 
         # add all buttons to channel selection area
-        channels_region = widgets.VBox(children=[widgets.HBox(actions), self.channel_color, checkboxes_region])
+        channels_region = widgets.VBox(children=[widgets.HBox(actions), self.channel_color, self.plot_psd_toggle, checkboxes_region])
         channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
                                           layout=widgets.Layout(width='50%'))
         channels_area.set_title(0, 'Channels')
