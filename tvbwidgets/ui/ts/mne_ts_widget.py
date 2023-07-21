@@ -121,11 +121,10 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
     def _redraw(self):
         # display the plot
         with plt.ioff():
-            if self.plot_psd_toggle is not None:
+            if self.plot_psd_toggle.value:
                 with self.output:
                     self.output.clear_output(wait=True)
-                    if self.plot_psd_toggle.value:
-                        self.raw.plot_psd(picks="all")
+                    self.raw.plot_psd(picks="all")
                     display(self.fig.canvas)
                     return
 
