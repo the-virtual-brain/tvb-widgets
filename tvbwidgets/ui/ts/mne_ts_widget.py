@@ -118,13 +118,17 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
                 val_label = widgets.Label(value=v)
                 self.channel_val_area.children += (val_label,)
 
-    def _redraw(self):
+    def _redraw(self, toggle_psd=False):
         # display the plot
         with plt.ioff():
-            if self.plot_psd_toggle.value:
-                with self.output:
+            with self.output:
+                if toggle_psd and self.plot_psd_toggle.value:
                     self.output.clear_output(wait=True)
                     self.raw.plot_psd(picks="all")
+                    display(self.fig.canvas)
+                    return
+                elif toggle_psd:
+                    self.output.clear_output(wait=True)
                     display(self.fig.canvas)
                     return
 
@@ -143,6 +147,8 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
             self.picked_channels = list(self.fig.mne.ch_names)
             with self.output:
                 self.output.clear_output(wait=True)
+                if not toggle_psd and self.plot_psd_toggle.value:
+                    self.raw.plot_psd(picks="all")
                 display(self.fig.canvas)
 
     # ======================================== CHANNELS  ==============================================================
@@ -181,7 +187,7 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
                 return
 
             self.plot_psd_toggle.value = change["new"]
-            self._redraw()
+            self._redraw(True)
 
         self.plot_psd_toggle.observe(update_to_plot_psd)
         actions = [select_all_btn, unselect_all_btn]
@@ -190,7 +196,9 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         actions.extend(self._create_dim_selection_buttons(array_wrapper=array_wrapper))
 
         # add all buttons to channel selection area
-        channels_region = widgets.VBox(children=[widgets.HBox(actions), self.channel_color, self.plot_psd_toggle, checkboxes_region])
+        channels_region = widgets.VBox(children=[widgets.HBox(actions),
+                                                 widgets.HBox(children=[self.channel_color, self.plot_psd_toggle]),
+                                                 checkboxes_region])
         channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
                                           layout=widgets.Layout(width='50%'))
         channels_area.set_title(0, 'Channels')
