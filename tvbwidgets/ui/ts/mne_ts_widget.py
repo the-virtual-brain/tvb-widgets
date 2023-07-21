@@ -31,6 +31,7 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         self.no_channels = 30
         self.raw = None
         self.sample_freq = 0
+        self.picked_channels = []
 
         self.output = widgets.Output(layout=widgets.Layout(width='auto'))
         annotation_area = self._create_annotation_area()
@@ -132,6 +133,7 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
             self.fig.canvas.mpl_connect('key_press_event', self.update_on_plot_interaction)
             self.fig.canvas.mpl_connect('button_press_event', self.update_on_plot_interaction)
             self.fig.canvas.mpl_connect("motion_notify_event", self.hover)
+            self.picked_channels = list(self.fig.mne.ch_names)
             with self.output:
                 self.output.clear_output(wait=True)
                 display(self.fig.canvas)
@@ -139,7 +141,7 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
     # ======================================== CHANNELS  ==============================================================
     def _create_channel_selection_area(self, array_wrapper, no_checkbox_columns=7):
         # type: (ABCDataWrapper) -> widgets.Accordion
-        """ Create the whole channel selection area: Select/Uselect all btns, State var. & Mode selection
+        """ Create the whole channel selection area: Select/Unselect all btns, State var. & Mode selection
             and Channel checkboxes
         """
         # checkboxes region
@@ -150,15 +152,27 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         for label in labels:
             self.checkboxes[label].observe(self._update_ts, names="value", type="change")
 
-        # select/unselec all buttons
+        # select/unselect all buttons
         select_all_btn, unselect_all_btn = self._create_select_unselect_all_buttons()
+        self.channel_color = widgets.ToggleButton(value=False, description="Multi-Color", disabled=False,
+                                                  button_style='', tooltip='Multi-Color', icon='check',
+                                                  layout=self.BUTTON_STYLE)
+
+        def update_channels_color(change):
+            if change['type'] != 'change' or change['name'] != 'value':
+                return
+
+            self.channel_color.value = change["new"]
+            self._update_fig()
+
+        self.channel_color.observe(update_channels_color)
         actions = [select_all_btn, unselect_all_btn]
 
         # select dimensions buttons (state var. & mode)
         actions.extend(self._create_dim_selection_buttons(array_wrapper=array_wrapper))
 
         # add all buttons to channel selection area
-        channels_region = widgets.VBox(children=[widgets.HBox(actions), checkboxes_region])
+        channels_region = widgets.VBox(children=[widgets.HBox(actions), self.channel_color, checkboxes_region])
         channels_area = widgets.Accordion(children=[channels_region], selected_index=None,
                                           layout=widgets.Layout(width='50%'))
         channels_area.set_title(0, 'Channels')
@@ -173,9 +187,9 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
                                  n_channels=self.no_channels,
                                  clipping=None, show=False)
         self.fig.set_size_inches(11, 5)
-
         self._redraw()
 
+        self.add_colors(self.channel_color.value)
         # refresh the checkboxes if they were unselected
         for cb_name in self.checkboxes:
             self.checkboxes[cb_name].value = True
@@ -195,10 +209,12 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         # divide list of all channels into checked(picked) and unchecked(not_picked) channels
         picks = []
         not_picked = []
+        self.picked_channels = []
         for cb in list(self.checkboxes.values()):
             ch_number = ch_names.index(cb.description)  # get the number representation of checked/unchecked channel
             if cb.value:
                 picks.append(ch_number)  # list with number representation of channels
+                self.picked_channels.append(cb.description)
             else:
                 not_picked.append(ch_number)
 
@@ -206,7 +222,7 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
         if not picks:
             self.fig.mne.picks = picks
             self.fig.mne.n_channels = 0
-            self._update_fig()
+            self._update_fig(True)
             return
 
         # if not enough values are checked, force the plot to display less channels
@@ -245,10 +261,34 @@ class TimeSeriesWidgetMNE(TimeSeriesWidgetBase):
                 break
         return ch_start
 
-    def _update_fig(self):
+    def _update_fig(self, unselect_all_flag=False):
         self.fig._update_trace_offsets()
         self.fig._update_vscroll()
         try:
-            self.fig._redraw(annotations=True)
+            if self.channel_color.value:
+                with self.output:
+                    if not unselect_all_flag:
+                        self.fig._redraw(annotations=True)
+                        self.add_colors(self.channel_color.value)
+                    else:
+                        self.fig._redraw(update_data=False)
+            else:
+                self.fig._redraw(annotations=True)
         except ValueError:
-            self.fig._redraw(update_data=False)  # needed in case of Unselect all
+            self.fig._redraw(update_data=False)
+
+    def add_colors(self, color_on):
+        """
+        Function to add colors to channels
+        """
+        if color_on:
+            colors = ['red', 'green', 'blue', 'black', 'orange', 'purple', 'pink', 'cyan', 'olive', 'brown'] * \
+                     int(len(self.picked_channels)/10)
+        else:
+            colors = ['black'] * int(len(self.picked_channels))
+        fig_color = self.fig.axes[0]
+        bad_channels = self.fig.mne.info["bads"]
+        for nl, (chan, color) in enumerate(zip(self.picked_channels, colors)):
+            if nl < self.fig.mne.n_channels and chan not in bad_channels:
+                line = fig_color.get_lines()[nl + 1]
+                line.set_color(color)

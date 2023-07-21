@@ -86,6 +86,7 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
             self.files_list.options = list(self._map_names_to_files.keys())
             self.files_list.value = None
         except Exception as e:
+            self.logger.info(e)
             raise e
         finally:
             self.files_list.observe(self.select_dir, names='value')
