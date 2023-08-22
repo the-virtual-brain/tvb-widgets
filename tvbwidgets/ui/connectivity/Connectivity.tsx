@@ -1,5 +1,4 @@
 import * as React from "react";
-// import * as d3 from "d3@4.10.0";
 import * as d3 from "d3";
 
 
@@ -10,6 +9,9 @@ import * as d3 from "d3";
  */
 const HIERARCHY_SEPARATOR = ".";
 const HIERARCHY_SEPARATOR_REPLACEMENT = "_";
+const colorin = "#00f";
+const colorout = "#f00";
+const colornone = "#ccc";
 
 /**
  * A function for drawing a hierarchical edge bundle
@@ -19,21 +21,23 @@ const HIERARCHY_SEPARATOR_REPLACEMENT = "_";
  */
 export function initHierarchicalEdgeBundle(data, testFn) {
 
-    const regionLabelsLength = data.region_labels.length;
-    let svgD3 = data.svg.d3;
+    const l = data.region_labels.length;
+    // let svgD3 = data.svg.d3;
     let jsonified_region_labels = [];
     let hasSpecialCharacters = false;
 
-    for (let i = 0; i < regionLabelsLength; i++) {
+    for (let i = 0; i < l; i++) {
         let json_line = {
             imports: undefined,
-            name: undefined
+            name: undefined,
+            // children: []
         };
         json_line.imports = [];
+        // json_line.children = [];
         let k = 0; //k is a counter for connected regions with the j-th region
-        for (let j = 0; j < regionLabelsLength; j++) {
+        for (let j = 0; j < l; j++) {
             let w = 0;
-            w = data.matrix && data.matrix[i * regionLabelsLength + j];
+            w = data.matrix[i * l + j];
             hasSpecialCharacters = hasSpecialCharacters || (data.region_labels[i].lastIndexOf(HIERARCHY_SEPARATOR) > 0);
             json_line.name = data.region_labels[i].replace(HIERARCHY_SEPARATOR, HIERARCHY_SEPARATOR_REPLACEMENT);
             if (testFn(w)) {
@@ -43,187 +47,51 @@ export function initHierarchicalEdgeBundle(data, testFn) {
         }
         jsonified_region_labels[i] = json_line;
     }
+    console.log('json:  ', jsonified_region_labels);
+    return jsonified_region_labels;
+}
 
-    console.log('jsonified: ', jsonified_region_labels);
-    if (hasSpecialCharacters) {
-        console.log("Special character '" + HIERARCHY_SEPARATOR + "' has been replaced in all labels with '" + HIERARCHY_SEPARATOR_REPLACEMENT);
-    }
-
-    console.log('data: ', data);
-    let radius = data.svg.svg.getAttribute("height") / 2;
-    console.log('radius: ', radius);
-    let innerRadius = radius - 100; // substract estimated labels size
-
-    const cluster = d3.cluster()
-        .size([360, innerRadius]);
-
-    let line = d3.radialLine()
-        .curve(d3.curveBundle.beta(0.85))
-        .radius(function (d) {
-            return d.y;
-        })
-        .angle(function (d) {
-            return d.x / 180 * Math.PI;
-        });
-
-    const svg = svgD3
-        .append("g")
-        .attr("transform", "translate(" + radius + "," + radius + ")");
-
-    let link = svg.append("g").selectAll(".link"),
-        node = svg.append("g").selectAll(".node");
-    console.log('before packageHierarchy');
-    const root = packageHierarchy(jsonified_region_labels)
-        .sum(function (d) {
-            return d.size;
-        });
-    console.log('before packageHierarchy');
-    cluster(root);
-    console.log('root: ', root);
-    console.log('after cluster');
-
-    link = link
-        .data(packageImports(root.leaves()))
-        .enter().append("path")
-        .each(function (d) {
-            d.source = d[0];
-            d.target = d[d.length - 1];
-        })
-        .attr("class", "link")
-        .attr("d", line);
-
-    console.log('after link');
-
-    node = node
-        .data(root.leaves())
-        .enter().append("text")
-        .attr("class", "node")
-        .attr("dy", "0.31em")
-        .attr("transform", function (d) {
-            return "rotate(" + (d.x - 90) + ")translate(" + (d.y + 8) + ",0)" + (d.x < 180 ? "" : "rotate(180)");
-        })
-        .attr("text-anchor", function (d) {
-            return d.x < 180 ? "start" : "end";
-        })
-        .text(function (d) {
-            return d.data.key;
-        })
-        .on("mouseover", mouseovered)
-        .on("mouseout", mouseouted);
-
-    console.log('after node');
-
-    function mouseovered(d) {
-        node
-            .each(function (n) {
-                n.target = n.source = false;
-            });
-
-        link
-            .classed("link-target", function (l) {
-                if (l.target === d) return l.source.source = true;
-            })
-            .classed("link-source", function (l) {
-                if (l.source === d) return l.target.target = true;
-            })
-            .filter(function (l) {
-                return l.target === d || l.source === d;
-            })
-            .raise();
-
-        node
-            .classed("node-target", function (n) {
-                return n.target;
-            })
-            .classed("node-source", function (n) {
-                return n.source;
-            });
-    }
-
-    function mouseouted(d) {
-        link
-            .classed("link-target", false)
-            .classed("link-source", false);
-
-        node
-            .classed("node-target", false)
-            .classed("node-source", false);
-    }
-
-// Lazily construct the package hierarchy from class names.
-    function packageHierarchy(classes) {
-        var map = {};
-
-        function find(name, data) {
-            var node = map[name], i;
-            if (!node) {
-                node = map[name] = data || {name: name, children: []};
-                if (name.length) {
-                    node.parent = find(name.substring(0, i = name.lastIndexOf(HIERARCHY_SEPARATOR)), data);
-                    console.log('node.parent: ', node.parent);
-                    if (node.parent.children) node.parent.children.push(node);
-                    node.key = name.substring(i + 1);
-                }
-            }
-            return node;
+function hierarchy(data, delimiter = HIERARCHY_SEPARATOR) {
+    console.log('data inside hierarchy: ', data);
+    let root;
+    const map = new Map;
+    let newData = []
+    data.forEach(function find(d) {
+        const {name} = d;
+        if (map.has(name)) {
+            return map.get(name);
         }
+        const i = name.lastIndexOf(delimiter);
+        map.set(name, d);
+        if (node) {
+            find({name: name.substring(0, i), children: []}).children.push(d);
+            d.name = name.substring(i + 1);
+        } else {
+            root = d;
+        }
+        newData.push(root);
+    });
+    console.log('data after hierarchy: ', data);
+    console.log('map after hierarchy: ', map);
+    console.log('newData after hierarchy: ', newData);
+    return newData;
+}
 
-        classes.forEach(function (d) {
-            find(d.name, d);
-        });
-
-        return d3.hierarchy(map[""]);
+function bilink(root) {
+    console.log('before map');
+    const map = new Map(root.leaves().map(d => [id(d), d]));
+    console.log('after map');
+    for (const d of root.leaves()) {
+        d.incoming = [];
+        const imports = d.data.imports;
+        d.outgoing = imports ? imports.map(i => [d, map.get(i)]) : [];
     }
+    for (const d of root.leaves()) for (const o of d.outgoing) o[1].incoming.push(o);
+    return root;
+}
 
-//     function packageHierarchy(data, delimiter = ".") {
-//         let root;
-//         const map = new Map;
-//         data.forEach(function find(data) {
-//             const {name} = data;
-//             if (map.has(name)) return map.get(name);
-//             const i = name.lastIndexOf(delimiter);
-//             map.set(name, data);
-//             if (i >= 0) {
-//                 find({name: name.substring(0, i), children: []}).children.push(data);
-//                 data.name = name.substring(i + 1);
-//             } else {
-//                 root = data;
-//             }
-//             return data;
-//         });
-//         return root;
-//     }
-
-// Return a list of imports for the given array of nodes.
-    function packageImports(nodes) {
-        console.log('inside package imports');
-        const map = {};
-        const imports = [];
-
-        console.log('before foreach 1');
-        // Compute a map from name to node.
-        nodes.forEach(function (d) {
-            map[d.data.name] = d;
-        });
-
-        console.log('after foreach 1');
-
-
-        // For each import, construct a link from the source to target node.
-        nodes.forEach(function (d) {
-            d.data.imports &&
-            d.data.imports.forEach(function (i) {
-                console.log('d.data.imports.forEach(function (i) -> i: ', i);
-                console.log('d.data.imports.forEach(function (i) -> map[i]: ', map[i]);
-                console.log('d.data.imports.forEach(function (i) -> map[d.data.name]: ', map[d.data.name]);
-                map[i] && imports.push(map[d.data.name].path(map[i]));
-            });
-        });
-        console.log('before return with vallue: ', imports);
-        return imports;
-    }
-
-
+function id(node) {
+    return `${node.parent ? id(node.parent) + "." : ""}${node.data.name}`;
 }
 
 const BUNDLE = {
@@ -233,7 +101,6 @@ const BUNDLE = {
 
 export default function Connectivity({connectivity, on_connectivity}) {
     const ref = React.useRef();
-    console.log('reeeeeeeeeeeef: ', ref.current);
     const [bundle, setBundle] = React.useState(BUNDLE.weights);
 
     const connectivityEdgesData = {
@@ -246,12 +113,13 @@ export default function Connectivity({connectivity, on_connectivity}) {
         data_url: "",
         state: bundle
     };
-
+    let chart = () => {
+    };
     React.useEffect(() => {
-        const svg = d3.select("#middle-edge-bundle");
+        // const svg = d3.select("#middle-edge-bundle");
 
         connectivityEdgesData.region_labels = connectivity.region_labels;
-        connectivityEdgesData.svg.d3 = svg;
+        connectivityEdgesData.svg.d3 = d3.select("#middle-edge-bundle");
         connectivityEdgesData.svg.svg = document.querySelector("#middle-edge-bundle");
         let tracts1D = [];
         let weights1D = [];
@@ -263,24 +131,91 @@ export default function Connectivity({connectivity, on_connectivity}) {
         }
         console.log(connectivityEdgesData.region_labels);
         connectivityEdgesData.matrix = bundle === BUNDLE.weights ? weights1D : tracts1D;
+        const dataJson = initHierarchicalEdgeBundle(connectivityEdgesData, d => d !== 0);
+        // const data = hierarchy(dataJson);
+        const data = dataJson;
+
+        console.log("data=hierarchy(dataJson):: ", data);
+
         // connectivityEdgesData.matrix = [2, 0, 1, 0];
-        connectivityEdgesData.svg.d3.selectAll("*")
-            .transition()
-            .duration(100)
-            .style("fill-opacity", "0");
-        console.log('connectivityEdgesData: ', connectivityEdgesData);
-        connectivityEdgesData.svg.d3.selectAll("*").remove();
-        connectivityEdgesData.state = bundle;
-        initHierarchicalEdgeBundle(connectivityEdgesData, d => d !== 0);
+        chart = () => {
+            const width = 954;
+            const radius = width / 2;
 
-        connectivityEdgesData.svg.d3.selectAll("*")
-            .transition()
-            .duration(100)
-            .style("fill-opacity", "1");
+            const tree = d3.cluster()
+                .size([2 * Math.PI, radius - 100]);
+            const root = tree(bilink(d3.hierarchy(data, d => d && d.children || [])
+                .sort((a, b) => d3.ascending(a.height, b.height) || d3.ascending(a.data.name, b.data.name))));
 
-        // return () => {
-        //     svg.remove();
-        // };
+            const svg = d3.create("svg")
+                .attr("width", width)
+                .attr("height", width)
+                .attr("viewBox", [-width / 2, -width / 2, width, width])
+                .attr("style", "max-width: 100%; height: auto; font: 10px sans-serif;");
+            // ref.current && ref.current.appendChild(svg.node());
+
+            const node = svg.append("g")
+                .selectAll()
+                .data(root.leaves())
+                .join("g")
+                .attr("transform", d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`)
+                .append("text")
+                .attr("dy", "0.31em")
+                .attr("x", d => d.x < Math.PI ? 6 : -6)
+                .attr("text-anchor", d => d.x < Math.PI ? "start" : "end")
+                .attr("transform", d => d.x >= Math.PI ? "rotate(180)" : null)
+                .text(d => d.data.name)
+                .each(function (d) {
+                    d.text = this;
+                })
+                .on("mouseover", overed)
+                .on("mouseout", outed)
+                .call(text => text.append("title").text(d => `${id(d)}
+${d.outgoing.length} outgoing
+${d.incoming.length} incoming`));
+
+            const line = d3.lineRadial()
+                .curve(d3.curveBundle.beta(0.85))
+                .radius(d => d.y)
+                .angle(d => d.x);
+
+            const link = svg.append("g")
+                .attr("stroke", colornone)
+                .attr("fill", "none")
+                .selectAll()
+                .data(root.leaves().flatMap(leaf => leaf.outgoing))
+                .join("path")
+                .style("mix-blend-mode", "multiply")
+                .attr("d", ([i, o]) => line(i.path(o)))
+                .each(function (d) {
+                    d.path = this;
+                });
+
+            function overed(event, d) {
+                link.style("mix-blend-mode", null);
+                d3.select(this).attr("font-weight", "bold");
+                d3.selectAll(d.incoming.map(d => d.path)).attr("stroke", colorin).raise();
+                d3.selectAll(d.incoming.map(([d]) => d.text)).attr("fill", colorin).attr("font-weight", "bold");
+                d3.selectAll(d.outgoing.map(d => d.path)).attr("stroke", colorout).raise();
+                d3.selectAll(d.outgoing.map(([, d]) => d.text)).attr("fill", colorout).attr("font-weight", "bold");
+            }
+
+            function outed(event, d) {
+                link.style("mix-blend-mode", "multiply");
+                d3.select(this).attr("font-weight", null);
+                d3.selectAll(d.incoming.map(d => d.path)).attr("stroke", null);
+                d3.selectAll(d.incoming.map(([d]) => d.text)).attr("fill", null).attr("font-weight", null);
+                d3.selectAll(d.outgoing.map(d => d.path)).attr("stroke", null);
+                d3.selectAll(d.outgoing.map(([, d]) => d.text)).attr("fill", null).attr("font-weight", null);
+            }
+
+            // return svg.node();
+            ref.current && ref.current.appendChild(svg.node());
+        }
+
+        console.log('chart: ', chart());
+
+        // chart();
     }, [connectivity, bundle]);
 
     return (<div>
@@ -292,12 +227,7 @@ export default function Connectivity({connectivity, on_connectivity}) {
                 <option value={"weights"} selected={bundle === BUNDLE.weights}>Weights</option>
             </select>
         </aside>
-        <svg ref={ref}
-             height={"700"}
-             width={"700"}
-             viewBox="0 0 700 700"
-             preserveAspectRatio="xMidYMax meet"
-             className="diagram-svg"
-             id="middle-edge-bundle"></svg>
+        <div ref={ref}
+        ></div>
     </div>)
 }
