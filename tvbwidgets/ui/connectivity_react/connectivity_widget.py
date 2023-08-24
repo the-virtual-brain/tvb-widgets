@@ -14,7 +14,7 @@ from IPython.display import HTML
 from .connectivity_model import ConnectivityDTO
 
 
-class ConnectivityWidget(ipyreact.ReactWidget):
+class ConnectivityWidgetReact(ipyreact.ReactWidget):
     _esm = pathlib.Path(__file__).resolve().parent / 'Connectivity.tsx'
     css_rules = (pathlib.Path(__file__).resolve().parent / 'Connectivity.css').read_text()
     HTML("<style>" + css_rules + "</style>")
