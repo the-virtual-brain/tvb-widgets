@@ -17,6 +17,8 @@ from tvbwidgets.ui.base_widget import TVBWidget
 
 pyvista.set_jupyter_backend('pythreejs')
 
+DROPDOWN_KEY = 'dropdown'
+
 
 @dataclasses.dataclass
 class ConnectivityConfig:
@@ -32,55 +34,62 @@ class ConnectivityConfig:
 
 class CustomOutput(ipywidgets.Output):
     CONFIG = ConnectivityConfig()
-    MAX_ACTORS = 10
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.plotter = matplotlib.pyplot
 
 
-class ConnectivityWidget(ipywidgets.HBox, TVBWidget):
+class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
     DROPDOWN_DESCRIPTION = 'Matrix:'
 
-    def __init__(self, connectivity):
-        # type: (Connectivity) -> None
+    def __init__(self, connectivity, **kwargs):
+        # type: (Connectivity, dict) -> None
         """
         :param connectivity: Connectivity to view or operate on
         """
         self.connectivity = connectivity
-        self.output_plot = CustomOutput()
+        self.output = CustomOutput()
+        self.widgets_map = dict()
 
-        super().__init__([self.output_plot], layout=self.DEFAULT_BORDER)
+        super().__init__([self.output], layout=self.DEFAULT_BORDER, **kwargs)
 
         self.__draw_connectivity()
+        self.__show_plot()
 
     def add_datatype(self, datatype):  # type: (HasTraits) -> None
         pass
 
     def __show_plot(self, matrix=None):
+        # type: (ndarray) -> None
+        """
+        Clears the custom output and draws the connectivity matrix
+        based on the current selection
+        """
         dropdown = self.__find_dropdown()
         if not dropdown and matrix is None:
-            self.logger.error('Non matrix found for plot!')
+            self.logger.error('No matrix found for plot!')
             return None
         dropdown_matrix = self.connectivity.weights if dropdown.value == 'weights' else self.connectivity.tract_lengths
         matrix = matrix if matrix is not None else dropdown_matrix
-        with self.output_plot:
-            self.output_plot.clear_output(wait=True)
-            self.output_plot.plotter.matshow(matrix)
-            self.output_plot.plotter.show()
+        with self.output:
+            self.output.clear_output(wait=True)
+            self.output.plotter.matshow(matrix)
+            self.output.plotter.show()
 
     def __find_dropdown(self):
         # type: () -> ipywidgets.Dropdown | None
-        for wid in self.children:
-            try:
-                if wid.description and wid.description == self.DROPDOWN_DESCRIPTION:
-                    return wid
-            except AttributeError:
-                pass
-        return None
+        try:
+            return self.widgets_map[DROPDOWN_KEY]
+        except KeyError:
+            return None
 
     def __draw_connectivity(self):
         # type: () -> None
+        """
+        Creates the connectivity matrix dropdown as a child of this widget
+        """
+
         def on_change(change):
             if change['type'] == 'change' and change['name'] == 'value':
                 matrix = self.connectivity.weights if change['new'] == 'weights' else self.connectivity.tract_lengths
@@ -92,5 +101,13 @@ class ConnectivityWidget(ipywidgets.HBox, TVBWidget):
             description='Matrix:'
         )
         dropdown.observe(on_change)
+        self.widgets_map[DROPDOWN_KEY] = dropdown
         self.children = (dropdown, *self.children)
-        self.__show_plot()
+
+
+class ConnectivityWidget(ipywidgets.Tab):
+    def __init__(self, connectivity, **kwargs):
+        super().__init__(**kwargs)
+        children = [Connectivity2DViewer(connectivity)]
+        self.set_title(0, 'Connectivity 2D Viewer')
+        self.children = children
