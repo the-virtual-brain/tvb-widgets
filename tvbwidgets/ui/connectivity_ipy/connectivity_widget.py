@@ -105,6 +105,12 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         self.children = (dropdown, *self.children)
 
 
+class Connectivity3DViewer(ipywidgets.HBox):
+    def __init__(self, connectivity, **kwargs):
+        super(Connectivity3DViewer, self).__init__(*kwargs)
+        self.children = [ipywidgets.HTML(value='Placeholder for 3d viewer')]
+
+
 class ConnectivityOperations(ipywidgets.VBox):
     def __init__(self, connectivity, **kwargs):
         super().__init__(**kwargs)
@@ -113,12 +119,15 @@ class ConnectivityOperations(ipywidgets.VBox):
         self.children = children
 
 
-class ConnectivityViewers(ipywidgets.VBox):
+class ConnectivityViewers(ipywidgets.Accordion):
     def __init__(self, connectivity, **kwargs):
         super().__init__(**kwargs)
-        self.children = (
+        self.children = [
             Connectivity2DViewer(connectivity),
-        )
+            Connectivity3DViewer(connectivity)
+        ]
+        self.set_title(0, '2D Connectivity Matrix viewer')
+        self.set_title(1, '3D Connectivity viewer')
 
 
 class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
