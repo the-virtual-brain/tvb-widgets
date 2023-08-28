@@ -105,9 +105,43 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         self.children = (dropdown, *self.children)
 
 
-class ConnectivityWidget(ipywidgets.Tab):
+class ConnectivityOperations(ipywidgets.VBox):
     def __init__(self, connectivity, **kwargs):
         super().__init__(**kwargs)
-        children = [Connectivity2DViewer(connectivity)]
-        self.set_title(0, 'Connectivity 2D Viewer')
+        children = [
+            ipywidgets.HTML(value=f'Placeholder text for operations on Connectivity-{connectivity.number_of_regions}')]
+        self.children = children
+
+
+class ConnectivityViewers(ipywidgets.VBox):
+    def __init__(self, connectivity, **kwargs):
+        super().__init__(**kwargs)
+        self.children = (
+            Connectivity2DViewer(connectivity),
+        )
+
+
+class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
+    def add_datatype(self, datatype):
+        """
+        Doesn't allow this opp at this time
+        """
+        pass
+
+    def __init__(self, connectivity, **kwargs):
+        super().__init__(**kwargs)
+
+        config = ConnectivityConfig(name=f'Connectivity - {str(connectivity.number_of_regions)}')
+
+        tabs = (
+            ConnectivityViewers(connectivity),
+            ConnectivityOperations(connectivity)
+        )
+        tabs_container = ipywidgets.Tab(children=tabs)
+        tabs_container.set_title(0, 'Viewers')
+        tabs_container.set_title(1, 'Operations')
+        children = [
+            ipywidgets.HTML(value=f'<h1>{config.name}</h1>'),
+            tabs_container
+        ]
         self.children = children
