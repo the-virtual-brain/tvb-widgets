@@ -52,7 +52,7 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         self.output = CustomOutput()
         self.widgets_map = dict()
 
-        super().__init__([self.output], layout=self.DEFAULT_BORDER, **kwargs)
+        super().__init__([self.output], **kwargs)
 
         self.__draw_connectivity()
         self.__show_plot()
@@ -111,11 +111,19 @@ class Connectivity3DViewer(ipywidgets.HBox):
         self.children = [ipywidgets.HTML(value='Placeholder for 3d viewer')]
 
 
-class ConnectivityOperations(ipywidgets.VBox):
+class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
+    def add_datatype(self, datatype):
+        """
+        Currently not supported
+        """
+        pass
+
     def __init__(self, connectivity, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(layout=self.DEFAULT_BORDER, **kwargs)
         children = [
-            ipywidgets.HTML(value=f'Placeholder text for operations on Connectivity-{connectivity.number_of_regions}')]
+            ipywidgets.HTML(
+                value=f'Placeholder text for operations on Connectivity-{connectivity.number_of_regions}'
+            )]
         self.children = children
 
 
@@ -133,24 +141,47 @@ class ConnectivityViewers(ipywidgets.Accordion):
 class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
     def add_datatype(self, datatype):
         """
-        Doesn't allow this opp at this time
+        Doesn't allow this opp. at this time
         """
         pass
 
     def __init__(self, connectivity, **kwargs):
-        super().__init__(**kwargs)
+        style = self.DEFAULT_BORDER
+        super().__init__(**kwargs, layout=style)
 
         config = ConnectivityConfig(name=f'Connectivity - {str(connectivity.number_of_regions)}')
 
-        tabs = (
-            ConnectivityViewers(connectivity),
-            ConnectivityOperations(connectivity)
-        )
-        tabs_container = ipywidgets.Tab(children=tabs)
-        tabs_container.set_title(0, 'Viewers')
-        tabs_container.set_title(1, 'Operations')
+        self.viewers_tab = ConnectivityViewers(connectivity)
+        self.operations_tab = ConnectivityOperations(connectivity)
+        tabs = (self.viewers_tab, self.operations_tab)
+
+        viewers_checkbox = ipywidgets.Checkbox(value=True, description='Viewers')
+
+        def on_change_viewers(c):
+            self.viewers_tab.layout.display = c['new'] and 'inline-block' or 'none'
+
+        viewers_checkbox.observe(on_change_viewers, 'value')
+        operations_checkbox = ipywidgets.Checkbox(value=True, description='Operations')
+
+        def on_change_operations(c):
+            self.operations_tab.layout.display = c['new'] and 'inline-block' or 'none'
+
+        operations_checkbox.observe(on_change_operations, 'value')
+
+        sections_container = ipywidgets.HBox(children=tabs)
+
         children = [
-            ipywidgets.HTML(value=f'<h1>{config.name}</h1>'),
-            tabs_container
+            ipywidgets.HBox(
+                children=(
+                    ipywidgets.HTML(value=f'<h1>{config.name}</h1>'),
+                    ipywidgets.VBox(children=(
+                        viewers_checkbox,
+                        operations_checkbox
+                    )
+                    )
+
+                )
+            ),
+            sections_container
         ]
         self.children = children
