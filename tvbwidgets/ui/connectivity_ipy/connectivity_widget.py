@@ -4,32 +4,20 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
-import dataclasses
 
 import ipywidgets
-import pyvista
 import matplotlib
+import numpy
+import pyvista as pv
+import numpy as np
 from numpy import ndarray
-from tvb.basic.neotraits._attr import NArray
 from tvb.basic.neotraits.api import HasTraits
 from tvb.datatypes.connectivity import Connectivity
 from tvbwidgets.ui.base_widget import TVBWidget
-
-pyvista.set_jupyter_backend('pythreejs')
+from tvbwidgets.ui.connectivity_ipy.outputs_3d import PyVistaOutput
+from tvbwidgets.ui.connectivity_ipy.config import ConnectivityConfig
 
 DROPDOWN_KEY = 'dropdown'
-
-
-@dataclasses.dataclass
-class ConnectivityConfig:
-    name: str = 'Connectivity'
-    style: str = 'Surface'
-    color: str = 'White'
-    light: bool = True
-    size: int = 1500
-    cmap: str | None = None
-    scalars: ndarray | NArray = None
-    widget: ipywidgets.Widget = None
 
 
 class CustomOutput(ipywidgets.Output):
@@ -105,10 +93,109 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         self.children = (dropdown, *self.children)
 
 
-class Connectivity3DViewer(ipywidgets.HBox):
+class Connectivity3DViewer(ipywidgets.VBox):
+    PYVISTA = 'PyVista'
+
     def __init__(self, connectivity, **kwargs):
-        super(Connectivity3DViewer, self).__init__(*kwargs)
-        self.children = [ipywidgets.HTML(value='Placeholder for 3d viewer')]
+        self.connectivity = connectivity
+
+        self.output = PyVistaOutput()
+
+        super(Connectivity3DViewer, self).__init__([self.output], *kwargs)
+
+        self.init_view_connectivity()
+
+    def init_view_connectivity(self):
+        points, edges, labels = self.add_actors()
+        points_toggle, edges_toggle, labels_toggle = self._init_controls()
+        if not labels_toggle.value:
+            self.output.hide_actor(labels)
+
+        def on_change_points(change):
+            if change['new']:
+                self.output.display_actor(points)
+            else:
+                self.output.hide_actor(points)
+            self.output.update_plot()
+
+        points_toggle.observe(on_change_points, 'value')
+
+        def on_change_edges(change):
+            if change['new']:
+                self.output.display_actor(edges)
+            else:
+                self.output.hide_actor(edges)
+            self.output.update_plot()
+
+        edges_toggle.observe(on_change_edges, 'value')
+
+        def on_change_labels(change):
+            if change['new']:
+                self.output.display_actor(labels)
+            else:
+                self.output.hide_actor(labels)
+            self.output.update_plot()
+
+        labels_toggle.observe(on_change_labels, 'value')
+
+        window_controls = self.output.get_window_controls()
+
+        self.children = [
+            ipywidgets.HBox(children=(
+                points_toggle, edges_toggle, labels_toggle)),
+            window_controls,
+            self.output]
+        self.output.display_actor(points)
+        self.output.display_actor(edges)
+        self.output.update_plot()
+
+    def _init_controls(self):
+        points_toggle = ipywidgets.ToggleButton(value=True,
+                                                description='Points'
+                                                )
+        edges_toggle = ipywidgets.ToggleButton(value=True,
+                                               description='Edges',
+                                               )
+
+        labels_toggle = ipywidgets.ToggleButton(value=False,
+                                                description='Labels')
+        return points_toggle, edges_toggle, labels_toggle
+
+    def add_actors(self):
+        plotter = self.output.plotter
+        points = self.connectivity.centres
+
+        mesh_points = pv.PolyData(points)
+
+        labels = self.connectivity.region_labels
+        labels_actor = plotter.add_point_labels(points, labels)
+
+        points_color = self.output.CONFIG.points_color
+        points_size = self.output.CONFIG.point_size
+        edge_color = self.output.CONFIG.edge_color
+
+        points_actor = plotter.add_points(mesh_points, color=points_color, point_size=points_size)
+
+        edges_coords = self._extract_edges()
+
+        edges_actor = plotter.add_lines(edges_coords, color=edge_color, width=1)
+        plotter.camera_position = 'xy'
+
+        return points_actor, edges_actor, labels_actor
+
+    def _extract_edges(self):
+        connectivity = self.connectivity
+        edge_indices = np.nonzero(connectivity.weights)
+        edges = list(zip(edge_indices[0], edge_indices[1]))
+
+        edges_coords = []
+        points = connectivity.centres
+
+        for (i, j) in edges:
+            edges_coords.append(points[i])
+            edges_coords.append(points[j])
+
+        return numpy.array(edges_coords)
 
 
 class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
@@ -177,10 +264,7 @@ class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
                     ipywidgets.VBox(children=(
                         viewers_checkbox,
                         operations_checkbox
-                    )
-                    )
-
-                )
+                    )))
             ),
             sections_container
         ]
