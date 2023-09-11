@@ -62,7 +62,9 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         matrix = matrix if matrix is not None else dropdown_matrix
         with self.output:
             self.output.clear_output(wait=True)
-            self.output.plotter.matshow(matrix)
+            self.output.plotter.figure(figsize=(8, 8))
+            heatmap = self.output.plotter.matshow(matrix, fignum=1)
+            self.output.plotter.colorbar(heatmap)
             self.output.plotter.show()
 
     def __find_dropdown(self):
@@ -258,10 +260,10 @@ class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
         sections_container = ipywidgets.HBox(children=tabs)
 
         children = [
-            ipywidgets.HBox(
+            ipywidgets.VBox(
                 children=(
                     ipywidgets.HTML(value=f'<h1>{config.name}</h1>'),
-                    ipywidgets.VBox(children=(
+                    ipywidgets.HBox(children=(
                         viewers_checkbox,
                         operations_checkbox
                     )))
