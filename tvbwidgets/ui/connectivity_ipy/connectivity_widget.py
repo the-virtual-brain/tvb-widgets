@@ -15,7 +15,9 @@ from tvb.basic.neotraits.api import HasTraits
 from tvb.datatypes.connectivity import Connectivity
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.connectivity_ipy.outputs_3d import PyVistaOutput
+from tvbwidgets.ui.connectivity_ipy.operations import ConnectivityOperations
 from tvbwidgets.ui.connectivity_ipy.config import ConnectivityConfig
+from tvbwidgets.ui.connectivity_ipy.global_context import CONTEXT
 
 DROPDOWN_KEY = 'dropdown'
 
@@ -83,14 +85,20 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         def on_change(change):
             if change['type'] == 'change' and change['name'] == 'value':
                 matrix = self.connectivity.weights if change['new'] == 'weights' else self.connectivity.tract_lengths
+                CONTEXT.matrix = change['new']
                 self.__show_plot(matrix)
 
         dropdown = ipywidgets.Dropdown(
-            options=[('Tracts', 'tracts'), ('Weights', 'weights')],
-            value='weights',
+            options=CONTEXT.MATRIX_OPTIONS,
+            value=CONTEXT.matrix,
             description='Matrix:'
         )
         dropdown.observe(on_change)
+
+        def on_ctx_change(value):
+            dropdown.value = value
+
+        CONTEXT.observe(on_ctx_change, 'matrix')
         self.widgets_map[DROPDOWN_KEY] = dropdown
         self.children = (dropdown, *self.children)
 
@@ -198,22 +206,6 @@ class Connectivity3DViewer(ipywidgets.VBox):
             edges_coords.append(points[j])
 
         return numpy.array(edges_coords)
-
-
-class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
-    def add_datatype(self, datatype):
-        """
-        Currently not supported
-        """
-        pass
-
-    def __init__(self, connectivity, **kwargs):
-        super().__init__(layout=self.DEFAULT_BORDER, **kwargs)
-        children = [
-            ipywidgets.HTML(
-                value=f'Placeholder text for operations on Connectivity-{connectivity.number_of_regions}'
-            )]
-        self.children = children
 
 
 class ConnectivityViewers(ipywidgets.Accordion):
