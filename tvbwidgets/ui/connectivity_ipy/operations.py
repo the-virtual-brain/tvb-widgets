@@ -81,7 +81,6 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
 
     @property
     def selected_regions(self):
-        print(self.regions_checkboxes)
         return list(map(lambda x: x.description, filter(lambda x: x.value, self.regions_checkboxes)))
 
     def __get_operations_buttons(self):
@@ -93,22 +92,29 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         Create a new connectivity cutting the edges of selected nodes.
         Check the selected nodes in the above dropdown to see what it is included
         """
-        cut_selected = ipywidgets.Button(description='Cut selected regions',
-                                         disabled=False,
-                                         button_style='success',
-                                         tooltip=cut_selected_tooltip,
-                                         icon='scissors')
+        cut_unselected_nodes = ipywidgets.Button(description='Cut selected regions',
+                                                 disabled=False,
+                                                 button_style='success',
+                                                 tooltip=cut_selected_tooltip,
+                                                 icon='scissors')
 
-        cut_edges_of_selected = ipywidgets.Button(description='Cut edges of selected',
-                                                  disabled=False,
-                                                  button_style='warning',
-                                                  tooltip=cut_edges_tooltip,
-                                                  icon='scissors')
+        cut_unselected_edges = ipywidgets.Button(description='Cut unselected edges',
+                                                 disabled=False,
+                                                 button_style='warning',
+                                                 tooltip=cut_edges_tooltip,
+                                                 icon='scissors')
 
-        cut_selected.on_click(lambda *args: self.__cut_selected_nodes())
-        cut_edges_of_selected.on_click(lambda *args: self.__cut_selected_edges())
+        cut_selected_edges = ipywidgets.Button(description='Cut selected edges',
+                                               disabled=False,
+                                               button_style='warning',
+                                               tooltip=cut_edges_tooltip,
+                                               icon='scissors')
 
-        return ipywidgets.HBox(children=[cut_selected, cut_edges_of_selected])
+        cut_unselected_nodes.on_click(lambda *args: self.__cut_selected_nodes())
+        cut_unselected_edges.on_click(lambda *args: self.__cut_edges())
+        cut_selected_edges.on_click(lambda *args: self.__cut_edges(selected=True))
+
+        return ipywidgets.HBox(children=[cut_unselected_nodes, cut_unselected_edges, cut_selected_edges])
 
     def __cut_selected_nodes(self):
         """
@@ -120,16 +126,18 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         regions = CONTEXT.connectivity.region_labels
         selected_regions = [numpy.where(regions == label)[0][0] for label in self.selected_regions]
         new_conn = self._cut_connectivity(CONTEXT.connectivity, new_weights, selected_regions, new_tracts)
+        print('centres of new conn: ', new_conn.centres)
         CONTEXT.connectivity = new_conn
 
-    def __cut_selected_edges(self):
+    def __cut_edges(self, selected=False):
         print('cutting edges: ', self.selected_regions)
         matrix = CONTEXT.matrix
         new_weights = CONTEXT.connectivity.weights
         new_tracts = CONTEXT.connectivity.tract_lengths if matrix == 'tracts' else None
         regions = CONTEXT.connectivity.region_labels
         selected_regions = [numpy.where(regions == label)[0][0] for label in self.selected_regions]
-        new_conn = self._branch_connectivity(CONTEXT.connectivity, new_weights, selected_regions, new_tracts)
+        new_conn = self._cut_connectivity_edges(CONTEXT.connectivity, new_weights, selected_regions, new_tracts,
+                                                selected)
         CONTEXT.connectivity = new_conn
 
     def _reorder_arrays(self, original_conn, new_weights, interest_areas, new_tracts=None):
@@ -147,8 +155,8 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
 
         return new_weights, interest_areas, new_tracts
 
-    def _branch_connectivity(self, original_conn, new_weights, interest_areas,
-                             new_tracts=None):
+    def _cut_connectivity_edges(self, original_conn, new_weights, interest_areas,
+                                new_tracts=None, selected=False):
         # type: (Connectivity, numpy.array, numpy.array, numpy.array) -> Connectivity
         """
         Generate new Connectivity based on a previous one, by changing weights (e.g. simulate lesion).
@@ -157,8 +165,8 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         :param new_weights: weights matrix for the new connectivity
         :param interest_areas: ndarray of the selected node id's
         :param new_tracts: tracts matrix for the new connectivity
+        :param selected: if true cuts out edges of selected areas else unselected edges
         """
-        print('herre')
         new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn, new_weights,
                                                                        interest_areas, new_tracts)
         if new_tracts is None:
@@ -167,6 +175,9 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         for i in range(len(original_conn.weights)):
             for j in range(len(original_conn.weights)):
                 if i not in interest_areas or j not in interest_areas:
+                    if not selected:
+                        new_weights[i][j] = 0
+                elif i in interest_areas or j in interest_areas and selected:
                     new_weights[i][j] = 0
 
         final_conn = Connectivity()

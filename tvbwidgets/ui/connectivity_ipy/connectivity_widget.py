@@ -45,6 +45,7 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
 
         self.__draw_connectivity()
         self.__show_plot()
+        CONTEXT.observe(lambda *args: self.__show_plot(), 'connectivity')
 
     def add_datatype(self, datatype):  # type: (HasTraits) -> None
         pass
@@ -104,7 +105,6 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
 
 
 class Connectivity3DViewer(ipywidgets.VBox):
-    PYVISTA = 'PyVista'
 
     def __init__(self, **kwargs):
         self.output = PyVistaOutput()
@@ -112,8 +112,10 @@ class Connectivity3DViewer(ipywidgets.VBox):
         super(Connectivity3DViewer, self).__init__([self.output], *kwargs)
 
         self.init_view_connectivity()
+        CONTEXT.observe(lambda *args: self.init_view_connectivity(), 'connectivity')
 
     def init_view_connectivity(self):
+        self.output.plotter.clear()
         points, edges, labels = self.add_actors()
         points_toggle, edges_toggle, labels_toggle = self._init_controls()
         if not labels_toggle.value:

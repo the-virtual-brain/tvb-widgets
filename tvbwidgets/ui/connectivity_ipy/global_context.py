@@ -19,34 +19,34 @@ class SingletonMeta(type):
 
 class GlobalContext(metaclass=SingletonMeta):
     MATRIX_OPTIONS = [('Tracts', 'tracts'), ('Weights', 'weights')]
-    _observed_state = dict()
 
     def __init__(self):
-        self._matrix = 'weights'
-        self._connectivity = None
+        self.__matrix = 'weights'
+        self.__connectivity = None
+        self.__observed_attributes = dict()
         self.connectivities_history = []  # list of connectivities previously used
 
     @property
     def matrix(self):
-        return self._matrix
+        return self.__matrix
 
     @matrix.setter
     def matrix(self, next_value):
-        prev_value = self._matrix
-        self._matrix = next_value
+        prev_value = self.__matrix
+        self.__matrix = next_value
         if prev_value != next_value:
             self.__notify_observers('matrix', next_value)
 
     @property
     def connectivity(self):
         # type: () -> Connectivity
-        return self._connectivity
+        return self.__connectivity
 
     @connectivity.setter
     def connectivity(self, next_value):
         # type: (Connectivity) -> None
-        previous = self._connectivity
-        self._connectivity = next_value
+        previous = self.__connectivity
+        self.__connectivity = next_value
         if previous != next_value:
             self.__notify_observers('connectivity', next_value)
             if not any([conn.gid == next_value.gid for conn in self.connectivities_history]):
@@ -59,13 +59,13 @@ class GlobalContext(metaclass=SingletonMeta):
         passing as argument the next value for the attribute
         """
         try:
-            observers = self._observed_state[observed_attribute]
+            observers = self.__observed_attributes[observed_attribute]
             for obs in observers:
                 obs(next_value)
         except KeyError:
             pass
 
-    def observe(self, observer_func, value_observed):
+    def observe(self, observer_func, attribute_observed):
         # type: (Callable[[any], any], str) -> None
         """
         Method to register an observer for the specified value.
@@ -74,10 +74,10 @@ class GlobalContext(metaclass=SingletonMeta):
         with the new value passed as param.
         """
         try:
-            observers_list = self._observed_state[value_observed]
+            observers_list = self.__observed_attributes[attribute_observed]
             observers_list.append(observer_func)
         except KeyError:
-            self._observed_state[value_observed] = [observer_func]
+            self.__observed_attributes[attribute_observed] = [observer_func]
 
     def remove_observer(self, observer_func, value_observed):
         # type: (Callable[[any], any], str) -> None
@@ -85,7 +85,7 @@ class GlobalContext(metaclass=SingletonMeta):
         Unregister a registered observer.
         """
         try:
-            observers_list = self._observed_state[value_observed]
+            observers_list = self.__observed_attributes[value_observed]
             observers_list.remove(observer_func)
         except KeyError:
             pass
