@@ -39,8 +39,15 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         def update_history_ui(*args):
             children[1] = self.get_history_dropdown()
             self.children = children
+            self.send_state(self.keys)  # trigger ui update
+
+        def update_selector_ui(*args):
+            children[2] = self.__get_node_selector()
+            self.children = children
+            self.send_state(self.keys)  # trigger ui update
 
         CONTEXT.observe(update_history_ui, 'connectivity')
+        CONTEXT.observe(update_selector_ui, 'connectivity')
         self.children = children
 
     @property
@@ -73,24 +80,8 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
                                                           )),
                                 layout={'width': '50%', 'align-items': 'start'}
                                 )
-        matrix_dropdown = ipywidgets.Dropdown(
-            options=CONTEXT.MATRIX_OPTIONS,
-            value=CONTEXT.matrix,
-            description='Matrix:'
-        )
 
-        def on_change(value):
-            CONTEXT.matrix = value['new']
-
-        matrix_dropdown.observe(on_change, 'value')
-
-        def on_ctx_change(value):
-            matrix_dropdown.value = value
-
-        CONTEXT.observe(on_ctx_change, 'matrix')
-
-        container = ipywidgets.VBox(children=(matrix_dropdown,
-                                              ipywidgets.HBox(children=(left, right))))
+        container = ipywidgets.HBox(children=(left, right))
         accordion = ipywidgets.Accordion(children=[container], selected_index=None,
                                          layout={'max-height': '50vh'})
         accordion.set_title(0, 'Regions selector')
@@ -133,22 +124,15 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         """
         Create a new connectivity using only the selected nodes
         """
-        matrix = CONTEXT.matrix
-        new_weights = CONTEXT.connectivity.weights
-        new_tracts = CONTEXT.connectivity.tract_lengths if matrix == 'tracts' else None
         regions = CONTEXT.connectivity.region_labels
         selected_regions = [numpy.where(regions == label)[0][0] for label in self.selected_regions]
-        new_conn = self._cut_connectivity(CONTEXT.connectivity, new_weights, selected_regions, new_tracts)
+        new_conn = self._cut_connectivity(selected_regions)
         CONTEXT.connectivity = new_conn
 
     def __cut_edges(self, selected=False):
-        matrix = CONTEXT.matrix
-        new_weights = CONTEXT.connectivity.weights
-        new_tracts = CONTEXT.connectivity.tract_lengths if matrix == 'tracts' else None
         regions = CONTEXT.connectivity.region_labels
         selected_regions = [numpy.where(regions == label)[0][0] for label in self.selected_regions]
-        new_conn = self._cut_connectivity_edges(CONTEXT.connectivity, new_weights, selected_regions, new_tracts,
-                                                selected)
+        new_conn = self._cut_connectivity_edges(selected_regions, selected)
         CONTEXT.connectivity = new_conn
 
     def _reorder_arrays(self, original_conn, new_weights, interest_areas, new_tracts=None):
@@ -168,33 +152,38 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
 
     def get_history_dropdown(self):
         values = [(conn.gid.hex, conn) for conn in CONTEXT.connectivities_history]
+        default = len(values) and values[-1][1] or None
 
         dropdown = ipywidgets.Dropdown(options=values,
                                        description='View history',
-                                       disabled=False)
-        dropdown.observe(lambda x: print(x['new']), 'value')
+                                       disabled=False,
+                                       value=default)
+
+        def on_connectivity_change(change):
+            CONTEXT.connectivity = change['new']
+
+        dropdown.observe(on_connectivity_change, 'value')
         return dropdown
 
-    def _cut_connectivity_edges(self, original_conn, new_weights, interest_areas,
-                                new_tracts=None, selected=False):
-        # type: (Connectivity, numpy.array, numpy.array, numpy.array) -> Connectivity
+    def _cut_connectivity_edges(self, interest_areas, selected=False):
+        # type: (numpy.array, bool) -> Connectivity
         """
         Generate new Connectivity based on a previous one, by changing weights (e.g. simulate lesion).
         The returned connectivity has the same number of nodes. The edges of unselected nodes will have weight 0.
-        :param original_conn: Original Connectivity, to copy from
-        :param new_weights: weights matrix for the new connectivity
         :param interest_areas: ndarray of the selected node id's
-        :param new_tracts: tracts matrix for the new connectivity
         :param selected: if true cuts out edges of selected areas else unselected edges
         """
+
+        original_conn = CONTEXT.connectivity
+        new_weights = CONTEXT.connectivity.weights
+        new_tracts = CONTEXT.connectivity.tract_lengths
+
         if not len(interest_areas):
-            LOGGER.error('No intrest areas selected!')
+            LOGGER.error('No interest areas selected!')
             return CONTEXT.connectivity
 
         new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn, new_weights,
                                                                        interest_areas, new_tracts)
-        if new_tracts is None:
-            new_tracts = original_conn.tract_lengths
 
         for i in range(len(original_conn.weights)):
             for j in range(len(original_conn.weights)):
@@ -218,28 +207,27 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         final_conn.configure()
         return final_conn
 
-    def _cut_connectivity(self, original_conn, new_weights, interest_areas, new_tracts=None):
-        # type: (Connectivity, numpy.array, numpy.array, numpy.array) -> Connectivity
+    def _cut_connectivity(self, interest_areas, selected=False):
+        # type: (numpy.array, bool) -> Connectivity
         """
         Generate new Connectivity object based on current one, by removing nodes (e.g. simulate lesion).
         Only the selected nodes will get used in the result. The order of the indices in interest_areas matters.
         If indices are not sorted then the nodes will be permuted accordingly.
-
-        :param original_conn: Original Connectivity(HasTraits), to cut nodes from
-        :param new_weights: weights matrix for the new connectivity
         :param interest_areas: ndarray with the selected node id's.
-        :param new_tracts: tracts matrix for the new connectivity
         """
+
+        original_conn = CONTEXT.connectivity
+        new_weights = CONTEXT.connectivity.weights
+        new_tracts = CONTEXT.connectivity.tract_lengths
+
         if not len(interest_areas):
             LOGGER.error('No interest areas selected!')
             return CONTEXT.connectivity
 
         new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn, new_weights,
                                                                        interest_areas, new_tracts)
-        if new_tracts is None:
-            new_tracts = original_conn.tract_lengths[interest_areas, :][:, interest_areas]
-        else:
-            new_tracts = new_tracts[interest_areas, :][:, interest_areas]
+
+        new_tracts = new_tracts[interest_areas, :][:, interest_areas]
         new_weights = new_weights[interest_areas, :][:, interest_areas]
 
         final_conn = Connectivity()

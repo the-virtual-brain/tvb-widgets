@@ -4,8 +4,17 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
+import enum
 from typing import Callable
 from tvb.datatypes.connectivity import Connectivity
+
+
+class ObservableAttrs(str, enum.Enum):
+    """
+    Enum representing observable attributes of the GlobalContext singleton
+    """
+    MATRIX = 'matrix'
+    CONNECTIVITY = 'connectivity'
 
 
 class SingletonMeta(type):
@@ -35,7 +44,7 @@ class GlobalContext(metaclass=SingletonMeta):
         prev_value = self.__matrix
         self.__matrix = next_value
         if prev_value != next_value:
-            self.__notify_observers('matrix', next_value)
+            self.__notify_observers(ObservableAttrs.MATRIX, next_value)
 
     @property
     def connectivity(self):
@@ -47,10 +56,12 @@ class GlobalContext(metaclass=SingletonMeta):
         # type: (Connectivity) -> None
         previous = self.__connectivity
         self.__connectivity = next_value
-        if previous != next_value:
-            self.__notify_observers('connectivity', next_value)
+        if not len(self.connectivities_history):
+            self.connectivities_history = [self.__connectivity]
+        if previous and previous.gid.hex != next_value.gid.hex:
             if not any([conn.gid == next_value.gid for conn in self.connectivities_history]):
                 self.connectivities_history.append(next_value)
+            self.__notify_observers(ObservableAttrs.CONNECTIVITY, next_value)
 
     def __notify_observers(self, observed_attribute, next_value):
         # type: (str, any) -> None

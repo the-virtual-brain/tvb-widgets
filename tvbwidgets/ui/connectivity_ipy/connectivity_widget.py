@@ -17,7 +17,7 @@ from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.connectivity_ipy.outputs_3d import PyVistaOutput
 from tvbwidgets.ui.connectivity_ipy.operations import ConnectivityOperations
 from tvbwidgets.ui.connectivity_ipy.config import ConnectivityConfig
-from tvbwidgets.ui.connectivity_ipy.global_context import CONTEXT
+from tvbwidgets.ui.connectivity_ipy.global_context import CONTEXT, ObservableAttrs
 
 DROPDOWN_KEY = 'dropdown'
 
@@ -45,7 +45,7 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
 
         self.__draw_connectivity()
         self.__show_plot()
-        CONTEXT.observe(lambda *args: self.__show_plot(), 'connectivity')
+        CONTEXT.observe(lambda *args: self.__show_plot(), ObservableAttrs.CONNECTIVITY)
 
     def add_datatype(self, datatype):  # type: (HasTraits) -> None
         pass
@@ -99,7 +99,7 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         def on_ctx_change(value):
             dropdown.value = value
 
-        CONTEXT.observe(on_ctx_change, 'matrix')
+        CONTEXT.observe(on_ctx_change, ObservableAttrs.MATRIX)
         self.widgets_map[DROPDOWN_KEY] = dropdown
         self.children = (dropdown, *self.children)
 
@@ -112,7 +112,7 @@ class Connectivity3DViewer(ipywidgets.VBox):
         super(Connectivity3DViewer, self).__init__([self.output], *kwargs)
 
         self.init_view_connectivity()
-        CONTEXT.observe(lambda *args: self.init_view_connectivity(), 'connectivity')
+        CONTEXT.observe(lambda *args: self.init_view_connectivity(), ObservableAttrs.CONNECTIVITY)
 
     def init_view_connectivity(self):
         self.output.plotter.clear()
@@ -225,6 +225,19 @@ class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
         Doesn't allow this opp. at this time
         """
         pass
+
+    def get_connectivity(self, gid=None):
+        # type: (str|None) -> Connectivity
+        """
+        Get a connectivity with the gid provided from the context history.
+        if gid=None return the current connectivity set on CONTEXT
+        """
+        if gid is None:
+            return CONTEXT.connectivity
+        conn = list(filter(lambda c: c.gid.hex == gid, CONTEXT.connectivities_history))
+        if not len(conn):
+            return None
+        return conn[0]
 
     def __init__(self, connectivity, **kwargs):
         style = self.DEFAULT_BORDER
