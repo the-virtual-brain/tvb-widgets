@@ -5,6 +5,7 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 from typing import Callable
+from tvb.datatypes.connectivity import Connectivity
 
 
 class SingletonMeta(type):
@@ -22,21 +23,45 @@ class GlobalContext(metaclass=SingletonMeta):
 
     def __init__(self):
         self._matrix = 'weights'
+        self._connectivity = None
+        self.connectivities_history = []  # list of connectivities previously used
 
     @property
     def matrix(self):
         return self._matrix
 
     @matrix.setter
-    def matrix(self, value):
-        old_value = self._matrix
-        self._matrix = value
-        if old_value == value:
-            return
+    def matrix(self, next_value):
+        prev_value = self._matrix
+        self._matrix = next_value
+        if prev_value != next_value:
+            self.__notify_observers('matrix', next_value)
+
+    @property
+    def connectivity(self):
+        # type: () -> Connectivity
+        return self._connectivity
+
+    @connectivity.setter
+    def connectivity(self, next_value):
+        # type: (Connectivity) -> None
+        previous = self._connectivity
+        self._connectivity = next_value
+        if previous != next_value:
+            self.__notify_observers('connectivity', next_value)
+            if not any([conn.gid == next_value.gid for conn in self.connectivities_history]):
+                self.connectivities_history.append(next_value)
+
+    def __notify_observers(self, observed_attribute, next_value):
+        # type: (str, any) -> None
+        """
+        Calls all the observer functions of the provided observed attribute
+        passing as argument the next value for the attribute
+        """
         try:
-            observers = self._observed_state['matrix']
-            for observer in observers:
-                observer(value)
+            observers = self._observed_state[observed_attribute]
+            for obs in observers:
+                obs(next_value)
         except KeyError:
             pass
 
