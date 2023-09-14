@@ -48,6 +48,9 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         CONTEXT.observe(lambda *args: self.__show_plot(), ObservableAttrs.CONNECTIVITY)
 
     def add_datatype(self, datatype):  # type: (HasTraits) -> None
+        """
+        not supported
+        """
         pass
 
     def __show_plot(self, matrix=None):
@@ -111,13 +114,13 @@ class Connectivity3DViewer(ipywidgets.VBox):
 
         super(Connectivity3DViewer, self).__init__([self.output], *kwargs)
 
-        self.init_view_connectivity()
-        CONTEXT.observe(lambda *args: self.init_view_connectivity(), ObservableAttrs.CONNECTIVITY)
+        self.__init_view_connectivity()
+        CONTEXT.observe(lambda *args: self.__init_view_connectivity(), ObservableAttrs.CONNECTIVITY)
 
-    def init_view_connectivity(self):
+    def __init_view_connectivity(self):
         self.output.plotter.clear()
-        points, edges = self.add_actors()
-        points_toggle, edges_toggle, labels_toggle = self._init_controls()
+        points, edges = self.__add_actors()
+        points_toggle, edges_toggle, labels_toggle = self.__init_controls()
 
         def on_change_points(change):
             if change['new']:
@@ -148,7 +151,7 @@ class Connectivity3DViewer(ipywidgets.VBox):
         self.output.display_actor(edges)
         self.output.update_plot()
 
-    def _init_controls(self):
+    def __init_controls(self):
         points_toggle = ipywidgets.ToggleButton(value=True,
                                                 description='Points'
                                                 )
@@ -160,7 +163,7 @@ class Connectivity3DViewer(ipywidgets.VBox):
                                                 description='Labels')
         return points_toggle, edges_toggle, labels_toggle
 
-    def add_actors(self):
+    def __add_actors(self):
         plotter = self.output.plotter
         points = CONTEXT.connectivity.centres
 
@@ -172,13 +175,13 @@ class Connectivity3DViewer(ipywidgets.VBox):
 
         points_actor = plotter.add_points(mesh_points, color=points_color, point_size=points_size)
 
-        edges_coords = self._extract_edges()
+        edges_coords = self.__extract_edges()
         edges_actor = plotter.add_lines(edges_coords, color=edge_color, width=1)
         plotter.camera_position = 'xy'
 
         return points_actor, edges_actor
 
-    def _extract_edges(self):
+    def __extract_edges(self):
         connectivity = CONTEXT.connectivity
         edge_indices = np.nonzero(connectivity.weights)
         edges = list(zip(edge_indices[0], edge_indices[1]))
