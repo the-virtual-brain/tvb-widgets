@@ -131,7 +131,7 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
 
     def __cut_edges(self, selected=False):
         regions = CONTEXT.connectivity.region_labels
-        selected_regions = [numpy.where(regions == label)[0][0] for label in self.selected_regions]
+        selected_regions = numpy.array([numpy.where(regions == label)[0][0] for label in self.selected_regions])
         new_conn = self._cut_connectivity_edges(selected_regions, selected)
         CONTEXT.connectivity = new_conn
 
@@ -142,7 +142,7 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         permutation = original_conn.hemisphere_order_indices
         inverse_permutation = numpy.argsort(permutation)  # trick to invert a permutation represented as an array
         interest_areas = inverse_permutation[interest_areas]
-        # see :meth"`ordered_weights` for why [p:][:p]
+        # see :meth:`ordered_weights` for why [p:][:p]
         new_weights = new_weights[inverse_permutation, :][:, inverse_permutation]
 
         if new_tracts is not None:
@@ -169,21 +169,23 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         # type: (numpy.array, bool) -> Connectivity
         """
         Generate new Connectivity based on a previous one, by changing weights (e.g. simulate lesion).
-        The returned connectivity has the same number of nodes. The edges of unselected nodes will have weight 0.
-        :param interest_areas: ndarray of the selected node id's
+        The returned connectivity has the same number of nodes. The edges of unselected nodes will have weight 0 if
+        selected=False.
+
+        :param interest_areas: ndarray of the selected node indexes
         :param selected: if true cuts out edges of selected areas else unselected edges
         """
 
         original_conn = CONTEXT.connectivity
-        new_weights = CONTEXT.connectivity.weights
-        new_tracts = CONTEXT.connectivity.tract_lengths
 
         if not len(interest_areas):
             LOGGER.error('No interest areas selected!')
             return CONTEXT.connectivity
 
-        new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn, new_weights,
-                                                                       interest_areas, new_tracts)
+        new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn,
+                                                                       original_conn.weights,
+                                                                       interest_areas,
+                                                                       original_conn.tract_lengths)
 
         for i in range(len(original_conn.weights)):
             for j in range(len(original_conn.weights)):
@@ -207,25 +209,26 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         final_conn.configure()
         return final_conn
 
-    def _cut_connectivity(self, interest_areas, selected=False):
+    def _cut_connectivity(self, interest_areas, selected=True):
         # type: (numpy.array, bool) -> Connectivity
         """
         Generate new Connectivity object based on current one, by removing nodes (e.g. simulate lesion).
-        Only the selected nodes will get used in the result. The order of the indices in interest_areas matters.
+        Only the selected nodes will get used in the result if selected=True. The order of the indices in interest_areas matters.
         If indices are not sorted then the nodes will be permuted accordingly.
-        :param interest_areas: ndarray with the selected node id's.
+        :param interest_areas: ndarray with the selected node indexes.
+        :param selected: should use for the new connectivity the selected nodes (if false, uses the unselected nodes)
         """
 
         original_conn = CONTEXT.connectivity
-        new_weights = CONTEXT.connectivity.weights
-        new_tracts = CONTEXT.connectivity.tract_lengths
 
         if not len(interest_areas):
             LOGGER.error('No interest areas selected!')
             return CONTEXT.connectivity
 
-        new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn, new_weights,
-                                                                       interest_areas, new_tracts)
+        new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn,
+                                                                       original_conn.weights,
+                                                                       interest_areas,
+                                                                       original_conn.tract_lengths)
 
         new_tracts = new_tracts[interest_areas, :][:, interest_areas]
         new_weights = new_weights[interest_areas, :][:, interest_areas]
