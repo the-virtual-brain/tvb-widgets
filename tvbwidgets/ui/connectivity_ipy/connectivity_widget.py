@@ -33,12 +33,11 @@ class CustomOutput(ipywidgets.Output):
 class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
     DROPDOWN_DESCRIPTION = 'Matrix:'
 
-    def __init__(self, connectivity, **kwargs):
+    def __init__(self, **kwargs):
         # type: (Connectivity, dict) -> None
         """
         :param connectivity: Connectivity to view or operate on
         """
-        self.connectivity = connectivity
         self.output = CustomOutput()
         self.widgets_map = dict()
 
@@ -60,7 +59,7 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         if not dropdown and matrix is None:
             self.logger.error('No matrix found for plot!')
             return None
-        dropdown_matrix = self.connectivity.weights if dropdown.value == 'weights' else self.connectivity.tract_lengths
+        dropdown_matrix = CONTEXT.connectivity.weights if dropdown.value == 'weights' else CONTEXT.connectivity.tract_lengths
         matrix = matrix if matrix is not None else dropdown_matrix
         with self.output:
             self.output.clear_output(wait=True)
@@ -84,7 +83,8 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
 
         def on_change(change):
             if change['type'] == 'change' and change['name'] == 'value':
-                matrix = self.connectivity.weights if change['new'] == 'weights' else self.connectivity.tract_lengths
+                matrix = CONTEXT.connectivity.weights if change[
+                                                             'new'] == 'weights' else CONTEXT.connectivity.tract_lengths
                 CONTEXT.matrix = change['new']
                 self.__show_plot(matrix)
 
@@ -106,9 +106,7 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
 class Connectivity3DViewer(ipywidgets.VBox):
     PYVISTA = 'PyVista'
 
-    def __init__(self, connectivity, **kwargs):
-        self.connectivity = connectivity
-
+    def __init__(self, **kwargs):
         self.output = PyVistaOutput()
 
         super(Connectivity3DViewer, self).__init__([self.output], *kwargs)
@@ -173,11 +171,11 @@ class Connectivity3DViewer(ipywidgets.VBox):
 
     def add_actors(self):
         plotter = self.output.plotter
-        points = self.connectivity.centres
+        points = CONTEXT.connectivity.centres
 
         mesh_points = pv.PolyData(points)
 
-        labels = self.connectivity.region_labels
+        labels = CONTEXT.connectivity.region_labels
         labels_actor = plotter.add_point_labels(points, labels)
 
         points_color = self.output.CONFIG.points_color
@@ -194,7 +192,7 @@ class Connectivity3DViewer(ipywidgets.VBox):
         return points_actor, edges_actor, labels_actor
 
     def _extract_edges(self):
-        connectivity = self.connectivity
+        connectivity = CONTEXT.connectivity
         edge_indices = np.nonzero(connectivity.weights)
         edges = list(zip(edge_indices[0], edge_indices[1]))
 
@@ -209,11 +207,11 @@ class Connectivity3DViewer(ipywidgets.VBox):
 
 
 class ConnectivityViewers(ipywidgets.Accordion):
-    def __init__(self, connectivity, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.children = [
-            Connectivity2DViewer(connectivity),
-            Connectivity3DViewer(connectivity)
+            Connectivity2DViewer(),
+            Connectivity3DViewer()
         ]
         self.set_title(0, '2D Connectivity Matrix viewer')
         self.set_title(1, '3D Connectivity viewer')
@@ -231,9 +229,10 @@ class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
         super().__init__(**kwargs, layout=style)
 
         config = ConnectivityConfig(name=f'Connectivity - {str(connectivity.number_of_regions)}')
+        CONTEXT.connectivity = connectivity
 
-        self.viewers_tab = ConnectivityViewers(connectivity)
-        self.operations_tab = ConnectivityOperations(connectivity)
+        self.viewers_tab = ConnectivityViewers()
+        self.operations_tab = ConnectivityOperations()
         tabs = (self.viewers_tab, self.operations_tab)
 
         viewers_checkbox = ipywidgets.Checkbox(value=True, description='Viewers')

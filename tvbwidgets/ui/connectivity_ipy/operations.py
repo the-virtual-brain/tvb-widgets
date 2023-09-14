@@ -16,22 +16,21 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         """
         pass
 
-    def __init__(self, connectivity, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(layout={**self.DEFAULT_BORDER, 'width': '50%', 'justify-content': 'start'}, **kwargs)
-        self.connectivity = connectivity
         self.regions_checkboxes = []
         selector = self.__get_node_selector()
         buttons = self.__get_operations_buttons()
         children = [
             ipywidgets.HTML(
-                value=f'<h3>Operations for Connectivity-{connectivity.number_of_regions}</h3>'
+                value=f'<h3>Operations for Connectivity-{CONTEXT.connectivity.number_of_regions}</h3>'
             ), selector, buttons]
         self.children = children
 
     def __get_node_selector(self):
         left_children = []
         right_children = []
-        region_labels = self.connectivity.region_labels
+        region_labels = CONTEXT.connectivity.region_labels
 
         for region in region_labels:
             label = str(region)
