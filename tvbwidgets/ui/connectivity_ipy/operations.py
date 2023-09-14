@@ -192,7 +192,7 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
                 if i not in interest_areas or j not in interest_areas:
                     if not selected:
                         new_weights[i][j] = 0
-                elif i in interest_areas or j in interest_areas and selected:
+                elif selected:
                     new_weights[i][j] = 0
 
         final_conn = Connectivity()

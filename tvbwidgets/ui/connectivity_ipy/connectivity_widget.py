@@ -116,10 +116,8 @@ class Connectivity3DViewer(ipywidgets.VBox):
 
     def init_view_connectivity(self):
         self.output.plotter.clear()
-        points, edges, labels = self.add_actors()
+        points, edges = self.add_actors()
         points_toggle, edges_toggle, labels_toggle = self._init_controls()
-        if not labels_toggle.value:
-            self.output.hide_actor(labels)
 
         def on_change_points(change):
             if change['new']:
@@ -138,15 +136,6 @@ class Connectivity3DViewer(ipywidgets.VBox):
             self.output.update_plot()
 
         edges_toggle.observe(on_change_edges, 'value')
-
-        def on_change_labels(change):
-            if change['new']:
-                self.output.display_actor(labels)
-            else:
-                self.output.hide_actor(labels)
-            self.output.update_plot()
-
-        labels_toggle.observe(on_change_labels, 'value')
 
         window_controls = self.output.get_window_controls()
 
@@ -177,9 +166,6 @@ class Connectivity3DViewer(ipywidgets.VBox):
 
         mesh_points = pv.PolyData(points)
 
-        labels = CONTEXT.connectivity.region_labels
-        labels_actor = plotter.add_point_labels(points, labels)
-
         points_color = self.output.CONFIG.points_color
         points_size = self.output.CONFIG.point_size
         edge_color = self.output.CONFIG.edge_color
@@ -187,11 +173,10 @@ class Connectivity3DViewer(ipywidgets.VBox):
         points_actor = plotter.add_points(mesh_points, color=points_color, point_size=points_size)
 
         edges_coords = self._extract_edges()
-
         edges_actor = plotter.add_lines(edges_coords, color=edge_color, width=1)
         plotter.camera_position = 'xy'
 
-        return points_actor, edges_actor, labels_actor
+        return points_actor, edges_actor
 
     def _extract_edges(self):
         connectivity = CONTEXT.connectivity
