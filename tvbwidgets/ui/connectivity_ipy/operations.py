@@ -5,6 +5,9 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 import ipywidgets
+import numpy
+from tvb.datatypes.connectivity import Connectivity
+
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.connectivity_ipy.global_context import CONTEXT
 
@@ -108,13 +111,112 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         return ipywidgets.HBox(children=[cut_selected, cut_edges_of_selected])
 
     def __cut_selected_nodes(self):
-        print('cutting selected: ', self.selected_regions)
+        """
+        Create a new connectivity using only the selected nodes
+        """
+        matrix = CONTEXT.matrix
+        new_weights = CONTEXT.connectivity.weights
+        new_tracts = CONTEXT.connectivity.tract_lengths if matrix == 'tracts' else None
+        regions = CONTEXT.connectivity.region_labels
+        selected_regions = [numpy.where(regions == label)[0][0] for label in self.selected_regions]
+        new_conn = self._cut_connectivity(CONTEXT.connectivity, new_weights, selected_regions, new_tracts)
+        CONTEXT.connectivity = new_conn
 
     def __cut_selected_edges(self):
         print('cutting edges: ', self.selected_regions)
+        matrix = CONTEXT.matrix
+        new_weights = CONTEXT.connectivity.weights
+        new_tracts = CONTEXT.connectivity.tract_lengths if matrix == 'tracts' else None
+        regions = CONTEXT.connectivity.region_labels
+        selected_regions = [numpy.where(regions == label)[0][0] for label in self.selected_regions]
+        new_conn = self._branch_connectivity(CONTEXT.connectivity, new_weights, selected_regions, new_tracts)
+        CONTEXT.connectivity = new_conn
 
-    def __cut_incoming_edges(self):
-        pass
+    def _reorder_arrays(self, original_conn, new_weights, interest_areas, new_tracts=None):
+        """
+        Returns ordered versions of the parameters according to the hemisphere permutation.
+        """
+        permutation = original_conn.hemisphere_order_indices
+        inverse_permutation = numpy.argsort(permutation)  # trick to invert a permutation represented as an array
+        interest_areas = inverse_permutation[interest_areas]
+        # see :meth"`ordered_weights` for why [p:][:p]
+        new_weights = new_weights[inverse_permutation, :][:, inverse_permutation]
 
-    def _cut_outgoing_edges(self):
-        pass
+        if new_tracts is not None:
+            new_tracts = new_tracts[inverse_permutation, :][:, inverse_permutation]
+
+        return new_weights, interest_areas, new_tracts
+
+    def _branch_connectivity(self, original_conn, new_weights, interest_areas,
+                             new_tracts=None):
+        # type: (Connectivity, numpy.array, numpy.array, numpy.array) -> Connectivity
+        """
+        Generate new Connectivity based on a previous one, by changing weights (e.g. simulate lesion).
+        The returned connectivity has the same number of nodes. The edges of unselected nodes will have weight 0.
+        :param original_conn: Original Connectivity, to copy from
+        :param new_weights: weights matrix for the new connectivity
+        :param interest_areas: ndarray of the selected node id's
+        :param new_tracts: tracts matrix for the new connectivity
+        """
+        print('herre')
+        new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn, new_weights,
+                                                                       interest_areas, new_tracts)
+        if new_tracts is None:
+            new_tracts = original_conn.tract_lengths
+
+        for i in range(len(original_conn.weights)):
+            for j in range(len(original_conn.weights)):
+                if i not in interest_areas or j not in interest_areas:
+                    new_weights[i][j] = 0
+
+        final_conn = Connectivity()
+        final_conn.parent_connectivity = original_conn.gid.hex
+        final_conn.saved_selection = interest_areas.tolist()
+        final_conn.weights = new_weights
+        final_conn.centres = original_conn.centres
+        final_conn.region_labels = original_conn.region_labels
+        final_conn.orientations = original_conn.orientations
+        final_conn.cortical = original_conn.cortical
+        final_conn.hemispheres = original_conn.hemispheres
+        final_conn.areas = original_conn.areas
+        final_conn.tract_lengths = new_tracts
+        final_conn.configure()
+        return final_conn
+
+    def _cut_connectivity(self, original_conn, new_weights, interest_areas, new_tracts=None):
+        # type: (Connectivity, numpy.array, numpy.array, numpy.array) -> Connectivity
+        """
+        Generate new Connectivity object based on current one, by removing nodes (e.g. simulate lesion).
+        Only the selected nodes will get used in the result. The order of the indices in interest_areas matters.
+        If indices are not sorted then the nodes will be permuted accordingly.
+
+        :param original_conn: Original Connectivity(HasTraits), to cut nodes from
+        :param new_weights: weights matrix for the new connectivity
+        :param interest_areas: ndarray with the selected node id's.
+        :param new_tracts: tracts matrix for the new connectivity
+        """
+        new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn, new_weights,
+                                                                       interest_areas, new_tracts)
+        if new_tracts is None:
+            new_tracts = original_conn.tract_lengths[interest_areas, :][:, interest_areas]
+        else:
+            new_tracts = new_tracts[interest_areas, :][:, interest_areas]
+        new_weights = new_weights[interest_areas, :][:, interest_areas]
+
+        final_conn = Connectivity()
+        final_conn.parent_connectivity = None
+        final_conn.weights = new_weights
+        final_conn.centres = original_conn.centres[interest_areas, :]
+        final_conn.region_labels = original_conn.region_labels[interest_areas]
+        if original_conn.orientations is not None and len(original_conn.orientations):
+            final_conn.orientations = original_conn.orientations[interest_areas, :]
+        if original_conn.cortical is not None and len(original_conn.cortical):
+            final_conn.cortical = original_conn.cortical[interest_areas]
+        if original_conn.hemispheres is not None and len(original_conn.hemispheres):
+            final_conn.hemispheres = original_conn.hemispheres[interest_areas]
+        if original_conn.areas is not None and len(original_conn.areas):
+            final_conn.areas = original_conn.areas[interest_areas]
+        final_conn.tract_lengths = new_tracts
+        final_conn.saved_selection = []
+        final_conn.configure()
+        return final_conn
