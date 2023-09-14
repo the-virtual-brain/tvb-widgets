@@ -10,6 +10,9 @@ from tvb.datatypes.connectivity import Connectivity
 
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.connectivity_ipy.global_context import CONTEXT
+from tvb.basic.logger.builder import get_logger
+
+LOGGER = get_logger(__name__)
 
 
 class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
@@ -24,11 +27,25 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         self.regions_checkboxes = []
         selector = self.__get_node_selector()
         buttons = self.__get_operations_buttons()
+        history_dropdown = self.get_history_dropdown()
         children = [
             ipywidgets.HTML(
                 value=f'<h3>Operations for Connectivity-{CONTEXT.connectivity.number_of_regions}</h3>'
-            ), selector, buttons]
+            ),
+            history_dropdown,
+            selector,
+            buttons]
+
+        def update_history_ui(*args):
+            children[1] = self.get_history_dropdown()
+            self.children = children
+
+        CONTEXT.observe(update_history_ui, 'connectivity')
         self.children = children
+
+    @property
+    def selected_regions(self):
+        return list(map(lambda x: x.description, filter(lambda x: x.value, self.regions_checkboxes)))
 
     def __get_node_selector(self):
         left_children = []
@@ -79,10 +96,6 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         accordion.set_title(0, 'Regions selector')
         return accordion
 
-    @property
-    def selected_regions(self):
-        return list(map(lambda x: x.description, filter(lambda x: x.value, self.regions_checkboxes)))
-
     def __get_operations_buttons(self):
         cut_selected_tooltip = """
         Create a new connectivity removing the selected nodes. 
@@ -126,11 +139,9 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         regions = CONTEXT.connectivity.region_labels
         selected_regions = [numpy.where(regions == label)[0][0] for label in self.selected_regions]
         new_conn = self._cut_connectivity(CONTEXT.connectivity, new_weights, selected_regions, new_tracts)
-        print('centres of new conn: ', new_conn.centres)
         CONTEXT.connectivity = new_conn
 
     def __cut_edges(self, selected=False):
-        print('cutting edges: ', self.selected_regions)
         matrix = CONTEXT.matrix
         new_weights = CONTEXT.connectivity.weights
         new_tracts = CONTEXT.connectivity.tract_lengths if matrix == 'tracts' else None
@@ -155,6 +166,15 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
 
         return new_weights, interest_areas, new_tracts
 
+    def get_history_dropdown(self):
+        values = [(conn.gid.hex, conn) for conn in CONTEXT.connectivities_history]
+
+        dropdown = ipywidgets.Dropdown(options=values,
+                                       description='View history',
+                                       disabled=False)
+        dropdown.observe(lambda x: print(x['new']), 'value')
+        return dropdown
+
     def _cut_connectivity_edges(self, original_conn, new_weights, interest_areas,
                                 new_tracts=None, selected=False):
         # type: (Connectivity, numpy.array, numpy.array, numpy.array) -> Connectivity
@@ -167,6 +187,10 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         :param new_tracts: tracts matrix for the new connectivity
         :param selected: if true cuts out edges of selected areas else unselected edges
         """
+        if not len(interest_areas):
+            LOGGER.error('No intrest areas selected!')
+            return CONTEXT.connectivity
+
         new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn, new_weights,
                                                                        interest_areas, new_tracts)
         if new_tracts is None:
@@ -206,6 +230,10 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         :param interest_areas: ndarray with the selected node id's.
         :param new_tracts: tracts matrix for the new connectivity
         """
+        if not len(interest_areas):
+            LOGGER.error('No interest areas selected!')
+            return CONTEXT.connectivity
+
         new_weights, interest_areas, new_tracts = self._reorder_arrays(original_conn, new_weights,
                                                                        interest_areas, new_tracts)
         if new_tracts is None:
