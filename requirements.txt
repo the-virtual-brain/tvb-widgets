@@ -1,16 +1,18 @@
 colorcet
 ebrains_drive
-ipympl > 0.8.5
-ipywidgets == 7.7.2
-IPython <= 8.12
+ipympl>0.8.5
+ipywidgets==7.7.2
+IPython<=8.12
 joblib
-mne >= 1.0
-numpy <1.24
-plotly == 5.14.0
+mne>=1.0
+numpy<1.24
+plotly==5.14.0
 pythreejs
-pyvista == 0.37.0
-tvb-library >= 2.5
+pyvista==0.37.0
+ipyreact==0.3.0
+tvb-library>=2.5
 tvb-framework
 plotly-resampler
 pyunicore
+traitlets>=5.7.1
 toml
