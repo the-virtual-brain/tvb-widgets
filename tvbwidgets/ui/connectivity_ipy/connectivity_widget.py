@@ -208,6 +208,14 @@ class ConnectivityViewers(ipywidgets.Accordion):
 
 
 class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
+    """
+    Widget to display a connectivity:
+    consists of two tabs, one for connectivity visualizers (2d/3d),
+    one for connectivity operations
+    :param connectivity: Connectivity to visualize or do operations on
+    :param default_active_tab: which tabs are viewable by default ('viewers'|'operations'|'both')
+    """
+
     def add_datatype(self, datatype):
         """
         Doesn't allow this opp. at this time
@@ -227,24 +235,32 @@ class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
             return None
         return conn[0]
 
-    def __init__(self, connectivity, **kwargs):
+    def __init__(self, connectivity, default_active_tab='both', **kwargs):
+
         style = self.DEFAULT_BORDER
         super().__init__(**kwargs, layout=style)
 
         config = ConnectivityConfig(name=f'Connectivity - {str(connectivity.number_of_regions)}')
         CONTEXT.connectivity = connectivity
 
+        viewers_visible = default_active_tab in ['both', 'viewers']
+        operations_visible = default_active_tab in ['both', 'operations']
+
         self.viewers_tab = ConnectivityViewers()
+        self.viewers_tab.layout.display = viewers_visible and 'inline-block' or 'none'
         self.operations_tab = ConnectivityOperations()
+        self.operations_tab.layout.display = operations_visible and 'inline-block' or 'none'
         tabs = (self.viewers_tab, self.operations_tab)
 
-        viewers_checkbox = ipywidgets.Checkbox(value=True, description='Viewers')
+        viewers_checkbox = ipywidgets.Checkbox(value=viewers_visible or default_active_tab == 'viewers',
+                                               description='Viewers')
 
         def on_change_viewers(c):
             self.viewers_tab.layout.display = c['new'] and 'inline-block' or 'none'
 
         viewers_checkbox.observe(on_change_viewers, 'value')
-        operations_checkbox = ipywidgets.Checkbox(value=True, description='Operations')
+        operations_checkbox = ipywidgets.Checkbox(
+            value=operations_visible, description='Operations')
 
         def on_change_operations(c):
             self.operations_tab.layout.display = c['new'] and 'inline-block' or 'none'
