@@ -74,6 +74,10 @@ class PhasePlaneWidget(HasTraits, TVBWidget):
         self.plot_main_axes = None
         self.plot_bellow = None
         self.noise_sliders = []
+        if hasattr(self.integrator, 'noise'):
+            self.noise_slider_valinit = self.integrator.noise.nsig[0]
+        else:
+            self.noise_slider_valinit = 0
         self.trajectories = []
         # Parameters to be passed to plotter when their change affects the drawing
         self.params = dict()
