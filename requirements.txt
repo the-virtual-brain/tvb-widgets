@@ -9,7 +9,7 @@ numpy<1.24
 plotly==5.14.0
 pythreejs
 pyvista==0.37.0
-ipyreact==0.3.0
+ipyreact==0.4.1
 tvb-library>=2.5
 tvb-framework
 plotly-resampler
