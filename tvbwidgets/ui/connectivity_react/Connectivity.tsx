@@ -1,5 +1,5 @@
 import * as React from "react";
-import * as d3 from "d3";
+import * as d3 from "https://esm.sh/d3";
 
 
 /**
@@ -159,7 +159,7 @@ export default function Connectivity({connectivity, on_connectivity}) {
             .attr("stroke", colornone)
             .attr("fill", "none")
             .selectAll()
-            .data(root.leaves().flatMap(leaf => leaf.outgoing))
+            .data(root.leaves().flatMap(leaf => leaf.incoming.concat(leaf.outgoing)))
             .join("path")
             .style("mix-blend-mode", "multiply")
             .attr("d", ([i, o]) => line(i.path(o)))
@@ -170,16 +170,16 @@ export default function Connectivity({connectivity, on_connectivity}) {
         function mouseOverNode(event, d) {
             link.style("mix-blend-mode", null);
             d3.select(this).attr("font-weight", "bold");
-            console.log('d.incomming: ', d.incoming);
-
-            // Highlight incoming lines and text
-            d3.selectAll(d.incoming.map(d => d.path)).attr("stroke", colorin).raise();
-            d3.selectAll(d.incoming.map(([d]) => d.text)).attr("fill", colorin).attr("font-weight", "bold");
 
             console.log('outgoing: ', d.outgoing);
             // Highlight outgoing lines and text
             d3.selectAll(d.outgoing.map(d => d.path)).attr("stroke", colorout).raise();
             d3.selectAll(d.outgoing.map(([, d]) => d.text)).attr("fill", colorout).attr("font-weight", "bold");
+
+            console.log('d.incomming: ', d.incoming);
+            // Highlight incoming lines and text
+            d3.selectAll(d.incoming.map(d => d.path)).attr("stroke", colorin).raise();
+            d3.selectAll(d.incoming.map(([d]) => d.text)).attr("fill", colorin).attr("font-weight", "bold");
         }
 
         function mouseOutNode(event, d) {

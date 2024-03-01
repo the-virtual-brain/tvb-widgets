@@ -6,6 +6,7 @@
 #
 
 from .ui.connectivity_ipy.connectivity_widget import ConnectivityWidget
+from .ui.connectivity_react.connectivity_widget import ConnectivityWidgetReact
 from .ui.phase_plane_widget import PhasePlaneWidget
 from .ui.storage_widget import StorageWidget
 from .ui.head_widget import HeadBrowser, HeadWidget, HeadWidgetConfig
