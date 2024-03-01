@@ -8,7 +8,7 @@
 import ipywidgets
 import matplotlib
 import numpy
-import pyvista as pv
+import pyvista
 import numpy as np
 from numpy import ndarray
 from tvb.basic.neotraits.api import HasTraits
@@ -20,6 +20,7 @@ from tvbwidgets.ui.connectivity_ipy.config import ConnectivityConfig
 from tvbwidgets.ui.connectivity_ipy.global_context import CONTEXT, ObservableAttrs
 
 DROPDOWN_KEY = 'dropdown'
+pyvista.set_jupyter_backend('pythreejs')
 
 
 class CustomOutput(ipywidgets.Output):
@@ -115,10 +116,9 @@ class Connectivity3DViewer(ipywidgets.VBox):
         super(Connectivity3DViewer, self).__init__([self.output], *kwargs)
 
         self.__init_view_connectivity()
-        CONTEXT.observe(lambda *args: self.__init_view_connectivity(), ObservableAttrs.CONNECTIVITY)
+        CONTEXT.observe(lambda *args: self.__refresh_connectivity(), ObservableAttrs.CONNECTIVITY)
 
     def __init_view_connectivity(self):
-        self.output.plotter.clear()
         points, edges = self.__add_actors()
         points_toggle, edges_toggle, labels_toggle = self.__init_controls()
 
@@ -149,6 +149,10 @@ class Connectivity3DViewer(ipywidgets.VBox):
             self.output]
         self.output.display_actor(points)
         self.output.display_actor(edges)
+
+    def __refresh_connectivity(self):
+        self.output.plotter.clear()
+        self.__init_view_connectivity()
         self.output.update_plot()
 
     def __init_controls(self):
@@ -167,7 +171,7 @@ class Connectivity3DViewer(ipywidgets.VBox):
         plotter = self.output.plotter
         points = CONTEXT.connectivity.centres
 
-        mesh_points = pv.PolyData(points)
+        mesh_points = pyvista.PolyData(points)
 
         points_color = self.output.CONFIG.points_color
         points_size = self.output.CONFIG.point_size
