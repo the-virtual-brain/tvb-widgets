@@ -13,6 +13,6 @@ ipyreact==0.4.1
 tvb-library>=2.5
 tvb-framework
 plotly-resampler
-pyunicore
+pyunicore==0.15.2
 traitlets>=5.7.1
 toml
