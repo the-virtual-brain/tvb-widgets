@@ -1,14 +1,14 @@
 colorcet
 ebrains_drive
 ipympl>0.8.5
-ipywidgets==7.7.2
+ipywidgets==8.0.7
 IPython<=8.12
 joblib
 mne>=1.0
 numpy<1.24
 plotly==5.14.0
 pythreejs
-pyvista==0.37.0
+pyvista==0.41.0
 ipyreact==0.4.1
 tvb-library>=2.5
 tvb-framework

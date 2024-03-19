@@ -111,6 +111,7 @@ class Connectivity3DViewer(ipywidgets.VBox):
 
     def __init__(self, **kwargs):
         self.output = PyVistaOutput()
+        self.output.plotter.set_background("darkgrey")
 
         super(Connectivity3DViewer, self).__init__([self.output], *kwargs)
 
