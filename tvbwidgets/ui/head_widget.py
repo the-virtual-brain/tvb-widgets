@@ -56,6 +56,7 @@ class CustomOutput(ipywidgets.Output):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.plotter = pyvista.Plotter()
+        self.plotter.set_background('darkgrey')
         self.total_actors = 0
 
     @property
@@ -104,6 +105,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         self.output_plot = CustomOutput()
         self.plot_controls = ipywidgets.Accordion(layout=ipywidgets.Layout(width='380px'))
         self.existent_configs = []
+        self.title_suffix = " Controls"
         self.ignore = ignore
 
         super().__init__([self.plot_controls, self.output_plot], layout=self.DEFAULT_BORDER)
@@ -174,6 +176,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         controls_vbox.children += extra_controls
 
         self.plot_controls.children += controls_vbox,
+        self.plot_controls.set_title(self.output_plot.total_actors - 1, config.name + self.title_suffix)
         self.output_plot.update_plot()
 
     def __draw_connectivity_actor(self, connectivity, config):
@@ -187,6 +190,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         controls_vbox.children += extra_controls
 
         self.plot_controls.children += controls_vbox,
+        self.plot_controls.set_title(self.output_plot.total_actors - 1, config.name + self.title_suffix)
         self.output_plot.update_plot()
 
     def __draw_sensors_actor(self, sensors, config):
@@ -200,14 +204,11 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         controls_vbox.children += extra_controls
 
         self.plot_controls.children += controls_vbox,
+        self.plot_controls.set_title(self.output_plot.total_actors - 1, config.name + self.title_suffix)
         self.output_plot.update_plot()
 
     def _prepare_generic_controls(self, actor, config):
         toggle_prefix = "Toggle "
-        title_suffix = " Controls"
-
-        idx = self.output_plot.total_actors - 1
-        self.plot_controls.set_title(idx, config.name + title_suffix)
 
         def toggle_actor(change):
             self.__toggle_actor(change, actor)
@@ -219,7 +220,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
             value = change['new']
             config.name = value
             toggle_input.description = toggle_prefix + config.name
-            self.plot_controls.set_title(idx, config.name + title_suffix)
+            self.plot_controls.set_title(self.output_plot.total_actors - 1, config.name + self.title_suffix)
 
         name_input = ipywidgets.Text(value=config.name, description='Name: ', disabled=False,
                                      layout=ipywidgets.Layout(width='250px'))
