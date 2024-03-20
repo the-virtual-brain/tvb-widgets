@@ -8,9 +8,6 @@
 import ipywidgets
 import numpy
 import pyvista
-
-from pyvista import PolyData
-
 from tvb.basic.neotraits.api import HasTraits
 from tvb.datatypes.connectivity import Connectivity
 from tvb.datatypes.region_mapping import RegionMapping
@@ -140,11 +137,10 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
             self.logger.warning(f"Datatype {type(datatype)} not supported by this widget!")
 
     def __prepare_mesh(self, surface):
-        # type: (Surface) -> PolyData
+        # type: (Surface) -> pyvista.PolyData
         dim_4th = numpy.full((surface.triangles.shape[0], 1), 3, dtype=int)
         faces = numpy.hstack((dim_4th, surface.triangles))
-
-        mesh = PolyData(surface.vertices, faces)
+        mesh = pyvista.PolyData(surface.vertices, faces)
         return mesh
 
     def __toggle_actor(self, change, actor):
