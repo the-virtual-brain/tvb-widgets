@@ -20,6 +20,7 @@ from tvb.datatypes.surfaces import Surface
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.widget_with_browser import TVBWidgetWithBrowser
 
+# TODO see latest releases of pyvista have this backend removed
 pyvista.set_jupyter_backend('pythreejs')
 
 
