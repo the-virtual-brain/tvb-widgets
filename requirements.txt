@@ -8,7 +8,7 @@ mne>=1.0
 numpy<1.24
 plotly==5.14.0
 pythreejs
-pyvista==0.41.0
+pyvista==0.41.0 # from version 0.42 backend pythreejs is removed - we use it in the HeadWidget
 ipyreact==0.4.1
 tvb-library>=2.5
 tvb-framework

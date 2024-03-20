@@ -8,7 +8,7 @@
 import ipywidgets
 import matplotlib
 import numpy
-import pyvista as pv
+import pyvista
 import numpy as np
 from numpy import ndarray
 from tvb.basic.neotraits.api import HasTraits
@@ -21,6 +21,8 @@ from tvbwidgets.ui.connectivity_ipy.global_context import CONTEXT, ObservableAtt
 
 DROPDOWN_KEY = 'dropdown'
 
+# TODO see latest releases of pyvista have this backend removed
+pyvista.set_jupyter_backend('pythreejs')
 
 class CustomOutput(ipywidgets.Output):
     CONFIG = ConnectivityConfig()
@@ -165,7 +167,7 @@ class Connectivity3DViewer(ipywidgets.VBox):
         plotter = self.output.plotter
         points = CONTEXT.connectivity.centres
 
-        mesh_points = pv.PolyData(points)
+        mesh_points = pyvista.PolyData(points)
 
         points_color = self.output.CONFIG.points_color
         points_size = self.output.CONFIG.point_size
