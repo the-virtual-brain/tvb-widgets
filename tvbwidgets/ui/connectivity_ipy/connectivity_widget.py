@@ -109,8 +109,10 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
 
 class Connectivity3DViewer(ipywidgets.VBox):
 
-    def __init__(self, **kwargs):
+    def __init__(self, width, height, **kwargs):
         self.output = PyVistaOutput()
+        self.output.plotter.window_size = [width, height]
+        self.output.plotter.set_background("darkgrey")
 
         super(Connectivity3DViewer, self).__init__([self.output], *kwargs)
 
@@ -120,7 +122,7 @@ class Connectivity3DViewer(ipywidgets.VBox):
     def __init_view_connectivity(self):
         self.output.plotter.clear()
         points, edges = self.__add_actors()
-        points_toggle, edges_toggle, labels_toggle = self.__init_controls()
+        points_toggle, edges_toggle = self.__init_controls()
 
         def on_change_points(change):
             if change['new']:
@@ -140,12 +142,10 @@ class Connectivity3DViewer(ipywidgets.VBox):
 
         edges_toggle.observe(on_change_edges, 'value')
 
-        window_controls = self.output.get_window_controls()
 
         self.children = [
             ipywidgets.HBox(children=(
-                points_toggle, edges_toggle, labels_toggle)),
-            window_controls,
+                points_toggle, edges_toggle)),
             self.output]
         self.output.display_actor(points)
         self.output.display_actor(edges)
@@ -159,9 +159,7 @@ class Connectivity3DViewer(ipywidgets.VBox):
                                                description='Edges',
                                                )
 
-        labels_toggle = ipywidgets.ToggleButton(value=False,
-                                                description='Labels')
-        return points_toggle, edges_toggle, labels_toggle
+        return points_toggle, edges_toggle
 
     def __add_actors(self):
         plotter = self.output.plotter
@@ -197,11 +195,11 @@ class Connectivity3DViewer(ipywidgets.VBox):
 
 
 class ConnectivityViewers(ipywidgets.Accordion):
-    def __init__(self, **kwargs):
+    def __init__(self, width, height, **kwargs):
         super().__init__(**kwargs)
         self.children = [
             Connectivity2DViewer(),
-            Connectivity3DViewer()
+            Connectivity3DViewer(width, height)
         ]
         self.set_title(0, '2D Connectivity Matrix viewer')
         self.set_title(1, '3D Connectivity viewer')
@@ -235,7 +233,7 @@ class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
             return None
         return conn[0]
 
-    def __init__(self, connectivity, default_active_tab='both', **kwargs):
+    def __init__(self, connectivity, default_active_tab='both', width=500, height=500, **kwargs):
 
         style = self.DEFAULT_BORDER
         super().__init__(**kwargs, layout=style)
@@ -246,7 +244,7 @@ class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
         viewers_visible = default_active_tab in ['both', 'viewers']
         operations_visible = default_active_tab in ['both', 'operations']
 
-        self.viewers_tab = ConnectivityViewers()
+        self.viewers_tab = ConnectivityViewers(width, height)
         self.viewers_tab.layout.display = viewers_visible and 'inline-block' or 'none'
         self.operations_tab = ConnectivityOperations()
         self.operations_tab.layout.display = operations_visible and 'inline-block' or 'none'
