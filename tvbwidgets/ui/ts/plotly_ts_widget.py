@@ -7,6 +7,7 @@
 
 import numpy as np
 import ipywidgets as widgets
+import matplotlib.pyplot as plt
 from IPython.core.display_functions import display
 from plotly_resampler import register_plotly_resampler, FigureWidgetResampler
 from tvbwidgets.ui.ts.base_ts_widget import TimeSeriesWidgetBase
@@ -26,6 +27,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.end_time = 0
         self.std_step = 0
         self.amplitude = 1
+        self.colormap = None
 
         # plot & UI
         self.checkboxes = dict()
@@ -36,8 +38,10 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.plot_area.children += (self.output,)
         self.scaling_title = widgets.Label(value='Increase/Decrease signal scaling (current scaling value to the right)')
         self.scaling_slider = widgets.IntSlider(value=1, layout=widgets.Layout(width='30%'))
+        self.colormap_dropdown = widgets.Dropdown(options=plt.colormaps(),description='Colormap:',disabled=False)
+        self.colormap_dropdown.observe(self.on_colormap_change, names='value')
 
-        super().__init__([self.plot_area, widgets.VBox([self.scaling_title, self.scaling_slider],
+        super().__init__([self.plot_area, widgets.VBox([self.colormap_dropdown, self.scaling_title, self.scaling_slider],
                                                        layout=widgets.Layout(margin='0px 0px 0px 80px')),
                           self.info_and_channels_area],
                          layout=self.DEFAULT_BORDER)
@@ -62,9 +66,11 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         # traces will be added from bottom to top, so reverse the lists to put the first channel on top
         data = data[::-1]
         ch_names = ch_names[::-1]
+        colormap = plt.get_cmap(self.colormap)
+        colors = colormap(np.linspace(0.5, 1, len(data)))
 
         self.fig.add_traces(
-            [dict(y=ts * self.amplitude + i * self.std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}')
+            [dict(y=ts * self.amplitude + i * self.std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}', line_color = f"rgb({colors[i][0]},{colors[i][1]},{colors[i][2]})")
              for i, (ch_name, ts) in enumerate(zip(ch_names, data))]
         )
 
@@ -137,6 +143,10 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
             self.output.clear_output(wait=True)
             display(self.fig)
 
+    def on_colormap_change(self,change):
+        self.colormap =  change['new']
+        self.plot_ts_with_plotly()
+        
     # ================================================= SCALING ========================================================
     def _setup_scaling_slider(self):
         # set min and max scaling values
