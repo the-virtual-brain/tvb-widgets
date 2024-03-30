@@ -21,6 +21,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.fig = None
         self.data = None
         self.ch_names = []
+        self.picks = []
         self.raw = None
         self.sample_freq = 0
         self.start_time = 0
@@ -38,7 +39,12 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.plot_area.children += (self.output,)
         self.scaling_title = widgets.Label(value='Increase/Decrease signal scaling (current scaling value to the right)')
         self.scaling_slider = widgets.IntSlider(value=1, layout=widgets.Layout(width='30%'))
-        self.colormap_dropdown = widgets.Dropdown(options=plt.colormaps(),description='Colormap:',disabled=False)
+        self.colormaps = ['turbo', 'brg', 'gist_stern_r', 'nipy_spectral_r', 'coolwarm','plasma', 'magma', 'viridis', \
+                         'cividis', 'twilight', 'twilight_shifted', 'CMRmap_r', 'Blues', \
+                         'BuGn', 'BuPu', 'Greens', 'PuRd', 'RdPu', 'Spectral', 'YlGnBu', \
+                         'YlOrBr', 'YlOrRd', 'cubehelix_r', 'gist_earth_r', 'terrain_r', \
+                         'rainbow_r', 'pink_r', 'gist_ncar_r', 'uni-color(black)']
+        self.colormap_dropdown = widgets.Dropdown(options=self.colormaps, description='Colormap:', disabled=False)
         self.colormap_dropdown.observe(self.on_colormap_change, names='value')
 
         super().__init__([self.plot_area, widgets.VBox([self.colormap_dropdown, self.scaling_title, self.scaling_slider],
@@ -66,8 +72,12 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         # traces will be added from bottom to top, so reverse the lists to put the first channel on top
         data = data[::-1]
         ch_names = ch_names[::-1]
-        colormap = plt.get_cmap(self.colormap)
-        colors = colormap(np.linspace(0.5, 1, len(data)))
+        if self.colormap == "unicolor(black)":
+            colormap = plt.get_cmap('gray')
+            colors = colormap(np.linspace(0, 0, len(data))) 
+        else:
+            colormap = plt.get_cmap(self.colormap)
+            colors = colormap(np.linspace(0.3, 1, len(data)))
 
         self.fig.add_traces(
             [dict(y=ts * self.amplitude + i * self.std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}', line_color = f"rgb({colors[i][0]},{colors[i][1]},{colors[i][2]})")
@@ -145,7 +155,9 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
 
     def on_colormap_change(self,change):
         self.colormap =  change['new']
-        self.plot_ts_with_plotly()
+        self.fig.data = []
+        data = self.raw[:, :][0]
+        self.add_traces_to_plot(data, self.ch_names)
         
     # ================================================= SCALING ========================================================
     def _setup_scaling_slider(self):
@@ -203,17 +215,17 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
     def _update_ts(self, btn):
         self.logger.debug('Updating TS')
         ch_names = list(self.ch_names)
-
+        
         # save selected channels using their index in the ch_names list
-        picks = []
+        self.picks = []
         for cb in list(self.checkboxes.values()):
             ch_index = ch_names.index(cb.description)  # get the channel index
             if cb.value:
-                picks.append(ch_index)  # list with number representation of channels
+                self.picks.append(ch_index)  # list with number representation of channels
 
         # if unselect all
         # TODO: should we remove just the traces and leave the channel names and the ticks??
-        if not picks:
+        if not self.picks:
             self.fig.data = []  # remove traces
             self.fig.layout.annotations = []  # remove channel names
             self.fig.layout.yaxis.tickvals = []  # remove ticks between channel names and traces
@@ -221,8 +233,8 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
 
         # get data and names for selected channels; self.raw is updated before redrawing starts
         data, _ = self.raw[:, :]
-        data = data[picks, :]
-        ch_names = [ch_names[i] for i in picks]
+        data = data[self.picks, :]
+        ch_names = [ch_names[i] for i in self.picks]
 
         # redraw the entire plot
         self.plot_ts_with_plotly(data, ch_names)
