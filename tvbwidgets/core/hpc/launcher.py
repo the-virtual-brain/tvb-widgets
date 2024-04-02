@@ -11,8 +11,9 @@ from pathlib import Path
 from typing import Callable
 from datetime import datetime
 from urllib.error import HTTPError
-from pyunicore.helpers.jobs import Status, Description
-from pyunicore.credentials import AuthenticationFailedException
+from pyunicore.helpers.jobs import Description
+from pyunicore.client import JobStatus
+from pyunicore.credentials import AuthenticationFailedException, OIDCToken
 from pkg_resources import get_distribution, DistributionNotFound
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.core.hpc.config import HPCConfig
@@ -72,7 +73,7 @@ class HPCLaunch(object):
 
     def connect_client(self):
         LOGGER.info(f"Connecting to {self.config.site}...")
-        token = get_current_token()
+        token = OIDCToken(get_current_token())
         transport = pyunicore.client.Transport(token)
         registry = pyunicore.client.Registry(transport, pyunicore.client._HBP_REGISTRY_URL)
 
@@ -182,7 +183,7 @@ class HPCLaunch(object):
                         f"Waiting for job to finish..."
                         f'It can also be monitored with the "PyUnicore tasks stream" tool on the right-side bar.')
             job_env_prep.poll()
-            if job_env_prep.properties['status'] == Status.FAILED:
+            if job_env_prep.properties['status'] == JobStatus.FAILED:
                 LOGGER.error("Encountered an error during environment setup, stopping execution.")
                 return
             LOGGER.info("Successfully finished the environment setup.")
@@ -224,7 +225,7 @@ class HPCLaunch(object):
 
         start_time = int(time.time())
         # we replaced job.poll to our custom while, to update the progress bar as well
-        while job.status.ordinal() < pyunicore.client.JobStatus.SUCCESSFUL.ordinal():
+        while job.status.ordinal() < JobStatus.SUCCESSFUL.ordinal():
             completed_count = int(self.read_file_from_hpc(job, PROGRESS_STATUS))
             self.update_progress(completed_count)
             time.sleep(2)
@@ -233,7 +234,7 @@ class HPCLaunch(object):
                 self.update_progress(error_msg="Connection Timeout")
                 raise TimeoutError(f"Timeout waiting for job to complete. Already completed {completed_count}")
 
-        if job.properties['status'] == Status.FAILED:
+        if job.properties['status'] == JobStatus.FAILED:
             LOGGER.error("Job finished with errors.")
             return
         LOGGER.info("Job finished with success. Staging out the results...")
