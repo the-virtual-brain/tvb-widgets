@@ -4,7 +4,6 @@
 #
 # (c) 2022-2023, TVB Widgets Team
 #
-import ipywidgets
 
 from tvbwidgets.ui.connectivity_ipy.config import ConnectivityConfig
 from tvbwidgets.ui.connectivity_ipy.exceptions import UnknownOutputException
@@ -41,40 +40,6 @@ class PyVistaOutput(widgets.Output):
         with self:
             self.clear_output(wait=True)
             self.plotter.show()
-
-    def get_window_controls(self):
-        height = ipywidgets.IntSlider(
-            value=self.CONFIG.size[1],
-            min=50,
-            max=1500,
-            step=1,
-            orientation='horizontal',
-            description='Plot height',
-            continuous_update=False,
-        )
-        width = ipywidgets.IntSlider(
-            value=self.CONFIG.size[0],
-            min=50,
-            max=1500,
-            step=1,
-            orientation='horizontal',
-            description='Plot width',
-            continuous_update=False,
-        )
-
-        self.plotter.window_size = [width.value, height.value]
-
-        def on_change_height(value):
-            self.plotter.window_size = [width.value, value['new']]
-            self.update_plot()
-
-        def on_change_width(value):
-            self.plotter.window_size = [value['new'], height.value]
-            self.update_plot()
-
-        height.observe(on_change_height, 'value')
-        width.observe(on_change_width, 'value')
-        return ipywidgets.HBox(children=(width, height))
 
 
 def output_3d_factory(output_type):
