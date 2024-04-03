@@ -16,3 +16,4 @@ plotly-resampler
 pyunicore==0.15.2
 traitlets>=5.7.1
 toml
+bokeh
