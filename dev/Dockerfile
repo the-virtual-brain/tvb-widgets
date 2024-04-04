@@ -4,7 +4,7 @@ ARG TVB_USER=tvb_user
 ARG USER_HOME=/home/$TVB_USER
 ARG JUPYTER_CONFIG=$USER_HOME/.jupyter
 
-RUN useradd -ms /bin/bash $TVB_USER
+RUN useradd -ms /bin/bash "$TVB_USER"
 WORKDIR $USER_HOME
 
 USER root

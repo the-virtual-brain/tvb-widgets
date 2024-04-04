@@ -150,13 +150,13 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         Create a new connectivity using only the selected nodes
         """
         regions = CONTEXT.connectivity.region_labels
-        selected_regions = [numpy.where(regions == label)[0][0] for label in self.selected_regions]
+        selected_regions = [numpy.nonzero(regions == label)[0][0] for label in self.selected_regions]
         new_conn = self.__cut_connectivity_nodes(selected_regions, selected)
         CONTEXT.connectivity = new_conn
 
     def __cut_edges(self, selected=False):
         regions = CONTEXT.connectivity.region_labels
-        selected_regions = numpy.array([numpy.where(regions == label)[0][0] for label in self.selected_regions])
+        selected_regions = numpy.array([numpy.nonzero(regions == label)[0][0] for label in self.selected_regions])
         new_conn = self.__cut_connectivity_edges(selected_regions, selected)
         CONTEXT.connectivity = new_conn
 

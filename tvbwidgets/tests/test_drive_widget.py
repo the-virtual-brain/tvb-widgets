@@ -104,7 +104,7 @@ def test_drive_widget(mocker):
     assert len(widget.files_list.options) == 1
 
     with pytest.raises(AttributeError):
-        assert widget.get_selected_file_content()
+        widget.get_selected_file_content()
 
 
 def test_storage_widget(mocker):
