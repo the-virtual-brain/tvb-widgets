@@ -1,4 +1,4 @@
-FROM continuumio/miniconda3
+FROM continuumio/miniconda3:master
 
 ARG TVB_USER=tvb_user
 ARG USER_HOME=/home/$TVB_USER
