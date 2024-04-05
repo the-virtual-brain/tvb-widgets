@@ -18,7 +18,7 @@ from tvbwidgets.ui.ts.data_wrappers.tvb_data_wrapper import WrapperTVB
 @pytest.fixture
 def wrapper_np():
     """ Returns an initialized Numpy wrapper with 3 dimensions """
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(50)
     numpy_array = rng.random(size=(30000, 4, 50))
     wrapper_np = WrapperNumpy(numpy_array, 0.01, ch_idx=2)
     return wrapper_np

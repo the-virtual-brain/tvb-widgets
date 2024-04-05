@@ -105,7 +105,7 @@ def test_create_channel_selection_area(tsw_tvb_data):
 
 def test_dimensions_selection_update(tsw_tvb_data):
     # simulate unchecking of some checkboxes
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(50)
     false_cb_idx = list(rng.choice(76, size=3, replace=False))
     false_cb_names = [f'sig {x}' for x in false_cb_idx]
     for cb_name in false_cb_names:

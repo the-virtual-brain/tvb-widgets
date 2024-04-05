@@ -97,7 +97,7 @@ def generate_ts_with_mode_and_sv(length=5e3, cutoff=500, conn=None):
 
 def _generate_connectivity(no_of_regions):
     labels = np.array(['sig ' + str(i) for i in range(no_of_regions)])
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(50)
     conn = connectivity.Connectivity(centres=rng.random(size=(no_of_regions, 3)),
                                      region_labels=labels,
                                      weights=rng.random(size=(no_of_regions, no_of_regions)),
