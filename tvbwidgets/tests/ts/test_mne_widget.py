@@ -5,6 +5,7 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 
+import math
 import numpy as np
 import pytest
 import logging
@@ -43,7 +44,7 @@ def tsw_tvb_data(tsr_4d):
 # =========================================== WIDGET CREATION ==========================================================
 def test_get_widget(tsw_tvb_data):
     tsw_tvb_data.get_widget()
-    assert type(tsw_tvb_data) == TimeSeriesWidgetMNE
+    assert isinstance(tsw_tvb_data, TimeSeriesWidgetMNE)
 
 
 def test_create_ts_widget(tsw):
@@ -67,7 +68,7 @@ def test_populate_from_data_wrapper_tvb(tsw, wrapper_tvb):
 
     assert tsw.data == wrapper_tvb
     assert tsw.sample_freq == 4000
-    assert tsw.displayed_period == 0.75
+    assert math.isclose(tsw.displayed_period, 0.75)
     assert len(tsw.ch_names) == len(tsw.ch_order) == len(tsw.ch_types) == 76
     assert tsw.raw.get_data().shape == (76, 4000)
 
@@ -104,7 +105,8 @@ def test_create_channel_selection_area(tsw_tvb_data):
 
 def test_dimensions_selection_update(tsw_tvb_data):
     # simulate unchecking of some checkboxes
-    false_cb_idx = list(np.random.choice(76, size=3, replace=False))
+    rng = np.random.default_rng(50)
+    false_cb_idx = list(rng.choice(76, size=3, replace=False))
     false_cb_names = [f'sig {x}' for x in false_cb_idx]
     for cb_name in false_cb_names:
         tsw_tvb_data.checkboxes[cb_name].value = False

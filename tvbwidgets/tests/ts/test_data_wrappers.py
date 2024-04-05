@@ -5,6 +5,7 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 
+import math
 import numpy as np
 import pytest
 
@@ -17,7 +18,8 @@ from tvbwidgets.ui.ts.data_wrappers.tvb_data_wrapper import WrapperTVB
 @pytest.fixture
 def wrapper_np():
     """ Returns an initialized Numpy wrapper with 3 dimensions """
-    numpy_array = np.random.rand(30000, 4, 50)
+    rng = np.random.default_rng(50)
+    numpy_array = rng.random(size=(30000, 4, 50))
     wrapper_np = WrapperNumpy(numpy_array, 0.01, ch_idx=2)
     return wrapper_np
 
@@ -37,7 +39,7 @@ def test_get_ts_period_np(wrapper_np):
 
 
 def test_get_sample_rate_np(wrapper_np):
-    assert wrapper_np.get_ts_sample_rate() == 0.01
+    assert math.isclose(wrapper_np.get_ts_sample_rate(), 0.01)
 
 
 def test_build_raw_np(wrapper_np):
@@ -92,7 +94,7 @@ def test_build_wrapper_tvb(wrapper_tvb):
     assert len(ch_names) == len(ch_order) == len(ch_type) == 76
 
     assert wrapper_tvb.displayed_time_points == 3000
-    assert wrapper_tvb.get_ts_period() == 0.75
+    assert math.isclose(wrapper_tvb.get_ts_period(), 0.75)
     assert wrapper_tvb.get_ts_sample_rate() == 4000
 
     raw = wrapper_tvb.build_raw()
@@ -120,7 +122,7 @@ def test_get_update_slice_tvb(wrapper_tvb):
 
 def test_get_ts_period_tvb(wrapper_tvb):
     ts_period = wrapper_tvb.get_ts_period()
-    assert ts_period == 0.75
+    assert math.isclose(ts_period, 0.75)
 
 
 def test_get_ts_sample_rate_tvb(wrapper_tvb):

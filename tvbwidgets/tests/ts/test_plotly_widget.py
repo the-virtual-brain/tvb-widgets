@@ -5,6 +5,7 @@
 # (c) 2022-2023, TVB Widgets Team
 #
 
+import math
 import pytest
 
 import ipywidgets as widgets
@@ -44,7 +45,7 @@ def tsw_tvb_data(tsr_4d):
 # =========================================== WIDGET CREATION ==========================================================
 def test_get_widget(tsw_tvb_data):
     tsw_tvb_data.get_widget()
-    assert type(tsw_tvb_data) == TimeSeriesWidgetPlotly
+    assert isinstance(tsw_tvb_data, TimeSeriesWidgetPlotly)
 
 
 def test_create_ts_widget(tsw):
@@ -64,7 +65,7 @@ def test_populate_from_data_wrapper_tvb(tsw, wrapper_tvb):
 
     assert tsw.data == wrapper_tvb
     assert tsw.sample_freq == 4000
-    assert tsw.displayed_period == 0.75
+    assert math.isclose(tsw.displayed_period, 0.75)
     assert len(tsw.ch_names) == 76
     assert tsw.raw.get_data().shape == (76, 4000)
 
