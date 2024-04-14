@@ -6,6 +6,7 @@
 #
 
 import math
+import mne
 import numpy as np
 import ipywidgets as widgets
 from tvb.datatypes.time_series import TimeSeries
@@ -27,10 +28,20 @@ class TimeSeriesWidgetBase(widgets.VBox, TVBWidget):
         # type: (np.array, float, int) -> None
         data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
         self._populate_from_data_wrapper(data_wrapper)
+        
+    def add_edf_data(self, filename):
+        raw = mne.io.read_raw_edf(filename)
+        data, _ = raw[:]
+        data = np.transpose(data)
+        ch_idx = len(data.shape)-1
+        sample_freq = raw.info['sfreq']
+        self.add_data_array(data, sample_freq, ch_idx=ch_idx)
 
     def add_data(self, data, sample_freq=None, ch_idx=None):
         if isinstance(data, TimeSeries):
             self.add_datatype(data)
+        elif isinstance(data, str) and data.endswith(".edf"):
+            self.add_edf_data(data)
         else:
             self.add_data_array(data, sample_freq, ch_idx)
 
