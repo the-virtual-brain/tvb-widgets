@@ -170,3 +170,16 @@ def test_get_hover_channel_value_tvb(wrapper_tvb):
     val = wrapper_tvb.data.data[x_int, sel1, ch_index, sel2]
     val = round(val, 4)
     assert ch_value == val
+    
+    
+# ============================================ TEST WRAPPER EDF ========================================================
+@pytest.fixture
+def edf_wrapper():
+    """Returns an initialized WrapperEDF"""
+    return WrapperEDF("test_file.edf")
+
+def test_edf_wrapper(edf_wrapper):
+    assert edf_wrapper.ch_idx == 1
+    assert edf_wrapper.sample_rate == 400.0
+    assert isinstance(edf_wrapper.data, np.ndarray)
+
