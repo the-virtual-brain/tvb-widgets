@@ -6,7 +6,6 @@
 #
 
 import math
-import mne
 import numpy as np
 import ipywidgets as widgets
 from tvb.datatypes.time_series import TimeSeries
@@ -15,6 +14,7 @@ from tvbwidgets.core.exceptions import InvalidInputException
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.ts.data_wrappers.tvb_data_wrapper import WrapperTVB
 from tvbwidgets.ui.ts.data_wrappers.numpy_data_wrapper import WrapperNumpy
+from tvbwidgets.ui.ts.data_wrappers.edf_data_wrapper import WrapperEDF
 
 class TimeSeriesWidgetBase(widgets.VBox, TVBWidget):
     # =========================================== SETUP ================================================================
@@ -29,13 +29,9 @@ class TimeSeriesWidgetBase(widgets.VBox, TVBWidget):
         data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
         self._populate_from_data_wrapper(data_wrapper)
         
-    def add_edf_data(self, filename):
-        raw = mne.io.read_raw_edf(filename)
-        data, _ = raw[:]
-        data = np.transpose(data)
-        ch_idx = len(data.shape)-1
-        sample_freq = raw.info['sfreq']
-        self.add_data_array(data, sample_freq, ch_idx=ch_idx)
+    def add_edf_data(self,filepath):
+        data_wrapper = WrapperEDF(filepath)
+        self._populate_from_data_wrapper(data_wrapper)
 
     def add_data(self, data, sample_freq=None, ch_idx=None):
         if isinstance(data, TimeSeries):
