@@ -8,6 +8,7 @@
 import numpy as np
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
+import matplotlib.colors as mlt
 from IPython.core.display_functions import display
 from plotly_resampler import register_plotly_resampler, FigureWidgetResampler
 from tvbwidgets.ui.ts.base_ts_widget import TimeSeriesWidgetBase
@@ -79,9 +80,10 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         else:
             colormap = plt.get_cmap(self.colormap)
             colors = colormap(np.linspace(0.3, 1, len(ch_names)))
+        colors = [mcolors.to_hex(color, keep_alpha=False) for color in colors]
 
         self.fig.add_traces(
-            [dict(y=ts * self.amplitude + i * self.std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}', line_color = f"rgb({colors[i][0]},{colors[i][1]},{colors[i][2]})")
+            [dict(y=ts * self.amplitude + i * self.std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}', line_color = colors[i])
              for i, (ch_name, ts) in enumerate(zip(ch_names, data))]
         )
 
