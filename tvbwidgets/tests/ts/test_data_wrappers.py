@@ -11,6 +11,7 @@ import pytest
 from tvbwidgets.tests.ts.ts_generator import generate_ts_with_mode_and_sv
 from tvbwidgets.ui.ts.data_wrappers.numpy_data_wrapper import WrapperNumpy
 from tvbwidgets.ui.ts.data_wrappers.tvb_data_wrapper import WrapperTVB
+from tvbwidgets.ui.ts.data_wrappers.edf_data_wrapper import WrapperEDF
 
 
 # =========================================== TEST WRAPPER NUMPY =======================================================
