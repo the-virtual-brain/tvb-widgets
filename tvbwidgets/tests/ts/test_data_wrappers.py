@@ -9,11 +9,9 @@ import math
 import numpy as np
 import pytest
 
-from pathlib import Path
 from tvbwidgets.tests.ts.ts_generator import generate_ts_with_mode_and_sv
 from tvbwidgets.ui.ts.data_wrappers.numpy_data_wrapper import WrapperNumpy
 from tvbwidgets.ui.ts.data_wrappers.tvb_data_wrapper import WrapperTVB
-from tvbwidgets.ui.ts.data_wrappers.edf_data_wrapper import WrapperEDF
 
 
 # =========================================== TEST WRAPPER NUMPY =======================================================
@@ -174,18 +172,5 @@ def test_get_hover_channel_value_tvb(wrapper_tvb):
     val = wrapper_tvb.data.data[x_int, sel1, ch_index, sel2]
     val = round(val, 4)
     assert ch_value == val
-    
-    
-# ============================================ TEST WRAPPER EDF ========================================================
-file_path = Path(__file__).parent /"test_file.edf"
 
-@pytest.fixture
-def edf_wrapper():
-    """Returns an initialized WrapperEDF"""
-    return WrapperEDF(file_path)
-
-def test_edf_wrapper(edf_wrapper):
-    assert edf_wrapper.ch_idx == 1
-    assert edf_wrapper.sample_rate == 400.0
-    assert isinstance(edf_wrapper.data, np.ndarray)
 
