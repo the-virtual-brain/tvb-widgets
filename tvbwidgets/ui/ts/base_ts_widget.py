@@ -14,6 +14,7 @@ from tvbwidgets.core.exceptions import InvalidInputException
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.ts.data_wrappers.tvb_data_wrapper import WrapperTVB
 from tvbwidgets.ui.ts.data_wrappers.numpy_data_wrapper import WrapperNumpy
+from tvbwidgets.ui.ts.data_wrappers.edf_data_wrapper import WrapperEDF
 
 class TimeSeriesWidgetBase(widgets.VBox, TVBWidget):
     # =========================================== SETUP ================================================================
@@ -27,10 +28,16 @@ class TimeSeriesWidgetBase(widgets.VBox, TVBWidget):
         # type: (np.array, float, int) -> None
         data_wrapper = WrapperNumpy(numpy_array, sample_freq, ch_idx=ch_idx)
         self._populate_from_data_wrapper(data_wrapper)
+        
+    def add_edf_data(self,filepath):
+        data_wrapper = WrapperEDF(filepath)
+        self._populate_from_data_wrapper(data_wrapper)
 
     def add_data(self, data, sample_freq=None, ch_idx=None):
         if isinstance(data, TimeSeries):
             self.add_datatype(data)
+        elif isinstance(data, str) and data.endswith(".edf"):
+            self.add_edf_data(data)
         else:
             self.add_data_array(data, sample_freq, ch_idx)
 
