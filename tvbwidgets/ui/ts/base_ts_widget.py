@@ -15,6 +15,7 @@ from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.ts.data_wrappers.tvb_data_wrapper import WrapperTVB
 from tvbwidgets.ui.ts.data_wrappers.numpy_data_wrapper import WrapperNumpy
 
+
 class TimeSeriesWidgetBase(widgets.VBox, TVBWidget):
     # =========================================== SETUP ================================================================
     def add_datatype(self, ts_tvb):

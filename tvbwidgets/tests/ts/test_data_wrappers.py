@@ -172,3 +172,5 @@ def test_get_hover_channel_value_tvb(wrapper_tvb):
     val = wrapper_tvb.data.data[x_int, sel1, ch_index, sel2]
     val = round(val, 4)
     assert ch_value == val
+
+

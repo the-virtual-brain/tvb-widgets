@@ -38,20 +38,22 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         self.channel_selection_area = widgets.HBox(layout=widgets.Layout(width='90%'))
         self.info_and_channels_area = widgets.HBox(layout=widgets.Layout(margin='0px 0px 0px 80px'))
         self.plot_area.children += (self.output,)
-        self.scaling_title = widgets.Label(value='Increase/Decrease signal scaling (current scaling value to the right)')
+        self.scaling_title = widgets.Label(
+            value='Increase/Decrease signal scaling (current scaling value to the right)')
         self.scaling_slider = widgets.IntSlider(value=1, layout=widgets.Layout(width='30%'))
-        self.colormaps = ['turbo', 'brg', 'gist_stern_r', 'nipy_spectral_r', 'coolwarm','plasma', 'magma', 'viridis', \
-                         'cividis', 'twilight', 'twilight_shifted', 'CMRmap_r', 'Blues', \
-                         'BuGn', 'BuPu', 'Greens', 'PuRd', 'RdPu', 'Spectral', 'YlGnBu', \
-                         'YlOrBr', 'YlOrRd', 'cubehelix_r', 'gist_earth_r', 'terrain_r', \
-                         'rainbow_r', 'pink_r', 'gist_ncar_r', 'uni-color(black)']
+        self.colormaps = ['turbo', 'brg', 'gist_stern_r', 'nipy_spectral_r', 'coolwarm', 'plasma', 'magma', 'viridis', \
+                          'cividis', 'twilight', 'twilight_shifted', 'CMRmap_r', 'Blues', \
+                          'BuGn', 'BuPu', 'Greens', 'PuRd', 'RdPu', 'Spectral', 'YlGnBu', \
+                          'YlOrBr', 'YlOrRd', 'cubehelix_r', 'gist_earth_r', 'terrain_r', \
+                          'rainbow_r', 'pink_r', 'gist_ncar_r', 'uni-color(black)']
         self.colormap_dropdown = widgets.Dropdown(options=self.colormaps, description='Colormap:', disabled=False)
         self.colormap_dropdown.observe(self.update_colormap, names='value')
 
-        super().__init__([self.plot_area, widgets.VBox([self.colormap_dropdown, self.scaling_title, self.scaling_slider],
-                                                       layout=widgets.Layout(margin='0px 0px 0px 80px')),
-                          self.info_and_channels_area],
-                         layout=self.DEFAULT_BORDER)
+        super().__init__(
+            [self.plot_area, widgets.VBox([self.colormap_dropdown, self.scaling_title, self.scaling_slider],
+                                          layout=widgets.Layout(margin='0px 0px 0px 80px')),
+             self.info_and_channels_area],
+            layout=self.DEFAULT_BORDER)
         self.logger.info("TimeSeries Widget with Plotly initialized")
 
     # =========================================== SETUP ================================================================
@@ -76,14 +78,15 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         ch_names = ch_names[::-1]
         if self.colormap == "uni-color(black)":
             colormap = plt.get_cmap('gray')
-            colors = colormap(np.linspace(0, 0, len(ch_names))) 
+            colors = colormap(np.linspace(0, 0, len(ch_names)))
         else:
             colormap = plt.get_cmap(self.colormap)
             colors = colormap(np.linspace(0.3, 1, len(ch_names)))
         colors = [mlt.to_hex(color, keep_alpha=False) for color in colors]
 
         self.fig.add_traces(
-            [dict(y=ts * self.amplitude + i * self.std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}', line_color = colors[i])
+            [dict(y=ts * self.amplitude + i * self.std_step, name=ch_name, customdata=ts, hovertemplate='%{customdata}',
+                  line_color=colors[i])
              for i, (ch_name, ts) in enumerate(zip(ch_names, data))]
         )
 
@@ -156,14 +159,14 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
             self.output.clear_output(wait=True)
             display(self.fig)
 
-    def update_colormap(self,change):
-        self.colormap =  change['new']
+    def update_colormap(self, change):
+        self.colormap = change['new']
         self.fig.data = []
         data = self.raw[:, :][0]
         data = data[self.ch_picked, :]
         ch_names = [self.ch_names[i] for i in self.ch_picked]
         self.add_traces_to_plot(data, ch_names)
-        
+
     # ================================================= SCALING ========================================================
     def _setup_scaling_slider(self):
         # set min and max scaling values
@@ -182,7 +185,6 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
         data = data[self.ch_picked, :]
         ch_names = [self.ch_names[i] for i in self.ch_picked]
         self.add_traces_to_plot(data, ch_names)
-
 
     # =========================================== CHANNELS SELECTION ===================================================
     def _create_channel_selection_area(self, array_wrapper, no_checkbox_columns=5):
@@ -222,7 +224,7 @@ class TimeSeriesWidgetPlotly(TimeSeriesWidgetBase):
     def _update_ts(self, btn):
         self.logger.debug('Updating TS')
         ch_names = list(self.ch_names)
-        
+
         # save selected channels using their index in the ch_names list
         self.ch_picked = []
         for cb in list(self.checkboxes.values()):
