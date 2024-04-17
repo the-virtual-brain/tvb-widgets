@@ -8,6 +8,7 @@
 import numpy as np
 import pytest
 
+from pathlib import Path
 from tvbwidgets.tests.ts.ts_generator import generate_ts_with_mode_and_sv
 from tvbwidgets.ui.ts.data_wrappers.numpy_data_wrapper import WrapperNumpy
 from tvbwidgets.ui.ts.data_wrappers.tvb_data_wrapper import WrapperTVB
@@ -174,10 +175,12 @@ def test_get_hover_channel_value_tvb(wrapper_tvb):
     
     
 # ============================================ TEST WRAPPER EDF ========================================================
+file_path = Path(__file__).parent /"test_file.edf"
+
 @pytest.fixture
 def edf_wrapper():
     """Returns an initialized WrapperEDF"""
-    return WrapperEDF("test_file.edf")
+    return WrapperEDF(file_path)
 
 def test_edf_wrapper(edf_wrapper):
     assert edf_wrapper.ch_idx == 1
