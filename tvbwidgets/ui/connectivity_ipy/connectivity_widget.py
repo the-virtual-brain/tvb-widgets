@@ -21,8 +21,7 @@ from tvbwidgets.ui.connectivity_ipy.global_context import CONTEXT, ObservableAtt
 
 DROPDOWN_KEY = 'dropdown'
 
-# TODO see latest releases of pyvista have this backend removed
-pyvista.set_jupyter_backend('pythreejs')
+pyvista.set_jupyter_backend('trame')
 
 class CustomOutput(ipywidgets.Output):
     CONFIG = ConnectivityConfig()

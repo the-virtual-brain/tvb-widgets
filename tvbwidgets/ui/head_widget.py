@@ -17,13 +17,12 @@ from tvb.datatypes.surfaces import Surface
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.widget_with_browser import TVBWidgetWithBrowser
 
-# TODO see latest releases of pyvista have this backend removed
-pyvista.set_jupyter_backend('pythreejs')
+pyvista.set_jupyter_backend('trame')
 
 
 class HeadWidgetConfig:
 
-    def __init__(self, name='Actor', style='Surface', color='White', light=True, size=1500, cmap=None, scalars=None):
+    def __init__(self, name='Actor', style='Surface', color='White', light=True, size=15, cmap=None, scalars=None):
         self.name = name
         self.style = style
         self.color = color
@@ -54,6 +53,7 @@ class CustomOutput(ipywidgets.Output):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.plotter = pyvista.Plotter()
+        self.plotter.window_size = [600, 600]
         self.plotter.set_background('darkgrey')
         self.total_actors = 0
 
@@ -193,7 +193,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
     def __draw_sensors_actor(self, sensors, config):
         # type: (Sensors, HeadWidgetConfig) -> None
         if config is None:
-            config = HeadWidgetConfig(name='Sensors-' + str(sensors.number_of_sensors), color='Pink', size=1000)
+            config = HeadWidgetConfig(name='Sensors-' + str(sensors.number_of_sensors), color='Pink', size=10)
 
         sensors_actor = self.output_plot.add_points(sensors.locations, config)
         controls_vbox = self._prepare_generic_controls(sensors_actor, config)
