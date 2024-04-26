@@ -1,4 +1,6 @@
 include LICENSE
+include tvbwidgets/ui/connectivity_react/Connectivity.css
+include tvbwidgets/ui/connectivity_react/Connectivity.tsx
 include tvbwidgets/ui/ts_widget_help.ini
 recursive-include tvbwidgets/core/logger *
 recursive-exclude tvbwidgets *.pyc
