@@ -2,7 +2,7 @@
 #
 # "TheVirtualBrain - Widgets" package
 #
-# (c) 2022-2023, TVB Widgets Team
+# (c) 2022-2024, TVB Widgets Team
 #
 
 import os
