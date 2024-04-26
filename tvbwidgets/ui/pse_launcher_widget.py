@@ -78,7 +78,7 @@ class PSELauncher(TVBWidget):
     def file_options(self):
         self.file_name = widgets.Text(
             placeholder='Type here',
-            description="<b>Name of file</b>",
+            description="Name of file",
             disabled=False
         )
 
@@ -155,7 +155,7 @@ class PSELauncher(TVBWidget):
     def create_metrics(self):
         self.metrics_sm = widgets.SelectMultiple(
             options=self.metrics,
-            description="<b>Metrics</b>",
+            description="Metrics",
             value=[self.metrics[0]],
             disabled=False, layout=widgets.Layout(margin="0px 20px 10px 25px", height="115px", width="340px"))
 
@@ -179,13 +179,13 @@ class PSELauncher(TVBWidget):
     def create_params(self):
         self.param_1 = widgets.Dropdown(
             options=sorted(self.params_dict.keys()),
-            description="<b>Param 1</b>",
+            description="Param 1",
             value=list(sorted(self.params_dict.keys()))[0],
             disabled=False
         )
         self.param_2 = widgets.Dropdown(
             options=sorted(self.params_dict.keys()),
-            description="<b>Param 2</b>",
+            description="Param 2",
             value=list(sorted(self.params_dict.keys()))[2],
             disabled=False
         )
@@ -268,19 +268,19 @@ class PSELauncher(TVBWidget):
     def _build_for_param(self, param_current):
         min_input = widgets.FloatText(
             value=self.params_dict[param_current.value][0],
-            description="<b><font color='gray'>Min range</b>",
+            description="Min range",
             disable=False
         )
 
         max_input = widgets.FloatText(
             value=self.params_dict[param_current.value][1],
-            description="<b><font color='gray'>Max range</b>",
+            description="Max range",
             disable=False
         )
 
         step_input = widgets.FloatText(
             value=self.params_dict[param_current.value][2],
-            description="<b><font color='gray'>Step</b>",
+            description="Step",
             disable=False
         )
 
