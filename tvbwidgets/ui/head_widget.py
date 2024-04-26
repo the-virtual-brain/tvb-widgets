@@ -8,9 +8,6 @@
 import ipywidgets
 import numpy
 import pyvista
-
-from pyvista import PolyData
-
 from tvb.basic.neotraits.api import HasTraits
 from tvb.datatypes.connectivity import Connectivity
 from tvb.datatypes.region_mapping import RegionMapping
@@ -20,12 +17,12 @@ from tvb.datatypes.surfaces import Surface
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.widget_with_browser import TVBWidgetWithBrowser
 
-pyvista.set_jupyter_backend('pythreejs')
+pyvista.set_jupyter_backend('trame')
 
 
 class HeadWidgetConfig:
 
-    def __init__(self, name='Actor', style='Surface', color='White', light=True, size=1500, cmap=None, scalars=None):
+    def __init__(self, name='Actor', style='Surface', color='White', light=True, size=15, cmap=None, scalars=None):
         self.name = name
         self.style = style
         self.color = color
@@ -56,6 +53,8 @@ class CustomOutput(ipywidgets.Output):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.plotter = pyvista.Plotter()
+        self.plotter.window_size = [600, 600]
+        self.plotter.set_background('darkgrey')
         self.total_actors = 0
 
     @property
@@ -104,6 +103,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         self.output_plot = CustomOutput()
         self.plot_controls = ipywidgets.Accordion(layout=ipywidgets.Layout(width='380px'))
         self.existent_configs = []
+        self.title_suffix = " Controls"
         self.ignore = ignore
 
         super().__init__([self.plot_controls, self.output_plot], layout=self.DEFAULT_BORDER)
@@ -137,11 +137,10 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
             self.logger.warning(f"Datatype {type(datatype)} not supported by this widget!")
 
     def __prepare_mesh(self, surface):
-        # type: (Surface) -> PolyData
+        # type: (Surface) -> pyvista.PolyData
         dim_4th = numpy.full((surface.triangles.shape[0], 1), 3, dtype=int)
         faces = numpy.hstack((dim_4th, surface.triangles))
-
-        mesh = PolyData(surface.vertices, faces)
+        mesh = pyvista.PolyData(surface.vertices, faces)
         return mesh
 
     def __toggle_actor(self, change, actor):
@@ -174,6 +173,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         controls_vbox.children += extra_controls
 
         self.plot_controls.children += controls_vbox,
+        self.plot_controls.set_title(self.output_plot.total_actors - 1, config.name + self.title_suffix)
         self.output_plot.update_plot()
 
     def __draw_connectivity_actor(self, connectivity, config):
@@ -187,12 +187,13 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         controls_vbox.children += extra_controls
 
         self.plot_controls.children += controls_vbox,
+        self.plot_controls.set_title(self.output_plot.total_actors - 1, config.name + self.title_suffix)
         self.output_plot.update_plot()
 
     def __draw_sensors_actor(self, sensors, config):
         # type: (Sensors, HeadWidgetConfig) -> None
         if config is None:
-            config = HeadWidgetConfig(name='Sensors-' + str(sensors.number_of_sensors), color='Pink', size=1000)
+            config = HeadWidgetConfig(name='Sensors-' + str(sensors.number_of_sensors), color='Pink', size=10)
 
         sensors_actor = self.output_plot.add_points(sensors.locations, config)
         controls_vbox = self._prepare_generic_controls(sensors_actor, config)
@@ -200,14 +201,11 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
         controls_vbox.children += extra_controls
 
         self.plot_controls.children += controls_vbox,
+        self.plot_controls.set_title(self.output_plot.total_actors - 1, config.name + self.title_suffix)
         self.output_plot.update_plot()
 
     def _prepare_generic_controls(self, actor, config):
         toggle_prefix = "Toggle "
-        title_suffix = " Controls"
-
-        idx = self.output_plot.total_actors - 1
-        self.plot_controls.set_title(idx, config.name + title_suffix)
 
         def toggle_actor(change):
             self.__toggle_actor(change, actor)
@@ -219,7 +217,7 @@ class HeadWidget(ipywidgets.HBox, TVBWidget):
             value = change['new']
             config.name = value
             toggle_input.description = toggle_prefix + config.name
-            self.plot_controls.set_title(idx, config.name + title_suffix)
+            self.plot_controls.set_title(self.output_plot.total_actors - 1, config.name + self.title_suffix)
 
         name_input = ipywidgets.Text(value=config.name, description='Name: ', disabled=False,
                                      layout=ipywidgets.Layout(width='250px'))
