@@ -21,8 +21,8 @@ class WrapperTVB(ABCDataWrapper):
             raise InvalidInputException("Not a valid TVB TS " + str(data))
         self.data = data
         self.ch_names = []
-        variables_labels = data.variables_labels
-        if variables_labels is not None and variables_labels != []:
+        variables_labels = data.variables_labels    # this give a numpy.ndarray
+        if variables_labels is not None and variables_labels.size != 0:
             sv_options = [(variables_labels[idx], idx) for idx in range(len(variables_labels))]
             self.extra_dimensions = ABCDataWrapper.extra_dimensions.copy()
             self.extra_dimensions[1] = ("State var.", sv_options)
