@@ -1,10 +1,14 @@
+import io
 import numpy as np
 import pythreejs as p3
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from matplotlib.gridspec import GridSpec
 from IPython.display import display
 from tvb.datatypes.connectivity import Connectivity
 from tvbwidgets.ui.base_widget import TVBWidget
+from ipywidgets import Tab, Output
+
 
 class SpaceTimeVisualizerWidget(TVBWidget):
     def __init__(self, connectivity, width=600, height=400, **kwargs):
@@ -17,7 +21,24 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.to_time = 153.47
         self.conduction_speed = 1.0
         self.num_slices = 6
+        self._prepare_tab()
+
+
+    def _prepare_tab(self):
+        self.tab = Tab()
         self._prepare_scene()
+
+        graphs_pythreejs = Output()
+        with graphs_pythreejs:
+            display(self.renderer)
+
+        graphs_matplotlib = Output()
+        fig = self.create_matplotlib_graphs()
+        with graphs_matplotlib:
+            display(fig)
+
+        self.tab.children = [graphs_pythreejs, graphs_matplotlib]
+        
 
     def _prepare_scene(self):
         self.camera = p3.PerspectiveCamera(position=[23, 7, -6], aspect=2)
@@ -30,7 +51,8 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.controls = p3.OrbitControls(controlling=self.camera)
         self.renderer = p3.Renderer(camera=self.camera, scene=self.scene, controls=[self.controls],
                                     width=self.view_width, height=self.view_height)
-
+        
+        
     def _prepare_slices(self):
         total_slices = self.num_slices+1
         for i in range(total_slices):
@@ -84,6 +106,26 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             mask = (time_delay < slice_range) & (time_delay > prev_slice_range)
             connectivity = np.where(mask, self.connectivity.weights, 0)
         return connectivity
+    
+    def create_matplotlib_graphs(self):
+        fig = plt.figure(figsize=(14, 10))
+        gs = GridSpec(3, 4, figure = fig)
+        
+        for i in range(self.num_slices + 1):
+            position = gs[int(i/3), int(i%3)]
+            ax = fig.add_subplot(position)
+            connectivity = self._prepare_connectivity(i)
+            colors = self._generate_colors(connectivity)
+            im = ax.imshow(colors)
+            ax.set_xticks([]) 
+            ax.set_yticks([]) 
 
-    def display_slices(self):
-        display(self.renderer)
+        fig.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.01, hspace=0.01)
+        plt.close(fig) 
+        return fig     
+
+    def display(self):
+        display(self.tab)
+
+        
+
