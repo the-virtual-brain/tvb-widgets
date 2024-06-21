@@ -17,6 +17,14 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.view_width = width
         self.view_height = height
         self.connectivity = connectivity
+        colors = [
+            '#000088', '#4d1c34', '#7a3282', '#8ea674', '#27913c', '#1c464a',
+            '#247663', '#38bcaa', '#a9e9ff', '#5fcdfc', '#36a0c1', '#f99e2c',
+            '#fc5326', '#df0537'
+        ]
+        self.color_scheme = mcolors.LinearSegmentedColormap.from_list('color_scheme', colors)
+        self.norm = mcolors.Normalize(vmin=0, vmax=3)
+    
         self.add_options()
         self.conduction_speed = self.options.children[0].value
         self.from_time = self.options.children[1].value
@@ -52,18 +60,25 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                                     width=self.view_width, height=self.view_height)
         
     def _prepare_slices(self):
-        total_slices = self.num_slices+1
+        total_slices = self.num_slices + 1
+        grid = self._generate_gridlines()
         self.graph_slices = []
         for i in range(total_slices):
             graph_slice = self._create_graph_slice(i)
-            self.scene.add(graph_slice)
+            graph_slice.material.map = self._generate_texture(i)
+        
+            slice_grid = self._create_graph_slice(i)
+            slice_grid.material.map = grid
+            slice_grid.material.transparent = True
+            
+            self.scene.add([graph_slice, slice_grid])
             self.graph_slices.append(graph_slice)
 
     def _create_graph_slice(self, i):
         z_coordinate = -i * 2.5 + 15
         return p3.Mesh(
             p3.BoxBufferGeometry(width=7, height=7, depth=0.1),
-            p3.MeshPhysicalMaterial(map=self._generate_texture(i)),
+            p3.MeshPhysicalMaterial(),
             position=[10, 1, z_coordinate]
         )
 
@@ -77,23 +92,23 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         return texture
 
     def _generate_colors(self, connectivity):
-        colors = [
-            '#000088', '#4d1c34', '#7a3282', '#8ea674', '#27913c', '#1c464a',
-            '#247663', '#38bcaa', '#a9e9ff', '#5fcdfc', '#36a0c1', '#f99e2c',
-            '#fc5326', '#df0537'
-        ]
-        color_scheme = mcolors.LinearSegmentedColormap.from_list('color_scheme', colors)
-        norm = mcolors.Normalize(vmin=0, vmax=3)
-        color_data = color_scheme(norm(connectivity))[:, :, :3]
-        
-        # Generate grid lines
-        repetition_pattern = np.ones((5, 5, 1))
-        color_data = np.kron(color_data, repetition_pattern)
-        size = color_data.shape[0]
-        mask = (np.arange(size) % 5 == 0)[:, None] | (np.arange(size) % 5 == 0)[None, :]
-        color_data[mask] = [0, 0, 0]
-        
+        color_data = self.color_scheme(self.norm(connectivity))[:, :, :3]
         return color_data
+    
+    def _generate_gridlines(self):
+        grid = np.zeros((76, 76, 4))
+        repetition_pattern = np.ones((5, 5, 1))
+        grid = np.kron(grid, repetition_pattern)
+        size = grid.shape[0]
+        mask = (np.arange(size) % 5 == 0)[:, None] | (np.arange(size) % 5 == 0)[None, :]
+        grid[mask] = [0, 0, 0, 1]
+        
+        grid_texture = p3.DataTexture(
+            data=grid,
+            format="RGBAFormat",
+            type="FloatType"
+        )
+        return grid_texture
 
     def _prepare_connectivity(self, i):
         """Prepares data for different slices."""
@@ -111,6 +126,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.fig = plt.figure(figsize=(14, 10))
         self.ims = []
         gs = GridSpec(3, 4, figure = self.fig)
+        n = self.connectivity.weights.shape[0]
         
         for i in range(self.num_slices + 1):
             position = gs[int(i/3), int(i%3)]
@@ -118,12 +134,13 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             connectivity = self._prepare_connectivity(i)
             colors = self._generate_colors(connectivity)
             ax.imshow(colors)
-            ax.set_xticks([]) 
-            ax.set_yticks([])
+            ax.set_xticks(np.arange(0, n, 5))
+            ax.set_yticks(np.arange(0, n, 5))
+            ax.tick_params(axis="both", labelsize = 6)
             self.ims.append(ax)
          
-        self.fig.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.01, hspace=0.01)
-        plt.close(self.fig)     
+        self.fig.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.1, hspace=0.1)
+        plt.close(self.fig) 
 
     def add_options(self):
         self.options = HBox(layout = Layout(width = '500px'))
