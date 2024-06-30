@@ -97,8 +97,11 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
     def _generate_texture(self, i):
         connectivity = self._prepare_connectivity(i)
+        color_data=self._generate_colors(connectivity)
+        color_data = np.fliplr(color_data)
+
         texture = p3.DataTexture(
-            data=self._generate_colors(connectivity),
+            data = color_data,
             format="RGBFormat",
             type="FloatType"
         )
@@ -163,7 +166,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             self.ims.append(ax)
          
         self.fig.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.1, hspace=0.1)
-        plt.close(self.fig) 
+        plt.close(self.fig)      
 
     def _add_options(self):
         self.options = HBox(layout = Layout(width = '500px'))
