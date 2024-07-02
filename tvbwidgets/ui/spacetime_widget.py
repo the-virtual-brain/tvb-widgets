@@ -168,11 +168,11 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         plt.close(self.fig)      
 
     def _add_options(self):
-        self.options = HBox(layout = Layout(width = '500px'))
+        self.options = HBox(layout = Layout(width = '600px'))
         self.option_conduction_speed = FloatText(
                 value=1.0,
                 step=0.1,
-                layout=Layout(width='150px'), 
+                layout=Layout(width='170px'), 
                 style={'description_width': 'initial'},
                 description='Conduction Speed:',
                 disabled=False
@@ -183,7 +183,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                     min=0.0,
                     max=153.49,
                     step=0.1,
-                    layout=Layout(width='150px'), 
+                    layout=Layout(width='160px'), 
                     description='from[ms]:',
                     disabled=False
                 )
@@ -193,7 +193,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                     min=0.0,
                     max=153.49,
                     step=0.1,
-                    layout=Layout(width='150px'), 
+                    layout=Layout(width='160px'), 
                     description='to[ms]:',
                     disabled=False
                 )
