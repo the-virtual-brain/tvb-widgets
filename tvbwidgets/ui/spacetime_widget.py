@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.gridspec import GridSpec
 from IPython.display import display
-from tvb.datatypes.connectivity import Connectivity
 from tvbwidgets.ui.base_widget import TVBWidget
 from ipywidgets import Tab, Output, HBox, BoundedFloatText, FloatText, Layout
 
