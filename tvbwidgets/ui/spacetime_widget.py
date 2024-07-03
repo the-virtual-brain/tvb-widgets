@@ -56,6 +56,9 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             display(self.fig)
 
         self.tab.children = [self.graphs_pythreejs, self.graphs_matplotlib]
+        self.tab.set_title(0, "Spacetime Viewer")
+        self.tab.set_title(1, "Matplotlib Graphs")
+
         
     def _prepare_scene(self):
         self.camera = p3.PerspectiveCamera(position=[30, 0, 0], aspect=2)
