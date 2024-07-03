@@ -169,8 +169,11 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
     def _add_options(self):
         self.options = HBox(layout = Layout(width = '600px'))
+        conduction_speed = self.connectivity.speed
+        max_time = self.connectivity.tract_lengths.max()
+        min_time = self.connectivity.tract_lengths.min()
         self.option_conduction_speed = FloatText(
-                value=1.0,
+                value=conduction_speed,
                 step=0.1,
                 layout=Layout(width='170px'), 
                 style={'description_width': 'initial'},
@@ -180,8 +183,8 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.option_conduction_speed.observe(self.on_change,names = "value")
         self.option_from_time = BoundedFloatText(
                     value=0.0,
-                    min=0.0,
-                    max=153.49,
+                    min=min_time,
+                    max=max_time,
                     step=0.1,
                     layout=Layout(width='160px'), 
                     description='from[ms]:',
@@ -190,8 +193,8 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.option_from_time.observe(self.on_change,names = "value")
         self.option_to_time = BoundedFloatText(
                     value= 153.49,
-                    min=0.0,
-                    max=153.49,
+                    min=min_time,
+                    max=max_time,
                     step=0.1,
                     layout=Layout(width='160px'), 
                     description='to[ms]:',
