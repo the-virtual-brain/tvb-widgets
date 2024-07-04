@@ -141,13 +141,14 @@ class SpaceTimeVisualizerWidget(TVBWidget):
     def _prepare_connectivity(self, i):
         """Prepares data for different slices."""
         if i == 0:
-            connectivity = self.connectivity.weights
+            slice_range = self.to_time
+            prev_slice_range = self.from_time
         else:
-            slice_range = ((self.to_time-self.from_time) * i) / self.num_slices
-            prev_slice_range =  ((self.to_time-self.from_time) * (i - 1)) / self.num_slices
-            time_delay = self.connectivity.tract_lengths * self.conduction_speed
-            mask = (time_delay < slice_range) & (time_delay > prev_slice_range) 
-            connectivity = np.where(mask, self.connectivity.weights, 0)
+            slice_range = self.from_time + ((self.to_time-self.from_time) * i) / self.num_slices
+            prev_slice_range = self.from_time + ((self.to_time-self.from_time) * (i - 1)) / self.num_slices
+        time_delay = self.connectivity.tract_lengths * self.conduction_speed
+        mask = (time_delay <= slice_range) & (time_delay >= prev_slice_range) 
+        connectivity = np.where(mask, self.connectivity.weights, 0)
         return connectivity
     
     def _create_matplotlib_graphs(self):
@@ -209,13 +210,16 @@ class SpaceTimeVisualizerWidget(TVBWidget):
     def on_change(self, change):
         self.graphs_matplotlib.clear_output()
         self.conduction_speed = self.options.children[0].value
+        if change["owner"].description == "Conduction Speed:":
+            self.options.children[1].value = self.options.children[1].min / self.conduction_speed
+            self.options.children[2].value = self.options.children[2].max / self.conduction_speed
         self.from_time = self.options.children[1].value
         self.to_time =  self.options.children[2].value
 
         for i in range(len(self.graph_slices)):
             connectivity = self._prepare_connectivity(i)
             data = self._generate_colors(connectivity)
-            self.graph_slices[i].material.map.data = data
+            self.graph_slices[i].material.map.data = np.fliplr(data)
             self.ims[i].imshow(data)
 
         with self.graphs_matplotlib:
