@@ -16,7 +16,7 @@ import matplotlib.colors as mcolors
 from matplotlib.gridspec import GridSpec
 from IPython.display import display
 from tvbwidgets.ui.base_widget import TVBWidget
-from ipywidgets import Tab, Output, HBox, BoundedFloatText, FloatText, Layout
+from ipywidgets import Tab, Output, HBox, BoundedFloatText, FloatText, Text, Layout
 
 
 class SpaceTimeVisualizerWidget(TVBWidget):
@@ -94,7 +94,8 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         return p3.Mesh(
             p3.BoxBufferGeometry(width=7, height=7, depth=0.1),
             p3.MeshPhysicalMaterial(),
-            position=[15, 0, z_coordinate]
+            position=[15, 0, z_coordinate],
+            name=f"{i}"
         )
 
     def _generate_texture(self, i):
@@ -140,12 +141,13 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
     def _prepare_connectivity(self, i):
         """Prepares data for different slices."""
+        self.intervals = np.linspace(self.from_time, self.to_time, self.num_slices+1 )
         if i == 0:
             slice_range = self.to_time
             prev_slice_range = self.from_time
         else:
-            slice_range = self.from_time + ((self.to_time-self.from_time) * i) / self.num_slices
-            prev_slice_range = self.from_time + ((self.to_time-self.from_time) * (i - 1)) / self.num_slices
+            slice_range = self.intervals[i]        
+            prev_slice_range = self.intervals[i-1]   
         time_delay = self.connectivity.tract_lengths * self.conduction_speed
         mask = (time_delay <= slice_range) & (time_delay >= prev_slice_range) 
         connectivity = np.where(mask, self.connectivity.weights, 0)
@@ -172,10 +174,10 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         plt.close(self.fig)      
 
     def _add_options(self):
-        self.options = HBox(layout = Layout(width = '600px'))
+        self.options = HBox(layout = Layout(width = '800px'))
         conduction_speed = self.connectivity.speed
-        max_time = self.connectivity.tract_lengths.max()
-        min_time = self.connectivity.tract_lengths.min()
+        max_time = self.connectivity.tract_lengths.max() / conduction_speed
+        min_time = self.connectivity.tract_lengths.min() / conduction_speed
         self.option_conduction_speed = FloatText(
                 value=conduction_speed,
                 step=0.1,
@@ -186,7 +188,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                 )
         self.option_conduction_speed.observe(self.on_change,names = "value")
         self.option_from_time = BoundedFloatText(
-                    value=0.0,
+                    value=min_time,
                     min=min_time,
                     max=max_time,
                     step=0.1,
@@ -196,7 +198,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                 )
         self.option_from_time.observe(self.on_change,names = "value")
         self.option_to_time = BoundedFloatText(
-                    value= 153.49,
+                    value= max_time,
                     min=min_time,
                     max=max_time,
                     step=0.1,
@@ -205,14 +207,23 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                     disabled=False
                 )
         self.option_to_time.observe(self.on_change,names = "value")
-        self.options.children = [self.option_conduction_speed, self.option_from_time, self.option_to_time]
+        self.selection = Text(
+                                    value = "None",
+                                    description = "selection[ms]:",
+                                    layout = Layout(width = "200px")
+                                     )
+        self.options.children = [self.option_conduction_speed, self.option_from_time, self.option_to_time, self.selection]
 
     def on_change(self, change):
         self.graphs_matplotlib.clear_output()
         self.conduction_speed = self.options.children[0].value
         if change["owner"].description == "Conduction Speed:":
-            self.options.children[1].value = self.options.children[1].min / self.conduction_speed
-            self.options.children[2].value = self.options.children[2].max / self.conduction_speed
+            self.options.children[1].max = self.connectivity.tract_lengths.max() / self.conduction_speed
+            self.options.children[2].max = self.connectivity.tract_lengths.max() / self.conduction_speed
+            self.options.children[1].min = self.connectivity.tract_lengths.min() / self.conduction_speed
+            self.options.children[2].min = self.connectivity.tract_lengths.min() / self.conduction_speed
+            self.options.children[1].value = self.options.children[1].min 
+            self.options.children[2].value = self.options.children[2].max
         self.from_time = self.options.children[1].value
         self.to_time =  self.options.children[2].value
 
@@ -239,6 +250,12 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                 picked_slice.visible = True
                 self.grid.visible = True
                 self.light.intensity = 3
+                i = int(picked_slice.name)
+                if i == 0:
+                    self.selection.value = f"{self.intervals[0]:.2f} .. {self.intervals[-1]:.2f}"
+                else:    
+                    self.selection.value = f"{self.intervals[i-1]:.2f} .. {self.intervals[i]:.2f}"
+
             else:
                 if picked_slice.name == "grid":
                     picked_slice = self.picked_slice
@@ -250,7 +267,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                 self.grid.visible = False
                 self.picked_slice = None
                 self.light.intensity = 2
-            
+                self.selection.value = "None"
 
     def display(self):
         display(self.options)
