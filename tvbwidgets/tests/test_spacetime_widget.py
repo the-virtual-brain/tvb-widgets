@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import pythreejs as p3
 import matplotlib
-from ipywidgets import Tab, Output, BoundedFloatText, FloatText
+from ipywidgets import Tab, Output, BoundedFloatText, Text, HBox, HTML
 from tvbwidgets.ui.spacetime_widget import SpaceTimeVisualizerWidget
 from tvb.datatypes.connectivity import Connectivity
 
@@ -23,7 +23,11 @@ def test_display(wid):
     wid.display()
     assert isinstance(wid, SpaceTimeVisualizerWidget)
 
-def test_prepare_tabs(wid):
+def test_prepare_widget(wid):
+    assert isinstance(wid.hbox, HBox)
+    assert len(wid.hbox.children) == 2
+    assert isinstance(wid.hbox.children[0], Tab)
+    assert isinstance(wid.hbox.children[1], HTML)
     assert isinstance(wid.tab, Tab)
     assert len(wid.tab.children) == 2
     assert isinstance(wid.tab.children[0], Output)
@@ -76,25 +80,13 @@ def test_prepare_grid(wid):
 
 def test_generate_gridlines(wid):
     grid = wid._generate_gridlines()
-    expected_grid = np.zeros((76, 76, 4))
-    repetition_pattern = np.ones((5, 5, 1))
-    expected_grid = np.kron(expected_grid, repetition_pattern)
-    size = expected_grid.shape[0]
-    mask = (np.arange(size) % 5 == 0)[:, None] | (np.arange(size) % 5 == 0)[None, :]
-    expected_grid[mask] = [0, 0, 0, 1]
     assert grid.format == "RGBAFormat"
     assert grid.data.shape == (76*5, 76*5, 4)
-    assert (grid.data == expected_grid).all
 
 def test_prepare_connectivity(wid):
     i = 2
-    slice_range = (( wid.to_time- wid.from_time) * i) /  wid.num_slices
-    prev_slice_range =  (( wid.to_time- wid.from_time) * (i - 1)) /  wid.num_slices
-    time_delay =  wid.connectivity.tract_lengths *  wid.conduction_speed
-    mask = (time_delay < slice_range) & (time_delay > prev_slice_range) 
-    expected_connectivity = np.where(mask,  wid.connectivity.weights, 0)
     connectivity = wid._prepare_connectivity(2)
-    assert (connectivity == expected_connectivity).all
+    assert connectivity.shape == (76, 76)
 
 def test_create_matplotlib_graphs(wid):
     assert len(wid.ims) == 7
@@ -103,21 +95,24 @@ def test_create_matplotlib_graphs(wid):
     assert wid.fig.get_figwidth() == 14.0
 
 def test_add_options(wid):
-    assert len(wid.options.children) == 3
-    assert isinstance(wid.options.children[0], FloatText)
+    assert len(wid.options.children) == 4
+    assert isinstance(wid.options.children[0], BoundedFloatText)
     assert isinstance(wid.options.children[1], BoundedFloatText)
     assert isinstance(wid.options.children[2], BoundedFloatText)
+    assert isinstance(wid.options.children[3], Text)
 
     assert wid.options.children[1].description == "from[ms]:"
     assert wid.options.children[2].description == "to[ms]:"
+    assert wid.options.children[3].description == "selection[ms]:"
     assert wid.options.children[0].value == 1.0
     assert wid.options.children[0].description == "Conduction Speed:"
     assert wid.options.children[1].value == 0.0
     assert wid.options.children[1].min == 0.0
-    assert wid.options.children[1].max == 153.49
-    assert wid.options.children[2].value == 153.49
+    assert wid.options.children[1].max == 153.48574
+    assert wid.options.children[2].value == 153.48574
     assert wid.options.children[2].min == 0.0
-    assert wid.options.children[2].max == 153.49
+    assert wid.options.children[2].max == 153.48574
+    assert wid.options.children[3].value == "None"
 
 
 
