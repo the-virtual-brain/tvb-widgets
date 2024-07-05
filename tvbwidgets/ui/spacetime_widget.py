@@ -16,7 +16,7 @@ import matplotlib.colors as mcolors
 from matplotlib.gridspec import GridSpec
 from IPython.display import display
 from tvbwidgets.ui.base_widget import TVBWidget
-from ipywidgets import Tab, Output, HBox, BoundedFloatText, FloatText, Text, Layout
+from ipywidgets import Tab, Output, HBox, BoundedFloatText, HTML, Text, Layout
 
 
 class SpaceTimeVisualizerWidget(TVBWidget):
@@ -40,9 +40,10 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.to_time =  self.options.children[2].value
         self.num_slices = 6
         self.picked_slice = None
-        self._prepare_tab()
+        self._prepare_widget()
 
-    def _prepare_tab(self):
+    def _prepare_widget(self):
+        self.hbox = HBox()
         self.tab = Tab()
         self._prepare_scene()
 
@@ -58,6 +59,9 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.tab.children = [self.graphs_pythreejs, self.graphs_matplotlib]
         self.tab.set_title(0, "Interactive Viewer")
         self.tab.set_title(1, "Plots Overview")
+
+        self._prepare_plot_details()
+        self.hbox.children = [self.tab, self.plot_details]
 
     def _prepare_scene(self):
         self.camera = p3.PerspectiveCamera(position=[30, 0, 0], aspect=2)
@@ -226,6 +230,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             self.options.children[2].value = self.options.children[2].max
         self.from_time = self.options.children[1].value
         self.to_time =  self.options.children[2].value
+        self.plot_details.value = self._generate_details()
 
         for i in range(len(self.graph_slices)):
             connectivity = self._prepare_connectivity(i)
@@ -269,6 +274,35 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                 self.light.intensity = 2
                 self.selection.value = "None"
 
+    def _prepare_plot_details(self):
+        self.plot_details = HTML(
+                            value = self._generate_details(),
+                            layout = Layout(width = "300px")
+                            )
+
+    def _generate_details(self):
+        return f"""<br><br>
+            <div style="line-height:1px;
+                        border: 2px solid black; 
+                        padding: 10px; 
+                        margin: 15px; 
+                        border-radius: 5px;">
+            <br><h3>PLOT DETAILS</h3> <br><br>
+            <h4>conduction speed:</h4><br> 
+            {self.conduction_speed} mm/ms<br>
+            <h4>min(non-zero) delay: </h4><br>
+            {np.min(self.connectivity.tract_lengths[np.nonzero(self.connectivity.tract_lengths)])/self.conduction_speed} ms<br>
+            <h4>max delay: </h4><br>
+            {np.max(self.connectivity.tract_lengths)/self.conduction_speed} ms<br>
+            <h4>min(non-zero) tract length:</h4> <br>
+            {np.min(self.connectivity.tract_lengths[np.nonzero(self.connectivity.tract_lengths)])} mm<br>
+            <h4>max tract length: </h4><br>
+            {np.max(self.connectivity.tract_lengths,)} mm<br>
+            <h4>min(non-zero) weight: </h4><br>
+            {np.min(self.connectivity.weights[np.nonzero(self.connectivity.weights)])}<br>
+            <h4>max weight: </h4><br>
+            {np.max(self.connectivity.weights)}<br><br></div>"""
+
     def display(self):
         display(self.options)
-        display(self.tab)
+        display(self.hbox)
