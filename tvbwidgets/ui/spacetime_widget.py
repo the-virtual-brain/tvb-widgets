@@ -56,10 +56,9 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             display(self.fig)
 
         self.tab.children = [self.graphs_pythreejs, self.graphs_matplotlib]
-        self.tab.set_title(0, "Spacetime Viewer")
-        self.tab.set_title(1, "Matplotlib Graphs")
+        self.tab.set_title(0, "Interactive Viewer")
+        self.tab.set_title(1, "Plots Overview")
 
-        
     def _prepare_scene(self):
         self.camera = p3.PerspectiveCamera(position=[30, 0, 0], aspect=2)
         self.light = p3.AmbientLight(intensity=2)
@@ -148,7 +147,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         else:
             slice_range = self.intervals[i]        
             prev_slice_range = self.intervals[i-1]   
-        time_delay = self.connectivity.tract_lengths * self.conduction_speed
+        time_delay = self.connectivity.tract_lengths / self.conduction_speed
         mask = (time_delay <= slice_range) & (time_delay >= prev_slice_range) 
         connectivity = np.where(mask, self.connectivity.weights, 0)
         return connectivity
@@ -175,11 +174,12 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
     def _add_options(self):
         self.options = HBox(layout = Layout(width = '800px'))
-        conduction_speed = self.connectivity.speed
-        max_time = self.connectivity.tract_lengths.max() / conduction_speed
-        min_time = self.connectivity.tract_lengths.min() / conduction_speed
-        self.option_conduction_speed = FloatText(
-                value=conduction_speed,
+        max_time = self.connectivity.tract_lengths.max() 
+        min_time = self.connectivity.tract_lengths.min() 
+        self.option_conduction_speed = BoundedFloatText(
+                value=1.0,
+                min=0.1,
+                max=round(self.connectivity.tract_lengths.max(), 2),
                 step=0.1,
                 layout=Layout(width='170px'), 
                 style={'description_width': 'initial'},
