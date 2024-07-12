@@ -19,16 +19,16 @@ class HPCConfig(object):
     resources: Resources
     timeout = -1
 
-    STORAGES = {'DAINT-CSCS': 'HOME',
-                'JUSUF': 'PROJECT',
-                'JUDAC': 'PROJECT'}
+    STORAGES = {'JUSUF': 'PROJECT',
+                'JUDAC': 'PROJECT',
+                'JUWELS': 'HOME'}
 
-    PYTHON_DIRS = {'DAINT-CSCS': 'python3.9',
-                   'JUSUF': 'python3.10',
-                   'JUDAC': 'python3.10'}
-    MODULES = {'DAINT-CSCS': 'cray-python',
-               'JUSUF': 'Python',
-               'JUDAC': 'Python'}
+    PYTHON_DIRS = {'JUSUF': 'python3.10',
+                   'JUDAC': 'python3.10',
+                   'JUWELS': 'python3.11'}
+    MODULES = {'JUSUF': 'Python',
+               'JUDAC': 'Python',
+               'JUWELS': 'Python'}
 
     def __post_init__(self):
         if self.env_dir is None:

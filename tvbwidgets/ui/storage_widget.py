@@ -7,28 +7,38 @@
 import ipywidgets
 
 from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.bucket_widget import BucketWidget
 from tvbwidgets.ui.drive_widget import DriveWidget
 
 
 class StorageWidget(ipywidgets.Tab, TVBWidget):
 
-    def __init__(self, collab=None, folder=None, **kwargs):
-        tab1 = ipywidgets.VBox()
-        tab2 = DriveWidget(collab, folder)
-        tab3 = ipywidgets.VBox()
+    def __init__(self, collab=None, folder=None, selected_storage=1, **kwargs):
+        self.tab1 = ipywidgets.VBox()
+        self.tab2 = DriveWidget(collab, folder)
+        self.tab3 = BucketWidget()
 
-        super().__init__([tab1, tab2, tab3], selected_index=1,
+        super().__init__([self.tab1, self.tab2, self.tab3], selected_index=selected_storage,
                          layout=ipywidgets.Layout(width='550px', height='200px'), **kwargs)
 
         self.set_title(0, 'Current Selection')
         self.set_title(1, 'Drive')
         self.set_title(2, 'Bucket')
-        # TODO uniform API for all tabs
-        self.api = tab2
+        self.drive_api = self.tab2
+        self.bucket_api = self.tab3
 
     def get_selected_file_content(self):
-        return self.api.get_selected_file_content()
+        api = self.retrieve_api()
+        return api.get_selected_file_content()
 
     def get_selected_file_name(self):
-        filename = self.api.get_selected_file_path()
+        api = self.retrieve_api()
+        filename = api.get_selected_file_path()
         return filename
+
+    def retrieve_api(self):
+        # TODO: add condition for Current Selection tab
+        if self.selected_index == 1:
+            return self.drive_api
+        else:
+            return self.bucket_api
