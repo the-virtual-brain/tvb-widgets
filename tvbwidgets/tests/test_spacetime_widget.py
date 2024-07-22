@@ -95,7 +95,7 @@ def test_create_matplotlib_graphs(wid):
     assert wid.fig.get_figwidth() == 14.0
 
 def test_add_options(wid):
-    assert len(wid.options.children) == 4
+    assert len(wid.options.children) == 5
     assert isinstance(wid.options.children[0], BoundedFloatText)
     assert isinstance(wid.options.children[1], BoundedFloatText)
     assert isinstance(wid.options.children[2], BoundedFloatText)
