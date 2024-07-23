@@ -9,6 +9,7 @@
 <priyayadav012004@gmail.com>
 """
 
+import math
 import numpy as np
 import pythreejs as p3
 import matplotlib.pyplot as plt
@@ -20,7 +21,7 @@ from ipywidgets import Tab, Output, HBox, BoundedFloatText, HTML, Text, Layout
 
 
 class SpaceTimeVisualizerWidget(TVBWidget):
-    def __init__(self, connectivity, width=600, height=400, **kwargs):
+    def __init__(self, connectivity, width=1050, height=750, **kwargs):
         style = self.DEFAULT_BORDER
         super().__init__(**kwargs, layout=style)
         self.view_width = width
@@ -64,9 +65,9 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.hbox.children = [self.tab, self.plot_details]
 
     def _prepare_scene(self):
-        self.camera = p3.PerspectiveCamera(position=[30, 0, 0], aspect=2)
+        self.camera = p3.PerspectiveCamera(position=[30, 0, 11], aspect=2)
         self.light = p3.AmbientLight(intensity=2)
-        self.key_light = p3.DirectionalLight(position=[0, 10, 10])
+        self.key_light = p3.DirectionalLight(position=[30, 0, 0], intensity=5)
         self.scene = p3.Scene()
         self.scene.add([self.camera, self.key_light, self.light])
         self.scene.background = None
@@ -87,17 +88,17 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         for i in range(total_slices):
             graph_slice = self._create_graph_slice(i)
             graph_slice.material.map = self._generate_texture(i)
-            graph_slice.rotateY(20)
+            graph_slice.rotateY(math.radians(180))
             self.scene.add([graph_slice])
             self.graph_slices.append(graph_slice)
           
 
     def _create_graph_slice(self, i):
-        z_coordinate = -i*3 + 10 
+        z_coordinate = -i*3 + 14 if i is 0 else -i*2 + 11 - 0.1*i*i
         return p3.Mesh(
             p3.BoxBufferGeometry(width=7, height=7, depth=0.1),
             p3.MeshPhysicalMaterial(),
-            position=[15, 0, z_coordinate],
+            position=[16, 0, z_coordinate],
             name=f"{i}"
         )
 
@@ -125,7 +126,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.grid.position = [0, 0, 0]
         self.grid.name = "grid"
         self.grid.scale = [4, 3, 1]
-        self.grid.lookAt([90, 0, 0])
+        self.grid.lookAt(self.camera.position)
     
     def _generate_gridlines(self):
         grid = np.zeros((76, 76, 4))
@@ -251,10 +252,11 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                 self.pos = self.picked_slice.position
                 picked_slice.position = [0, 0, 0]
                 picked_slice.scale = [4, 3, 1]
-                picked_slice.lookAt([90, 0, 0])
+                picked_slice.lookAt(self.camera.position)
                 picked_slice.visible = True
                 self.grid.visible = True
                 self.light.intensity = 3
+                self.key_light.intensity = 0
                 i = int(picked_slice.name)
                 if i == 0:
                     self.selection.value = f"{self.intervals[0]:.2f} .. {self.intervals[-1]:.2f}"
@@ -268,10 +270,11 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                     self.graph_slices[i].visible = True
                 picked_slice.position = self.pos
                 picked_slice.scale = [1, 1, 1]
-                picked_slice.rotateY(50)
+                picked_slice.rotateY(math.radians(110))
                 self.grid.visible = False
                 self.picked_slice = None
                 self.light.intensity = 2
+                self.key_light.intensity = 5
                 self.selection.value = "None"
 
     def _prepare_plot_details(self):
