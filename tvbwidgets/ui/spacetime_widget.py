@@ -16,7 +16,7 @@ import matplotlib.colors as mcolors
 from matplotlib.gridspec import GridSpec
 from IPython.display import display
 from tvbwidgets.ui.base_widget import TVBWidget
-from ipywidgets import Tab, Output, HBox, BoundedFloatText, HTML, Text, Layout, Accordion
+from ipywidgets import Tab, Output, HBox, BoundedFloatText, HTML, Text, Layout
 
 
 class SpaceTimeVisualizerWidget(TVBWidget):
@@ -177,7 +177,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         plt.close(self.fig)      
 
     def _add_options(self):
-        self.options = HBox()
+        self.options = HBox(layout = Layout(width = '800px'))
         max_time = self.connectivity.tract_lengths.max() 
         min_time = self.connectivity.tract_lengths.min() 
         self.option_conduction_speed = BoundedFloatText(
@@ -216,17 +216,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                                     description = "selection[ms]:",
                                     layout = Layout(width = "200px")
                                      )
-        self.option_plot_details = Accordion(children = [Output()],titles=("Plot Details",), layout=Layout(width="230px", left="20px"))
-        self.option_plot_details.observe(self._display_plot_details)
-        self.options.children = [self.option_conduction_speed, self.option_from_time, self.option_to_time, self.selection, self.option_plot_details]
-
-    def _display_plot_details(self, change):
-        if self.plot_details.value == " ":
-            self.plot_details.layout.width = "50%"
-            self.plot_details.value = self._generate_details()
-        else:
-            self.plot_details.layout.width = "0%"
-            self.plot_details.value = " " 
+        self.options.children = [self.option_conduction_speed, self.option_from_time, self.option_to_time, self.selection]
 
     def on_change(self, change):
         self.graphs_matplotlib.clear_output()
@@ -286,9 +276,9 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
     def _prepare_plot_details(self):
         self.plot_details = HTML(
-                            value = " ",
-                            layout = Layout(width = "0%")
-        )
+                            value = self._generate_details(),
+                            layout = Layout(width = "300px")
+                            )
 
     def _generate_details(self):
         return f"""<br><br>
@@ -297,6 +287,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                         padding: 10px; 
                         margin: 15px; 
                         border-radius: 5px;">
+            <br><h3>PLOT DETAILS</h3> <br><br>
             <h4>conduction speed:</h4><br> 
             {self.conduction_speed} mm/ms<br>
             <h4>min(non-zero) delay: </h4><br>
