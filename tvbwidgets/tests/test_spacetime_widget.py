@@ -54,8 +54,8 @@ def tests_create_graph_slice(wid):
     assert wid.graph_slices[0].geometry.width == 7.0
     assert wid.graph_slices[0].geometry.depth == 0.1
     for i in range(len(wid.graph_slices)):
-        z = -i*3.0 + 10.0
-        assert wid.graph_slices[i].position == (15.0, 0.0, z)
+        z = -i*3 + 14 if i is 0 else -i*2 + 11 - 0.1*i*i
+        assert wid.graph_slices[i].position == (16.0, 0.0, z)
 
 def test_generate_texture(wid):
     for i in range(7):
