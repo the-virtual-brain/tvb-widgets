@@ -43,8 +43,8 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self._prepare_widget()
 
     def _prepare_widget(self):
-        self.hbox = HBox()
-        self.tab = Tab()
+        self.hbox = HBox(layout = self.DEFAULT_BORDER)
+        self.tab = Tab(layout = self.DEFAULT_BORDER)
         self._prepare_scene()
 
         self.graphs_pythreejs = Output()
@@ -177,7 +177,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         plt.close(self.fig)      
 
     def _add_options(self):
-        self.options = HBox(layout = Layout(width = '800px'))
+        self.options = HBox(layout = self.DEFAULT_BORDER)
         max_time = self.connectivity.tract_lengths.max() 
         min_time = self.connectivity.tract_lengths.min() 
         self.option_conduction_speed = BoundedFloatText(
@@ -277,28 +277,24 @@ class SpaceTimeVisualizerWidget(TVBWidget):
     def _prepare_plot_details(self):
         self.plot_details = HTML(
                             value = self._generate_details(),
-                            layout = Layout(width = "300px")
+                            layout = self.DEFAULT_BORDER
                             )
 
     def _generate_details(self):
-        return f"""<br><br>
-            <div style="line-height:1px;
-                        border: 2px solid black; 
-                        padding: 10px; 
-                        margin: 15px; 
-                        border-radius: 5px;">
+        return f"""<br>
+            <div style="line-height:1px;">
             <br><h3>PLOT DETAILS</h3> <br><br>
             <h4>conduction speed:</h4><br> 
             {self.conduction_speed} mm/ms<br>
-            <h4>min(non-zero) delay: </h4><br>
+            <h4>min(non-zero) </h4><h4>delay: </h4><br>
             {np.min(self.connectivity.tract_lengths[np.nonzero(self.connectivity.tract_lengths)])/self.conduction_speed} ms<br>
             <h4>max delay: </h4><br>
             {np.max(self.connectivity.tract_lengths)/self.conduction_speed} ms<br>
-            <h4>min(non-zero) tract length:</h4> <br>
+            <h4>min(non-zero) </h4><h4>tract length:</h4> <br>
             {np.min(self.connectivity.tract_lengths[np.nonzero(self.connectivity.tract_lengths)])} mm<br>
             <h4>max tract length: </h4><br>
             {np.max(self.connectivity.tract_lengths,)} mm<br>
-            <h4>min(non-zero) weight: </h4><br>
+            <h4>min(non-zero) </h4><h4>weight: </h4><br>
             {np.min(self.connectivity.weights[np.nonzero(self.connectivity.weights)])}<br>
             <h4>max weight: </h4><br>
             {np.max(self.connectivity.weights)}<br><br></div>"""
