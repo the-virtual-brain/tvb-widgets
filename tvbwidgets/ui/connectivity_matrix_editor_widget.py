@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2024, TVB Widgets Team
+#
+"""
+..moduleauthor:: Priya Yadav 
+<priyayadav012004@gmail.com>
+"""
+
 import math
 import numpy as np
 import ipycanvas as canvas
