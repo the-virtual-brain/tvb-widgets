@@ -52,3 +52,5 @@ This project has received funding from the European Union’s Horizon 2020 Frame
 
 This project has received funding from the European Union’s Horizon Europe Programme under the Specific Grant Agreement No. 101147319 (EBRAINS 2.0 Project).
 
+This projects also has contribution from @peeplika as part of Google Summer of Code, through INCF organization (https://summerofcode.withgoogle.com/programs/2024/organizations/incf).
+
