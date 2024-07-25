@@ -21,7 +21,7 @@ from ipywidgets import Tab, Output, HBox, BoundedFloatText, HTML, Text, Layout
 
 
 class SpaceTimeVisualizerWidget(TVBWidget):
-    def __init__(self, connectivity, width=1050, height=750, **kwargs):
+    def __init__(self, connectivity, width=900, height=600, **kwargs):
         style = self.DEFAULT_BORDER
         super().__init__(**kwargs, layout=style)
         self.view_width = width
@@ -158,7 +158,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         return connectivity
     
     def _create_matplotlib_graphs(self):
-        self.fig = plt.figure(figsize=(14, 10))
+        self.fig = plt.figure(figsize=(self.view_width/75.65, self.view_height/75.65))
         self.ims = []
         gs = GridSpec(3, 4, figure = self.fig)
         n = self.connectivity.weights.shape[0]
@@ -244,38 +244,43 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
     def on_pick(self, change):
         picked_slice = self.picker.object
-        if picked_slice != None :
+        if picked_slice is not None:
             if picked_slice != self.picked_slice and picked_slice.name != "grid":
-                for i in range(len(self.graph_slices)):
-                    self.graph_slices[i].visible = False
-                self.picked_slice = picked_slice 
-                self.pos = self.picked_slice.position
-                picked_slice.position = [0, 0, 0]
-                picked_slice.scale = [4, 3, 1]
-                picked_slice.lookAt(self.camera.position)
-                picked_slice.visible = True
-                self.grid.visible = True
-                self.light.intensity = 3
-                self.key_light.intensity = 0
-                i = int(picked_slice.name)
-                if i == 0:
-                    self.selection.value = f"{self.intervals[0]:.2f} .. {self.intervals[-1]:.2f}"
-                else:    
-                    self.selection.value = f"{self.intervals[i-1]:.2f} .. {self.intervals[i]:.2f}"
-
+                self._handle_new_pick(picked_slice)
             else:
-                if picked_slice.name == "grid":
-                    picked_slice = self.picked_slice
-                for i in range(7):
-                    self.graph_slices[i].visible = True
-                picked_slice.position = self.pos
-                picked_slice.scale = [1, 1, 1]
-                picked_slice.rotateY(math.radians(110))
-                self.grid.visible = False
-                self.picked_slice = None
-                self.light.intensity = 2
-                self.key_light.intensity = 5
-                self.selection.value = "None"
+                self._handle_existing_pick(picked_slice)
+
+    def _handle_new_pick(self, picked_slice):
+        for i in range(len(self.graph_slices)):
+            self.graph_slices[i].visible = False
+        self.picked_slice = picked_slice
+        self.pos = self.picked_slice.position
+        picked_slice.position = [0, 0, 0]
+        picked_slice.scale = [4, 3, 1]
+        picked_slice.lookAt(self.camera.position)
+        picked_slice.visible = True
+        self.grid.visible = True
+        self.light.intensity = 3
+        self.key_light.intensity = 0
+        i = int(picked_slice.name)
+        if i == 0:
+            self.selection.value = f"{self.intervals[0]:.2f} .. {self.intervals[-1]:.2f}"
+        else:
+            self.selection.value = f"{self.intervals[i - 1]:.2f} .. {self.intervals[i]:.2f}"
+
+    def _handle_existing_pick(self, picked_slice):
+        if picked_slice.name == "grid":
+            picked_slice = self.picked_slice
+        for i in range(7):
+            self.graph_slices[i].visible = True
+        picked_slice.position = self.pos
+        picked_slice.scale = [1, 1, 1]
+        picked_slice.rotateY(math.radians(110))
+        self.grid.visible = False
+        self.picked_slice = None
+        self.light.intensity = 2
+        self.key_light.intensity = 5
+        self.selection.value = "None"
 
     def _prepare_plot_details(self):
         self.plot_details = HTML(

@@ -1,5 +1,5 @@
+import math
 import pytest
-import numpy as np
 import pythreejs as p3
 import matplotlib
 from ipywidgets import Tab, Output, BoundedFloatText, Text, HBox, HTML
@@ -50,11 +50,11 @@ def test_prepare_slices(wid):
         assert wid.graph_slices[i] in wid.scene.children
 
 def tests_create_graph_slice(wid):
-    assert wid.graph_slices[0].geometry.height == 7.0
-    assert wid.graph_slices[0].geometry.width == 7.0
-    assert wid.graph_slices[0].geometry.depth == 0.1
+    assert math.isclose(wid.graph_slices[0].geometry.height, 7.0)
+    assert math.isclose(wid.graph_slices[0].geometry.width, 7.0)
+    assert math.isclose(wid.graph_slices[0].geometry.depth, 0.1)
     for i in range(len(wid.graph_slices)):
-        z = -i*3 + 14 if i is 0 else -i*2 + 11 - 0.1*i*i
+        z = -i*3 + 14 if i == 0 else -i*2 + 11 - 0.1*i*i
         assert wid.graph_slices[i].position == (16.0, 0.0, z)
 
 def test_generate_texture(wid):
@@ -84,15 +84,14 @@ def test_generate_gridlines(wid):
     assert grid.data.shape == (76*5, 76*5, 4)
 
 def test_prepare_connectivity(wid):
-    i = 2
     connectivity = wid._prepare_connectivity(2)
     assert connectivity.shape == (76, 76)
 
 def test_create_matplotlib_graphs(wid):
     assert len(wid.ims) == 7
     assert len(wid.fig.axes) == 7
-    assert wid.fig.get_figheight() == 10.0
-    assert wid.fig.get_figwidth() == 14.0
+    assert math.isclose(wid.fig.get_figheight(), 600/75.65)
+    assert math.isclose(wid.fig.get_figwidth(), 900/75.65)
 
 def test_add_options(wid):
     assert len(wid.options.children) == 4
@@ -104,14 +103,14 @@ def test_add_options(wid):
     assert wid.options.children[1].description == "from[ms]:"
     assert wid.options.children[2].description == "to[ms]:"
     assert wid.options.children[3].description == "selection[ms]:"
-    assert wid.options.children[0].value == 1.0
+    assert math.isclose(wid.options.children[0].value, 1.0)
     assert wid.options.children[0].description == "Conduction Speed:"
-    assert wid.options.children[1].value == 0.0
-    assert wid.options.children[1].min == 0.0
-    assert wid.options.children[1].max == 153.48574
-    assert wid.options.children[2].value == 153.48574
-    assert wid.options.children[2].min == 0.0
-    assert wid.options.children[2].max == 153.48574
+    assert math.isclose(wid.options.children[1].value, 0.0)
+    assert math.isclose(wid.options.children[1].min, 0.0)
+    assert math.isclose(wid.options.children[1].max, 153.48574)
+    assert math.isclose(wid.options.children[2].value, 153.48574)
+    assert math.isclose(wid.options.children[2].min, 0.0)
+    assert math.isclose(wid.options.children[2].max, 153.48574)
     assert wid.options.children[3].value == "None"
 
 
