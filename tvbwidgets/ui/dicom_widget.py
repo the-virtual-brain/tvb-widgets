@@ -26,7 +26,7 @@ class PlotType(Enum):
 
 class DicomPlot:
     def __init__(self, data=None, title='Plot View', name='Plot', plot_type=None, xrange=None, yrange=None, height=250,
-                 width=250, color_palette=Greys256, dw=0, dh=0, x_index=0, y_index=0, **kwargs):
+                 width=250, color_palette=Greys256, dw=0, dh=0, x_index=0, y_index=0):
         # Data
         self.data = data
         self.plot_type = plot_type
