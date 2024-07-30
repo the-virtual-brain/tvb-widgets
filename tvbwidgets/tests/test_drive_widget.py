@@ -122,8 +122,8 @@ def test_storage_widget(mocker):
     os.environ[CLB_AUTH] = "test_auth_token"
     widget = StorageWidget()
 
-    widget.api.repos_dropdown.value = widget.api.repos_dropdown.options['repo1']
-    widget.api.files_list.value = widget.api.files_list.options[1]
+    widget.drive_api.repos_dropdown.value = widget.drive_api.repos_dropdown.options['repo1']
+    widget.drive_api.files_list.value = widget.drive_api.files_list.options[1]
 
     assert widget.get_selected_file_name() == DUMMY_FILENAME
     assert widget.get_selected_file_content() == DUMMY_CONTENT

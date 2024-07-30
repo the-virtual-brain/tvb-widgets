@@ -37,3 +37,9 @@ class ModelExporterNotFoundError(WidgetsException):
     """
     To be thrown when an attempt is being made to use an exporter that is not accessible
     """
+
+
+class BucketDTOError(WidgetsException):
+    """
+    Exception on bucket DTOs
+    """
