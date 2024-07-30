@@ -16,7 +16,6 @@ trame-vuetify
 trame-vtk
 tvb-library
 tvb-framework
-tvb-ext-bucket
 plotly-resampler
 pyunicore>=1.0.0
 traitlets>=5.7.1

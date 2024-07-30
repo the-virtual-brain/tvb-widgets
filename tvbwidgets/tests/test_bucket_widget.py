@@ -8,6 +8,7 @@ import os
 
 import pytest
 from ebrains_drive.exceptions import Unauthorized
+from tvbwidgets.core.auth import CLB_AUTH
 from tvbwidgets.ui.bucket_widget import BucketWidget
 
 DUMMY_CONTENT = b'test content'
@@ -67,10 +68,7 @@ class MockBucketApiClient:
 
 @pytest.fixture
 def mock_client(mocker):
-    def mock_get_client(_):
-        return MockBucketApiClient()
-
-    mocker.patch('tvb_ext_bucket.ebrains_drive_wrapper.BucketWrapper.get_client', mock_get_client)
+    return mocker.patch('tvbwidgets.ui.bucket_widget.ExtendedBucketApiClient', MockBucketApiClient)
 
 
 @pytest.fixture
@@ -84,6 +82,13 @@ def test_get_files_in_bucket(mock_client, mock_requests_get):
     """
     tests that client returns list of files from bucket
     """
+    if os.environ.get(CLB_AUTH):
+        os.environ.pop(CLB_AUTH)
+
+    with pytest.raises(RuntimeError):
+        BucketWidget()
+
+    os.environ[CLB_AUTH] = "test_auth_token"
     widget = BucketWidget()
 
     # test observe event on buckets dropdown
