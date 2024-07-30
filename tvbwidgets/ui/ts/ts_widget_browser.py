@@ -14,7 +14,7 @@ from tvbwidgets.ui.widget_with_browser import TVBWidgetWithBrowser
 
 class TimeSeriesBrowser(widgets.VBox, TVBWidgetWithBrowser):
 
-    def __init__(self, collab=None, folder=None, selected_storage=1):
+    def __init__(self, collab=None, folder=None, selected_storage=0):
         super().__init__(**{'collab': collab, 'folder': folder, 'selected_storage': selected_storage})
         btn_mne = widgets.Button(description='View TS with MNE')
         btn_plotly = widgets.Button(description='View TS with Plotly')

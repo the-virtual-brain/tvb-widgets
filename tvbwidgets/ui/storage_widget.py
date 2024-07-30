@@ -13,19 +13,17 @@ from tvbwidgets.ui.drive_widget import DriveWidget
 
 class StorageWidget(ipywidgets.Tab, TVBWidget):
 
-    def __init__(self, collab=None, folder=None, selected_storage=1, **kwargs):
-        self.tab1 = ipywidgets.VBox()
-        self.tab2 = DriveWidget(collab, folder)
-        self.tab3 = BucketWidget()
+    def __init__(self, collab=None, folder=None, selected_storage=0, **kwargs):
+        self.tab1 = DriveWidget(collab, folder)
+        self.tab2 = BucketWidget()
 
-        super().__init__([self.tab1, self.tab2, self.tab3], selected_index=selected_storage,
+        super().__init__([self.tab1, self.tab2], selected_index=selected_storage,
                          layout=ipywidgets.Layout(width='550px', height='200px'), **kwargs)
 
-        self.set_title(0, 'Current Selection')
-        self.set_title(1, 'Drive')
-        self.set_title(2, 'Bucket')
-        self.drive_api = self.tab2
-        self.bucket_api = self.tab3
+        self.set_title(0, 'Drive')
+        self.set_title(1, 'Bucket')
+        self.drive_api = self.tab1
+        self.bucket_api = self.tab1
 
     def get_selected_file_content(self):
         api = self.retrieve_api()
@@ -37,8 +35,7 @@ class StorageWidget(ipywidgets.Tab, TVBWidget):
         return filename
 
     def retrieve_api(self):
-        # TODO: add condition for Current Selection tab
-        if self.selected_index == 1:
+        if self.selected_index == 0:
             return self.drive_api
         else:
             return self.bucket_api
