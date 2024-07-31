@@ -25,4 +25,6 @@ jobs:
           python -m pip install nbformat nbconvert
 
       - name: Run notebooks
-        run: python ./dev/notebook_runner.py notebooks
+        run: |
+          cd dev
+          python notebook_runner.py ../notebooks
