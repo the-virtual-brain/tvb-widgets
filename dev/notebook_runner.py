@@ -37,7 +37,7 @@ if __name__ == '__main__':
     if not os.getenv('CLB_AUTH'):
         os.environ['CLB_AUTH'] = 'abc'
 
-    notebooks = [file for file in os.listdir(in_path) if file.endswith(".ipynb")]
+    notebooks = [file for file in os.listdir(in_path) if file.endswith(".ipynb") and not file.startswith('TimeSeriesEDF')]
 
     # start as many threads as logical cpus
     with ThreadPool(cpu_count()) as pool:
