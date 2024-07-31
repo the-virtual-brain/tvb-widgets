@@ -23,7 +23,7 @@ class StorageWidget(ipywidgets.Tab, TVBWidget):
         self.set_title(0, 'Drive')
         self.set_title(1, 'Bucket')
         self.drive_api = self.tab1
-        self.bucket_api = self.tab1
+        self.bucket_api = self.tab2
 
     def get_selected_file_content(self):
         api = self.retrieve_api()
