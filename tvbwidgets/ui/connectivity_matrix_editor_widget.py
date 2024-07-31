@@ -36,8 +36,6 @@ class ConnectivityMatrixEditor(TVBWidget):
         self._prepare_matrices_tab()
         self.new_connectivity = self._prepare_new_connectivity()
         
-
-
     def _make_header(self):
         options = ["Quadrant 1", "Quadrant 2", "Quadrant 3", "Quadrant 4"]
         
@@ -84,7 +82,10 @@ class ConnectivityMatrixEditor(TVBWidget):
         self.tract_lengths_matrix =  self._prepare_matrix("tract_lengths")
 
         self.weights_matrix.on_mouse_down(lambda x, y: self.on_cell_clicked(x, y, "weights"))
+        self.weights_matrix.on_mouse_move(self.set_mouse_position)
+        
         self.tract_lengths_matrix.on_mouse_down(lambda x, y: self.on_cell_clicked(x, y, "tract_lengths"))
+        self.tract_lengths_matrix.on_mouse_move(self.set_mouse_position)
         
         self.tab.children = [self.weights_matrix, self.tract_lengths_matrix]
         self.tab.set_title(0, "weights")
@@ -127,7 +128,7 @@ class ConnectivityMatrixEditor(TVBWidget):
             grid.fill_style = "black"
 
             for i in range(7):
-                color_bar.fill_text(f"-{int(matrix.max()) * (6 - i) / 6}", cell_size * 48, i * cell_size * 4 + cell_size * 8)   #labels for colorbar
+                color_bar.fill_text(f"-{round(int(matrix.max()) * (6 - i) / 6, 2)}", cell_size * 48, i * cell_size * 4 + cell_size * 8)   #labels for colorbar
         
         return matrix_full
 
@@ -151,11 +152,16 @@ class ConnectivityMatrixEditor(TVBWidget):
         colors = color_scheme(norm(value))
         colors = colors[:, :, :3] * 255
         return colors
+    
+    def set_mouse_position(self, x, y):
+        self.x_coord = x
+        self.y_coord = y
             
     def on_cell_clicked(self, x, y, matrix_name):
         self.clicked_matrix = matrix_name
-        col = (x // self.cell_size) - 8
-        row = (y // self.cell_size) - 7
+        x_coord, y_coord  = self.x_coord , self.y_coord
+        col = (x_coord // self.cell_size) - 8
+        row = (y_coord // self.cell_size) - 7
 
         if row > -1 and row < self.num_rows and col > -1 and col < self.num_cols:
             self.row = row
@@ -221,8 +227,7 @@ class ConnectivityMatrixEditor(TVBWidget):
         self.new_connectivity.configure()
   
         return self.new_connectivity
-    
-    
+        
     def _get_history_dropdown(self):
         values = [(conn.gid.hex, conn) for conn in self.connectivities_history]
         default = len(values) and values[-1][1] or None
@@ -268,7 +273,7 @@ class ConnectivityMatrixEditor(TVBWidget):
                 matrix_view[2].fill_text(col_label, self.cell_size * 3.5, (i + 8) * self.cell_size, max_width = self.cell_size * 5)
 
             for i in range(7):
-                value = f"-{max_value * (6 - i) / 6}"
+                value = f"-{round(max_value * (6 - i) / 6, 2)}"
                 matrix_view[3].fill_text(value, self.cell_size * 48, i * self.cell_size * 4 + self.cell_size * 8)
 
     def display(self):
