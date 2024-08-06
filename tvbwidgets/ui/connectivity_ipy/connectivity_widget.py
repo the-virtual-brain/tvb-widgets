@@ -20,8 +20,8 @@ from tvbwidgets.ui.connectivity_ipy.config import ConnectivityConfig
 from tvbwidgets.ui.connectivity_ipy.global_context import CONTEXT, ObservableAttrs
 
 DROPDOWN_KEY = 'dropdown'
-
 pyvista.set_jupyter_backend('trame')
+
 
 class CustomOutput(ipywidgets.Output):
     CONFIG = ConnectivityConfig()
@@ -118,10 +118,9 @@ class Connectivity3DViewer(ipywidgets.VBox):
         super(Connectivity3DViewer, self).__init__([self.output], *kwargs)
 
         self.__init_view_connectivity()
-        CONTEXT.observe(lambda *args: self.__init_view_connectivity(), ObservableAttrs.CONNECTIVITY)
+        CONTEXT.observe(lambda *args: self.__refresh_connectivity(), ObservableAttrs.CONNECTIVITY)
 
     def __init_view_connectivity(self):
-        self.output.plotter.clear()
         points, edges = self.__add_actors()
         points_toggle, edges_toggle = self.__init_controls()
 
@@ -143,13 +142,16 @@ class Connectivity3DViewer(ipywidgets.VBox):
 
         edges_toggle.observe(on_change_edges, 'value')
 
-
         self.children = [
             ipywidgets.HBox(children=(
                 points_toggle, edges_toggle)),
             self.output]
         self.output.display_actor(points)
         self.output.display_actor(edges)
+
+    def __refresh_connectivity(self):
+        self.output.plotter.clear()
+        self.__init_view_connectivity()
         self.output.update_plot()
 
     def __init_controls(self):

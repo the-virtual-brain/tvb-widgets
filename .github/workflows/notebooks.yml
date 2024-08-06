@@ -1,21 +1,29 @@
 name: Test Notebooks
 on:
+  push:
+    branches:
+      - '*'
   pull_request:
     types: [opened, synchronize, reopened]
 
 jobs:
   build:
     name: Run notebooks
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: 3.8
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 xvfb
 
       - name: Install dependencies
         run: |
@@ -24,4 +32,4 @@ jobs:
           python -m pip install nbformat nbconvert
 
       - name: Run notebooks
-        run: python ./dev/notebook_runner.py notebooks
+        run: xvfb-run -a python ./dev/notebook_runner.py notebooks

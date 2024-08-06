@@ -16,7 +16,9 @@ from tvb.datatypes.surfaces import Surface
 
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets.ui.widget_with_browser import TVBWidgetWithBrowser
+from tvbwidgets.core.logger.builder import get_logger
 
+LOGGER = get_logger(__name__)
 pyvista.set_jupyter_backend('trame')
 
 
@@ -85,6 +87,7 @@ class CustomOutput(ipywidgets.Output):
 
     def update_plot(self):
         with self:
+            LOGGER.info('Update plot.')
             self.clear_output(wait=True)
             self.plotter.show()
 
