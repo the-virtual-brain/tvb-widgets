@@ -1,8 +1,7 @@
 name: Test Notebooks
 on:
-  push:
-    branches:
-      - '*'
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   build:
