@@ -21,15 +21,13 @@ from tvbwidgets.ui.base_widget import TVBWidget
 class ConnectivityMatrixEditor(TVBWidget):
     def __init__(self, connectivity, size = 600):
         self.size = size
+        self.layout_offset = self.size * 0.2
         self.connectivity = connectivity
-        self.weights = self.connectivity.weights
-        self.tract_lengths = self.connectivity.tract_lengths
         self.connectivities_history = [self.connectivity]
-        self.num_rows = int(len(self.connectivity.weights[0])/2)
-        self.num_cols = int(len(self.connectivity.weights[1])/2)  
-        
+        self.num_rows = int(len(self.connectivity.weights[0]) / 2)    #num_cols will be equal to num_rows
+
+        self.is_connectivity_being_edited = True
         self.new_connectivity = self._prepare_new_connectivity()
-        self.is_matrix_saved = False
         self.header = widgets.HBox(layout = self.DEFAULT_BORDER)
         self._make_header()
         self.tab = widgets.Tab(layout = self.DEFAULT_BORDER)
@@ -59,25 +57,29 @@ class ConnectivityMatrixEditor(TVBWidget):
         self.cell_value.layout.visibility = "hidden"
         self.change_button.layout.visibility = "hidden"
     
-        connectivity = self.connectivity if self.is_matrix_saved else self.new_connectivity
         selection = int(change["new"][-1])
+        connectivity = self.new_connectivity if self.is_connectivity_being_edited else self.connectivity
+
         self._get_quadrant_range(selection)
         self._update_matrices_view(connectivity)
 
     def _get_quadrant_range(self, selection):
+        middle_val = int(self.connectivity.weights.shape[0] / 2)
+
         if selection == 1:
             from_row = 0
             from_col = 0
         elif selection == 2:
-            from_row = int(self.weights.shape[0]/2)
+            from_row = middle_val
             from_col = 0
         elif selection == 3:
             from_row = 0
-            from_col = int(self.weights.shape[0]/2)
+            from_col = middle_val
         else:
-            from_row = int(self.weights.shape[0]/2)
-            from_col = int(self.weights.shape[0]/2)
+            from_row = middle_val
+            from_col = middle_val
 
+        #indexing starts from this row and col
         self.from_row = from_row
         self.from_col = from_col
 
@@ -96,7 +98,7 @@ class ConnectivityMatrixEditor(TVBWidget):
         self.tab.set_title(1, "tract_lengths")
 
     def _prepare_matrix(self, matrix_name):
-        matrix = getattr(self.connectivity, matrix_name)
+        matrix = getattr(self.connectivity, matrix_name)      #either weights or tracts matrix data
         matrix_full = canvas.MultiCanvas(5, width=self.size * 1.5, height=self.size * 1.2)
 
         matrix_view = matrix_full[0]
@@ -107,46 +109,53 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         #rotate the row_header canvas so they appear vertical
         row_header.rotate(math.radians(-90))
-        row_header.translate(-self.size * 0.2 ,0)
+        row_header.translate(-self.layout_offset ,0)
 
         with canvas.hold_canvas(matrix_full):
-            self.cell_x= np.tile(np.linspace(self.size * 0.2, self.size, self.num_cols), self.num_cols)   #x-coordinates of cells
-            self.cell_y= np.repeat(np.linspace(self.size * 0.2, self.size, self.num_rows), self.num_rows)   #y-coordinates of cells
+            self.cell_x = np.tile(np.linspace(self.layout_offset, self.size, self.num_rows), self.num_rows)   #x-coordinates of cells
+            self.cell_y = np.repeat(np.linspace(self.layout_offset, self.size, self.num_rows), self.num_rows)   #y-coordinates of cells
             self.cell_size = self.cell_x[1] - self.cell_x[0]
+
             grid.stroke_rects(self.cell_x, self.cell_y, height = self.cell_size, width = self.cell_size)
-            colors = self._generate_color(self.connectivity, value=matrix[self.from_row : self.from_row + self.num_rows, self.from_col : self.from_col + self.num_cols],  matrix_name=matrix_name)
+            value = matrix[self.from_row : self.from_row + self.num_rows, self.from_col : self.from_col + self.num_rows]
+            colors = self._generate_color(self.connectivity, value = value,  matrix_name = matrix_name)
             matrix_view.fill_styled_rects(self.cell_x, self.cell_y, color = colors, height = self.cell_size , width = self.cell_size)
 
-            y = np.linspace(self.size * 0.2, self.size, self.num_cols)
             x = 0
-            grid.stroke_rects(y, x, height = self.size * 0.2, width = self.cell_size)
-            grid.stroke_rects(x, y, height = self.cell_size, width = self.size * 0.2)
+            y = np.linspace(self.layout_offset, self.size, self.num_rows)
+            grid.stroke_rects(y, x, height = self.layout_offset, width = self.cell_size)  #grid for row headers
+            grid.stroke_rects(x, y, height = self.cell_size, width = self.layout_offset)  #grid for column headers
 
-            for i in range(len(y)):
-                row_header.font = f"bold {self.cell_size * 0.90}px px sans serif"
-                row_header.fill_text(f"{self.connectivity.region_labels[self.from_row + i]}", x + 10, y[i] + self.cell_size, max_width = self.cell_size * 5)
-                column_header.font = f"bold {self.cell_size * 0.90}px px sans serif"
-                column_header.fill_text(f"{self.connectivity.region_labels[self.from_col + i]}", x + 10, y[i] + self.cell_size, max_width = self.cell_size * 5)
+            for i in range(self.num_rows):
+                row_header.font = f"bold {self.cell_size}px px sans serif"
+                row_header_text = f"{self.connectivity.region_labels[self.from_row + i]}"
+                row_header.fill_text(row_header_text, x + 10, y[i] + self.cell_size, max_width = self.layout_offset * 0.9)
+                
+                column_header.font = f"bold {self.cell_size}px px sans serif"
+                column_header_text = f"{self.connectivity.region_labels[self.from_col + i]}"
+                column_header.fill_text(column_header_text, x + 10, y[i] + self.cell_size, max_width = self.layout_offset * 0.9)
 
-            gradient = grid.create_linear_gradient(self.size * 1.1, self.size * 0.2, self.size + 120, self.size,
+            self.colorbar_x = self.size * 1.1
+            gradient = grid.create_linear_gradient(self.colorbar_x, self.layout_offset, self.size * 1.2, self.size,
                            [(i/len(self.colors),self.colors[-i-1]) for i in range(len(self.colors))])   #color gradient for color-bar
             grid.fill_style = gradient
-            grid.fill_rect(self.size * 1.1, self.size * 0.2, 20 , self.size * 0.8)
+            grid.fill_rect(self.colorbar_x, self.layout_offset, 20 , self.size - self.layout_offset)
             grid.fill_style = "black"
 
             for i in range(7):
-                color_bar.fill_text(f"--{round(matrix.max() * (6 - i) / 6, 2)}", self.size * 1.1 + 20, self.size * 0.8 / 6.1  * i+ self.size * 0.21)   #labels for colorbar
+                label_text = f"--{round(matrix.max() * (6 - i) / 6, 2)}"
+                color_bar.fill_text(label_text, self.colorbar_x + 20, self.size * 0.8 / 6.1  * i + self.layout_offset + 5)   #labels for colorbar
         
         return matrix_full
 
-    def _generate_color(self, connectivity, i=0, j=0, matrix_name=None , value = None):
+    def _generate_color(self, connectivity, i = 0, j = 0, matrix_name = None , value = None):
         self.colors = ["#66797b", "#543146", "#5a1c5d", "#b468ab", "#6ade42", "#27913c", "#1c464a", 
           "#247663", "#38bcaa", "#a9e9ff", "#61cfff", "#37a5c1", "#e4e4e2", "#ff9f25", 
           "#fb5226"]
 
         color_scheme = mcolors.LinearSegmentedColormap.from_list('color_scheme', self.colors)
         matrix = getattr(connectivity, matrix_name)
-        norm = mcolors.Normalize(vmin=0, vmax=matrix.max())
+        norm = mcolors.Normalize(vmin = 0, vmax = matrix.max())
 
         if not isinstance(value, np.ndarray):
             if  not value:
@@ -167,13 +176,13 @@ class ConnectivityMatrixEditor(TVBWidget):
     def on_cell_clicked(self, x, y, matrix_name):
         self.clicked_matrix = matrix_name
         x_coord, y_coord  = self.x_coord , self.y_coord
-        col = ((x_coord - self.size * 0.2) // self.cell_size) 
-        row = ((y_coord - self.size * 0.2) // self.cell_size)
+        col = ((x_coord - self.layout_offset) // self.cell_size) 
+        row = ((y_coord - self.layout_offset) // self.cell_size)
 
-        if row > -1 and row < self.num_rows and col > -1 and col < self.num_cols:
+        if row > -1 and row < self.num_rows and col > -1 and col < self.num_rows:
             self.row = row
             self.col = col
-            connectivity = self.connectivity if self.is_matrix_saved else self.new_connectivity
+            connectivity = self.new_connectivity if self.is_connectivity_being_edited else self.connectivity
             matrix = getattr(connectivity, matrix_name)
             value = matrix[int(self.from_row + self.row)][int(self.from_col + self.col)]
             self.cell_value.value = f"{value}"
@@ -182,29 +191,35 @@ class ConnectivityMatrixEditor(TVBWidget):
             self.change_button.layout.visibility = "visible"
         
     def on_apply_change(self, change):
-        if self.is_matrix_saved == True:
-            self.is_matrix_saved = False
+        self.is_connectivity_being_edited = True
+
         matrix_name = self.clicked_matrix + "_matrix"
         matrix_ui = getattr(self, matrix_name)
-        value = float(self.cell_value.value)
-
-        matrix_name =  self.clicked_matrix
-        matrix = getattr(self.new_connectivity, matrix_name)
-        max_val = matrix.max()
-        matrix[self.from_row + int(self.row)][self.from_col + int(self.col)] = value
-        if max_val != matrix.max():
-            self._update_matrices_view(self.new_connectivity)
+        try:
+            value = float(self.cell_value.value)
+        except:
+            value = None
         
+        if value:
+            matrix_name =  self.clicked_matrix
+            matrix = getattr(self.new_connectivity, matrix_name)
+            max_val = matrix.max()
+            matrix[self.from_row + int(self.row)][self.from_col + int(self.col)] = value
+            if max_val != matrix.max():
+                self._update_matrices_view(self.new_connectivity)   
 
-        self.cell_value.layout.visibility = "hidden"
-        self.change_button.layout.visibility = "hidden"
+            self.cell_value.layout.visibility = "hidden"
+            self.change_button.layout.visibility = "hidden"
 
-        with canvas.hold_canvas(matrix_ui[0]):
-            matrix_ui[0].fill_style = self._generate_color(self.new_connectivity, self.row, self.col, self.clicked_matrix, value)
-            matrix_ui[0].fill_rect(self.size * 0.2 + self.col * self.cell_size, self.size * 0.2 + self.row  * self.cell_size, self.cell_size, self.cell_size)
-            matrix_ui[0].stroke_rect(self.size * 0.2 + self.col * self.cell_size, self.size * 0.2 + self.row * self.cell_size, self.cell_size, self.cell_size)
+            x = self.layout_offset + self.col * self.cell_size
+            y = self.layout_offset + self.row * self.cell_size
 
-    def get_connectivity(self, gid=None):
+            with canvas.hold_canvas(matrix_ui[0]):
+                matrix_ui[0].fill_style = self._generate_color(self.new_connectivity, self.row, self.col, self.clicked_matrix, value)
+                matrix_ui[0].fill_rect(x, y, self.cell_size, self.cell_size)
+                matrix_ui[0].stroke_rect(x, y, self.cell_size, self.cell_size)
+
+    def get_connectivity(self, gid = None):
         if gid is None:
             return self.connectivity
         for conn in self.connectivities_history:
@@ -218,41 +233,42 @@ class ConnectivityMatrixEditor(TVBWidget):
         conn = self.new_connectivity
         self.connectivities_history.insert(0, conn)
         self.header.children = list(self.header.children)[:-1] + [self._get_history_dropdown()]
+
         self.new_connectivity = self._prepare_new_connectivity()
-        self.is_matrix_saved = True
+        self.is_connectivity_being_edited = False
         self._update_matrices_view(self.connectivity)
         
 
     def _prepare_new_connectivity(self):
-        self.new_connectivity = Connectivity()
-        self.new_connectivity.parent_connectivity = self.connectivity.gid.hex
-        self.new_connectivity.centres = self.connectivity.centres
-        self.new_connectivity.region_labels = self.connectivity.region_labels
-        self.new_connectivity.orientations = self.connectivity.orientations
-        self.new_connectivity.cortical = self.connectivity.cortical
-        self.new_connectivity.hemispheres = self.connectivity.hemispheres
-        self.new_connectivity.areas = self.connectivity.areas
-        self.new_connectivity.weights = self.connectivity.weights
-        self.new_connectivity.tract_lengths = self.connectivity.tract_lengths
-        self.new_connectivity.configure()
+        new_connectivity = Connectivity()
+        new_connectivity.parent_connectivity = self.connectivity.gid.hex
+        new_connectivity.centres = self.connectivity.centres
+        new_connectivity.region_labels = self.connectivity.region_labels
+        new_connectivity.orientations = self.connectivity.orientations
+        new_connectivity.cortical = self.connectivity.cortical
+        new_connectivity.hemispheres = self.connectivity.hemispheres
+        new_connectivity.areas = self.connectivity.areas
+        new_connectivity.weights = self.connectivity.weights
+        new_connectivity.tract_lengths = self.connectivity.tract_lengths
+        new_connectivity.configure()
   
-        return self.new_connectivity
+        return new_connectivity
         
     def _get_history_dropdown(self):
         values = [(conn.gid.hex, conn) for conn in self.connectivities_history]
-        default = len(values) and values[-1][1] or None
+        default = values[values.index((self.connectivity.gid.hex, self.connectivity))][1]
 
-        dropdown = widgets.Dropdown(options=values,
-                                       description='View history',
-                                       disabled=False,
-                                       value=default,
+        dropdown = widgets.Dropdown(options = values,
+                                       description = 'View history',
+                                       disabled = False,
+                                       value = default,
                                        )
 
         def on_connectivity_change(change):
             self.cell_value.layout.visibility = "hidden"
             self.change_button.layout.visibility = "hidden"
 
-            self.is_matrix_saved = True
+            self.is_connectivity_being_edited = False
             self.connectivity = change["new"]
             self.new_connectivity = self._prepare_new_connectivity()
             self._update_matrices_view(self.connectivity)
@@ -265,31 +281,33 @@ class ConnectivityMatrixEditor(TVBWidget):
         for matrix_name in matrices:
             matrix_view = getattr(self, matrix_name + "_matrix")
             matrix = getattr(connectivity, matrix_name)
+
             with canvas.hold_canvas(matrix_view):
                 matrix_view[0].clear()
                 matrix_view[1].clear()
                 matrix_view[2].clear()
                 matrix_view[3].clear()
 
-                value = matrix[self.from_row:self.from_row + self.num_rows, self.from_col:self.from_col + self.num_cols]
-                matrix_view[0].fill_styled_rects(self.cell_x, self.cell_y, color = self._generate_color(connectivity, value=value, matrix_name=matrix_name), height = self.cell_size, width = self.cell_size)
+                value = matrix[self.from_row : self.from_row + self.num_rows, self.from_col : self.from_col + self.num_rows]
+                color = self._generate_color(connectivity, value = value, matrix_name = matrix_name)
+                matrix_view[0].fill_styled_rects(self.cell_x, self.cell_y, color = color, height = self.cell_size, width = self.cell_size)
                 
                 max_value = matrix.max()
                 region_labels = self.connectivity.region_labels
 
-                y = np.linspace(self.size * 0.2, self.size, self.num_cols)
                 x = 0    
+                y = np.linspace(self.layout_offset, self.size, self.num_rows)
                 for i in range(self.num_rows):
                     row_label = region_labels[self.from_row + i]
-                    matrix_view[1].fill_text(row_label, x + 10, y[i] + self.cell_size, max_width = self.cell_size * 5)
+                    matrix_view[1].fill_text(row_label, x + 10, y[i] + self.cell_size, max_width = self.layout_offset * 0.9)
 
-                for i in range(self.num_cols):
+                for i in range(self.num_rows):
                     col_label = region_labels[self.from_col + i]
-                    matrix_view[2].fill_text(col_label, x + 10, y[i] + self.cell_size, max_width = self.cell_size * 5)
+                    matrix_view[2].fill_text(col_label, x + 10, y[i] + self.cell_size, max_width = self.layout_offset * 0.9)
 
                 for i in range(7):
-                    value = f"-{round(max_value * (6 - i) / 6, 2)}"
-                    matrix_view[3].fill_text(value, self.size * 1.1 + 20, (self.size * 0.8 / 6.1) * i + self.size * 0.21)   #labels for colorbar
+                    value = f"--{round(max_value * (6 - i) / 6, 2)}"
+                    matrix_view[3].fill_text(value, self.colorbar_x + 20, ((self.size - self.layout_offset) / 6.1) * i + self.layout_offset + 5)   #labels for colorbar
 
     def display(self):
         display(self.header)
