@@ -58,11 +58,11 @@ def test_prepare_matrices_tab(wid):
     assert wid.tab.get_title(1) == "tract_lengths"
 
 def test_prepare_matrix(wid):
-    assert math.isclose(wid.cell_size, 13.95, abs_tol=0.1)
-    assert math.isclose(wid.weights_matrix.width, 739, abs_tol=1)
-    assert math.isclose(wid.weights_matrix.height, 739, abs_tol=1)
-    assert math.isclose(wid.tract_lengths_matrix.width, 739, abs_tol=1)
-    assert math.isclose(wid.tract_lengths_matrix.height, 739, abs_tol=1)
+    assert math.isclose(wid.cell_size, 12.97, abs_tol=0.1)
+    assert math.isclose(wid.weights_matrix.width, 900, abs_tol=1)
+    assert math.isclose(wid.weights_matrix.height, 720, abs_tol=1)
+    assert math.isclose(wid.tract_lengths_matrix.width, 900, abs_tol=1)
+    assert math.isclose(wid.tract_lengths_matrix.height, 720, abs_tol=1)
     assert isinstance(wid.weights_matrix[0], canvas.canvas.Canvas)
     assert isinstance(wid.weights_matrix[1], canvas.canvas.Canvas)
     assert isinstance(wid.weights_matrix[2], canvas.canvas.Canvas)
@@ -74,27 +74,27 @@ def test_prepare_matrix(wid):
     assert isinstance(wid.tract_lengths_matrix[3], canvas.canvas.Canvas)
     assert isinstance(wid.tract_lengths_matrix[4], canvas.canvas.Canvas)
 
-def test_generate_color_with_indices(wid):
-    color = wid._generate_color(i=20, j=38, matrix_name="weights")
+def test_generate_color_with_indices(wid, connectivity):
+    color = wid._generate_color(connectivity, i=20, j=38, matrix_name="weights")
     assert color == 'rgba(102, 121, 123, 1.00)'    
-    color = wid._generate_color(i=5, j=70, matrix_name="tract_lengths")
+    color = wid._generate_color(connectivity, i=5, j=70, matrix_name="tract_lengths")
     assert color == 'rgba(38, 124, 105, 1.00)'
     
-def test_generate_color_with_single_value(wid):
-    color = wid._generate_color(value = 2, matrix_name="weights")
+def test_generate_color_with_single_value(wid, connectivity):
+    color = wid._generate_color(connectivity, value = 2, matrix_name="weights")
     assert color == 'rgba(145, 224, 255, 1.00)' 
-    color = wid._generate_color(value = 3, matrix_name = "tract_lengths")
+    color = wid._generate_color(connectivity, value = 3, matrix_name = "tract_lengths")
     assert color == 'rgba(97, 101, 108, 1.00)'
 
-def test_generate_color_with_array_value(wid):
+def test_generate_color_with_array_value(wid, connectivity):
     value = np.array([[1, 2], [2, 3]])
-    colors = wid._generate_color(value = value, matrix_name="weights")
+    colors = wid._generate_color(connectivity, value = value, matrix_name="weights")
     assert np.allclose(colors, [[[ 61.33333333, 170.66666667,  62.        ],
                                         [145.        , 224.33333333, 255.        ]],
                                         [[145.        , 224.33333333, 255.        ],
                                         [251.        ,  82.        ,  38.        ]]])
     
-    colors = wid._generate_color(value = value, matrix_name="tract_lengths")
+    colors = wid._generate_color(connectivity, value = value, matrix_name="tract_lengths")
     assert np.allclose(colors, [[[101.01176471, 117.04705882, 120.09019608],
                                   [ 99.03529412, 109.14117647, 114.27058824]],
                                   [[ 99.03529412, 109.14117647, 114.27058824],
