@@ -21,3 +21,4 @@ pyunicore>=1.0.0
 traitlets>=5.7.1
 toml
 bokeh
+ipycanvas
