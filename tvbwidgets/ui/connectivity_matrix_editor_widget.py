@@ -200,7 +200,7 @@ class ConnectivityMatrixEditor(TVBWidget):
         except:
             value = None
         
-        if value:
+        if value is not None:
             matrix_name =  self.clicked_matrix
             matrix = getattr(self.new_connectivity, matrix_name)
             max_val = matrix.max()
