@@ -235,11 +235,17 @@ class ConnectivityMatrixEditor(TVBWidget):
 
             matrix_ui[5].clear()
 
+    def saved_connectivities(self):
+        conn_list = []
+        for conn in self.connectivities_history:
+            conn_list.append(conn.gid.hex)
+        return conn_list     
+
     def get_connectivity(self, gid = None):
         if gid is None:
             return self.connectivity
         for conn in self.connectivities_history:
-            if conn.gid.hex == gid.hex:
+            if conn.gid.hex == gid:
                 return conn
 
     def on_click_save(self, change):

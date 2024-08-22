@@ -101,7 +101,13 @@ def test_generate_color_with_array_value(wid, connectivity):
                                   [ 99.03529412, 109.14117647, 114.27058824]],
                                   [[ 99.03529412, 109.14117647, 114.27058824],
                                   [ 97.05882353, 101.23529412, 108.45098039]]])
-    
+
+def test_saved_connectivities(wid):
+    conn_list = wid.saved_connectivities()
+    assert conn_list is not None
+    assert isinstance(conn_list, list)
+    assert isinstance(conn_list[0], str)
+
 def test_get_connectivity(wid):
     conn = wid.get_connectivity()
     assert isinstance(conn, Connectivity)
