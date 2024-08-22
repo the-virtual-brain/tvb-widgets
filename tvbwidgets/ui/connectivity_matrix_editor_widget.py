@@ -19,12 +19,14 @@ from tvb.datatypes.connectivity import Connectivity
 from tvbwidgets.ui.base_widget import TVBWidget
 
 class ConnectivityMatrixEditor(TVBWidget):
-    def __init__(self, connectivity, size = 600):
-        self.size = size
-        self.layout_offset = self.size * 0.2
+    def __init__(self, connectivity, size = None):
         self.connectivity = connectivity
         self.connectivities_history = [self.connectivity]
         self.num_rows = int(len(self.connectivity.weights[0]) / 2)    #num_cols will be equal to num_rows
+        if size is None:
+            size = self.num_rows * 20
+        self.size = size
+        self.layout_offset = self.size * 0.2
 
         self.is_connectivity_being_edited = True
         self.new_connectivity = self._prepare_new_connectivity()
@@ -93,7 +95,25 @@ class ConnectivityMatrixEditor(TVBWidget):
         self.tract_lengths_matrix.on_mouse_down(lambda x, y: self.on_cell_clicked(x, y, "tract_lengths"))
         self.tract_lengths_matrix.on_mouse_move(self.set_mouse_position)
         
-        self.tab.children = [self.weights_matrix, self.tract_lengths_matrix]
+        out1 = widgets.Output()
+        out2 = widgets.Output()
+
+        with out1:
+            display(self.weights_matrix)
+               
+        with out2:
+            display(self.tract_lengths_matrix)
+
+        container1 = widgets.Box([out1], layout = widgets.Layout(
+            width = '1200px',
+            height = '400px',
+            overflow_x = 'auto',
+            overflow_y = 'auto',
+        ))
+
+        container2 = widgets.Box([out2], layout = container1.layout)
+
+        self.tab.children = [container1, container2]
         self.tab.set_title(0, "weights")
         self.tab.set_title(1, "tract_lengths")
 

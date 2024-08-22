@@ -58,11 +58,11 @@ def test_prepare_matrices_tab(wid):
     assert wid.tab.get_title(1) == "tract_lengths"
 
 def test_prepare_matrix(wid):
-    assert math.isclose(wid.cell_size, 12.97, abs_tol=0.1)
-    assert math.isclose(wid.weights_matrix.width, 900, abs_tol=1)
-    assert math.isclose(wid.weights_matrix.height, 720, abs_tol=1)
-    assert math.isclose(wid.tract_lengths_matrix.width, 900, abs_tol=1)
-    assert math.isclose(wid.tract_lengths_matrix.height, 720, abs_tol=1)
+    assert math.isclose(wid.cell_size, 16.43, abs_tol=0.1)
+    assert math.isclose(wid.weights_matrix.width, 1140, abs_tol=1)
+    assert math.isclose(wid.weights_matrix.height, 912, abs_tol=1)
+    assert math.isclose(wid.tract_lengths_matrix.width, 1140, abs_tol=1)
+    assert math.isclose(wid.tract_lengths_matrix.height, 912, abs_tol=1)
     assert isinstance(wid.weights_matrix[0], canvas.canvas.Canvas)
     assert isinstance(wid.weights_matrix[1], canvas.canvas.Canvas)
     assert isinstance(wid.weights_matrix[2], canvas.canvas.Canvas)
