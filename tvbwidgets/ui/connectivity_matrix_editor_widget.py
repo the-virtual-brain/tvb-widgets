@@ -106,7 +106,7 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         container1 = widgets.Box([out1], layout = widgets.Layout(
             width = '1200px',
-            height = '400px',
+            height = '600px',
             overflow_x = 'auto',
             overflow_y = 'auto',
         ))
@@ -274,13 +274,13 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         conn = self.new_connectivity
         self.connectivities_history.insert(0, conn)
+        self.connectivity = conn
         self.header.children = list(self.header.children)[:-1] + [self._get_history_dropdown()]
 
         self.new_connectivity = self._prepare_new_connectivity()
         self.is_connectivity_being_edited = False
         self._update_matrices_view(self.connectivity)
         
-
     def _prepare_new_connectivity(self):
         new_connectivity = Connectivity()
         new_connectivity.parent_connectivity = self.connectivity.gid.hex
