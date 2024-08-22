@@ -99,13 +99,14 @@ class ConnectivityMatrixEditor(TVBWidget):
 
     def _prepare_matrix(self, matrix_name):
         matrix = getattr(self.connectivity, matrix_name)      #either weights or tracts matrix data
-        matrix_full = canvas.MultiCanvas(5, width=self.size * 1.5, height=self.size * 1.2)
+        matrix_full = canvas.MultiCanvas(6, width=self.size * 1.5, height=self.size * 1.2)
 
         matrix_view = matrix_full[0]
         row_header = matrix_full[1]
         column_header = matrix_full[2]
         color_bar = matrix_full[3]
         grid = matrix_full[4]
+        # sixth canvas is for displaying a grid around selected cell
 
         #rotate the row_header canvas so they appear vertical
         row_header.rotate(math.radians(-90))
@@ -189,6 +190,19 @@ class ConnectivityMatrixEditor(TVBWidget):
 
             self.cell_value.layout.visibility = "visible"
             self.change_button.layout.visibility = "visible"
+
+            matrix_ = self.clicked_matrix + "_matrix"
+            matrix_ui = getattr(self, matrix_)
+
+            x = self.layout_offset + self.col * self.cell_size
+            y = self.layout_offset + self.row * self.cell_size
+
+            with canvas.hold_canvas(matrix_ui[5]):
+                matrix_ui[5].clear()
+                matrix_ui[5].line_width = 2
+                matrix_ui[5].stroke_style = "white"
+                matrix_ui[5].stroke_rect(x, y, self.cell_size, self.cell_size)
+
         
     def on_apply_change(self, change):
         self.is_connectivity_being_edited = True
@@ -218,6 +232,8 @@ class ConnectivityMatrixEditor(TVBWidget):
                 matrix_ui[0].fill_style = self._generate_color(self.new_connectivity, self.row, self.col, self.clicked_matrix, value)
                 matrix_ui[0].fill_rect(x, y, self.cell_size, self.cell_size)
                 matrix_ui[0].stroke_rect(x, y, self.cell_size, self.cell_size)
+
+            matrix_ui[5].clear()
 
     def get_connectivity(self, gid = None):
         if gid is None:
@@ -287,6 +303,7 @@ class ConnectivityMatrixEditor(TVBWidget):
                 matrix_view[1].clear()
                 matrix_view[2].clear()
                 matrix_view[3].clear()
+                matrix_view[5].clear()
 
                 value = matrix[self.from_row : self.from_row + self.num_rows, self.from_col : self.from_col + self.num_rows]
                 color = self._generate_color(connectivity, value = value, matrix_name = matrix_name)

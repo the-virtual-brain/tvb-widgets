@@ -68,11 +68,13 @@ def test_prepare_matrix(wid):
     assert isinstance(wid.weights_matrix[2], canvas.canvas.Canvas)
     assert isinstance(wid.weights_matrix[3], canvas.canvas.Canvas)
     assert isinstance(wid.weights_matrix[4], canvas.canvas.Canvas)
+    assert isinstance(wid.weights_matrix[5], canvas.canvas.Canvas)
     assert isinstance(wid.tract_lengths_matrix[0], canvas.canvas.Canvas)
     assert isinstance(wid.tract_lengths_matrix[1], canvas.canvas.Canvas)
     assert isinstance(wid.tract_lengths_matrix[2], canvas.canvas.Canvas)
     assert isinstance(wid.tract_lengths_matrix[3], canvas.canvas.Canvas)
     assert isinstance(wid.tract_lengths_matrix[4], canvas.canvas.Canvas)
+    assert isinstance(wid.tract_lengths_matrix[5], canvas.canvas.Canvas)
 
 def test_generate_color_with_indices(wid, connectivity):
     color = wid._generate_color(connectivity, i=20, j=38, matrix_name="weights")
