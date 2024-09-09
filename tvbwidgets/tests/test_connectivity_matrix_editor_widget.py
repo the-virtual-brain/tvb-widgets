@@ -115,7 +115,7 @@ def test_get_connectivity(wid):
 
 def test_on_click_save(wid):
     wid.save_button.click()
-    assert len(wid.connectivities_history) == 2
+    assert len(wid.connectivity_history_list) == 2
 
 def test_prepare_new_connectivity(wid):
     conn = wid._prepare_new_connectivity()
