@@ -16,7 +16,11 @@ import ipywidgets as widgets
 import matplotlib.colors as mcolors
 from IPython.display import display
 from tvb.datatypes.connectivity import Connectivity
+
+from tvbwidgets import get_logger
 from tvbwidgets.ui.base_widget import TVBWidget
+
+LOGGER = get_logger(__name__)
 
 
 class ConnectivityMatrixEditor(TVBWidget):
@@ -49,7 +53,7 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         self.change_button = widgets.Button(description="Change",
                                             layout=widgets.Layout(width="80px", visibility="hidden"))
-        self.change_button.on_click(lambda change: self.on_apply_change(change))
+        self.change_button.on_click(self.on_apply_change)
 
         self.save_button = widgets.Button(description="Save",
                                           layout=widgets.Layout(width="100px", margin='0 0 0 auto'))
@@ -239,7 +243,8 @@ class ConnectivityMatrixEditor(TVBWidget):
         matrix_ui = getattr(self, matrix_name)
         try:
             value = float(self.cell_value.value)
-        except:
+        except (ValueError, TypeError):
+            LOGGER.error(f'An exception occurred when retrieving the cell value.')
             value = None
 
         if value is not None:

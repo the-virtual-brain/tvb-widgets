@@ -94,7 +94,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
           
 
     def _create_graph_slice(self, i):
-        z_coordinate = -i*3 + 14 if i is 0 else -i*2 + 11 - 0.1*i*i
+        z_coordinate = -i*3 + 14 if i == 0 else -i*2 + 11 - 0.1*i*i
         return p3.Mesh(
             p3.BoxBufferGeometry(width=7, height=7, depth=0.1),
             p3.MeshPhysicalMaterial(),
