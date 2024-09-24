@@ -10,6 +10,9 @@ from tvbwidgets.ui.connectivity_ipy.exceptions import UnknownOutputException
 from enum import Enum
 import ipywidgets as widgets
 import pyvista
+from tvbwidgets.core.logger.builder import get_logger
+
+LOGGER = get_logger(__name__)
 
 
 class Output3D(Enum):
@@ -38,6 +41,7 @@ class PyVistaOutput(widgets.Output):
 
     def update_plot(self):
         with self:
+            LOGGER.info("update plot")
             self.clear_output(wait=True)
             self.plotter.show()
 
