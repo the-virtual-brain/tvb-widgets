@@ -148,6 +148,7 @@ class Connectivity3DViewer(ipywidgets.VBox):
             self.output]
         self.output.display_actor(points)
         self.output.display_actor(edges)
+        self.output.update_plot()
 
     def __refresh_connectivity(self):
         self.output.plotter.clear()
