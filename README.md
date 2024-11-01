@@ -1,5 +1,5 @@
 <p>
-    <img src="style/icons/TVB_logo.svg" alt="TVB logo" title="TVB" align="right" height="100" />
+    <img src="dev/TVB_logo.svg" alt="TVB logo" title="TVB" align="right" height="100" />
 </p>
 
 # tvb-widgets
