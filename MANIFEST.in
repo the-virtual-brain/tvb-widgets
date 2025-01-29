@@ -1,5 +1,4 @@
 include LICENSE
-include requirements.txt
 include package.json
 include tvbwidgets/ui/connectivity_react/Connectivity.css
 include tvbwidgets/ui/connectivity_react/Connectivity.tsx
