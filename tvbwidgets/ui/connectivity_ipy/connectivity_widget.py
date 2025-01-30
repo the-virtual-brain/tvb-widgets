@@ -69,7 +69,7 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         with self.output:
             self.output.clear_output(wait=True)
             self.output.plotter.figure(figsize=(8, 8))
-            heatmap = self.output.plotter.matshow(matrix, fignum=1)
+            heatmap = self.output.plotter.matshow(matrix, fignum=0)
             self.output.plotter.colorbar(heatmap)
             self.output.plotter.show()
 
