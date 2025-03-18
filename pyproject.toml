@@ -12,7 +12,7 @@ build-backend = "hatchling.build"
 [project]
 name = "tvb-widgets"
 readme = "README.md"
-version = "2.2.1"
+version = "2.2.2"
 description = "TheVirtualBrain - Widgets is a package with somehow generic GUI components, but developed for EBRAINS Showcases in particular."
 license = { file = "LICENSE" }
 requires-python = ">=3.8"
