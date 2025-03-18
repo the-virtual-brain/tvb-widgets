@@ -46,25 +46,18 @@ class ConnectivityMatrixEditor(TVBWidget):
         options = ["Quadrant 1", "Quadrant 2", "Quadrant 3", "Quadrant 4"]
 
         self.quadrants = widgets.Dropdown(options=options)
+
         self.quadrants.observe(self._on_quadrant_select, names=["value"])
-
-        self.cell_value = widgets.Text(description="value",
-                                       layout=widgets.Layout(width="200px", visibility="hidden"))
-
-        self.change_button = widgets.Button(description="Change",
-                                            layout=widgets.Layout(width="80px", visibility="hidden"))
-        self.change_button.on_click(self.on_apply_change)
 
         self.save_button = widgets.Button(description="Save",
                                           layout=widgets.Layout(width="100px", margin='0 0 0 auto'))
         self.save_button.on_click(self.on_click_save)
 
-        self.header.children = [self.quadrants, self.cell_value, self.change_button, self.save_button,
-                                self._get_history_dropdown()]
+        self.header.children = [self.quadrants,  self.save_button,self._get_history_dropdown()]
 
+                                
     def _on_quadrant_select(self, change):
-        self.cell_value.layout.visibility = "hidden"
-        self.change_button.layout.visibility = "hidden"
+        self.popup.layout.visibility = "hidden"
 
         selection = int(change["new"][-1])
         connectivity = self.new_connectivity if self.is_connectivity_being_edited else self.connectivity
@@ -91,6 +84,10 @@ class ConnectivityMatrixEditor(TVBWidget):
         # indexing starts from this row and col
         self.from_row = from_row
         self.from_col = from_col
+    
+    def _handle_tab_change(self, change):
+        if self.popup.layout.visibility == 'visible':
+            self.on_click_cancel()
 
     def _prepare_matrices_tab(self):
         self.weights_matrix = self._prepare_matrix("weights")
@@ -102,6 +99,8 @@ class ConnectivityMatrixEditor(TVBWidget):
         self.tract_lengths_matrix.on_mouse_down(lambda x, y: self.on_cell_clicked(x, y, "tract_lengths"))
         self.tract_lengths_matrix.on_mouse_move(self.set_mouse_position)
 
+        self.tab.observe(self._handle_tab_change, names='selected_index')
+
         out1 = widgets.Output()
         out2 = widgets.Output()
 
@@ -111,15 +110,70 @@ class ConnectivityMatrixEditor(TVBWidget):
         with out2:
             display(self.tract_lengths_matrix)
 
-        container1 = widgets.Box([out1], layout=widgets.Layout(
-            width='1200px',
-            height='600px',
-            overflow_x='auto',
-            overflow_y='auto',
-        ))
+        self.popup = widgets.VBox(
+        layout=widgets.Layout(
+            height='100px',  
+            width='200px',  
+            padding='5px',  
+            min_width='200px',
+            visibility='hidden',
+            border='4px solid black',
+            background='white',
+            z_index='10',
+            position='absolute',
+            justify_content='center',
+            align_items='center'
+         )
+        )       
+        self.popup_value = widgets.Text(layout=widgets.Layout(width="50%", margin="10px 0"))
 
-        container2 = widgets.Box([out2], layout=container1.layout)
+        self.popup_change = widgets.Button(
+            description="Change", 
+            layout=widgets.Layout(width="90px", margin="3px"),
+            style={ 'font_weight': 'bold'}
+        )
 
+        self.popup_cancel = widgets.Button(
+            description="Cancel", 
+            layout=widgets.Layout(width="90px", margin="3px"),
+            style={'font_weight': 'bold'}
+        )
+
+        self.popup_buttons = widgets.HBox(
+            [self.popup_change, self.popup_cancel], 
+            layout=widgets.Layout(
+                justify_content='space-between', 
+                width="100%"
+            )
+        )
+
+        self.popup.children = [self.popup_value, self.popup_buttons]
+
+        self.popup_change.on_click(self.on_apply_change)
+        self.popup_cancel.on_click(self.on_click_cancel)
+
+        scrollable_container_weights = widgets.Box(
+            [widgets.Box([out1, self.popup], layout=widgets.Layout(position='relative'))],
+            layout=widgets.Layout(
+                width='1200px',
+                height='600px',
+                overflow_x='auto',
+                overflow_y='auto',
+            )
+        )
+
+        scrollable_container_tract = widgets.Box(
+            [widgets.Box([out2, self.popup], layout=widgets.Layout(position='relative'))],
+            layout=widgets.Layout(
+                width='1200px',
+                height='600px',
+                overflow_x='auto',
+                overflow_y='auto',
+            )
+        )
+
+        container1 = widgets.Box([scrollable_container_weights])
+        container2 = widgets.Box([scrollable_container_tract])
         self.tab.children = [container1, container2]
         self.tab.set_title(0, "weights")
         self.tab.set_title(1, "tract_lengths")
@@ -219,16 +273,43 @@ class ConnectivityMatrixEditor(TVBWidget):
             connectivity = self.new_connectivity if self.is_connectivity_being_edited else self.connectivity
             matrix = getattr(connectivity, matrix_name)
             value = matrix[int(self.from_row + self.row)][int(self.from_col + self.col)]
-            self.cell_value.value = f"{value}"
-
-            self.cell_value.layout.visibility = "visible"
-            self.change_button.layout.visibility = "visible"
-
             matrix_ = self.clicked_matrix + "_matrix"
             matrix_ui = getattr(self, matrix_)
 
             x = self.layout_offset + self.col * self.cell_size
             y = self.layout_offset + self.row * self.cell_size
+            self.popup_value.value = f"{value}"
+            self.popup.layout.visibility = 'visible'
+
+            mid_col = self.num_rows // 2
+            mid_row = self.num_rows // 2
+            quadrant = 1  
+            if self.col < mid_col and self.row < mid_row:
+                quadrant = 1
+            elif self.col >= mid_col and self.row < mid_row:
+                quadrant = 2
+            elif self.col < mid_col and self.row >= mid_row:
+                quadrant = 3
+            else:
+                quadrant = 4
+
+            if quadrant == 1:
+                left = x - 1142
+                top = y + self.cell_size + 2
+            elif quadrant == 2:
+                left = x - 1342 + self.cell_size
+                top = y + self.cell_size + 2
+            elif quadrant == 3:
+                left = x - 1142
+                top = y - 100
+            else:  
+                left = x - 1342 + self.cell_size
+                top = y - 100
+            self.popup.layout.left = f'{left}px'
+            self.popup.layout.top = f'{top}px'
+            self.current_matrix = matrix_name
+            self.current_row = row
+            self.current_col = col
 
             with canvas.hold_canvas(matrix_ui[5]):
                 matrix_ui[5].clear()
@@ -242,7 +323,7 @@ class ConnectivityMatrixEditor(TVBWidget):
         matrix_name = self.clicked_matrix + "_matrix"
         matrix_ui = getattr(self, matrix_name)
         try:
-            value = float(self.cell_value.value)
+            value = float(self.popup_value.value)
         except (ValueError, TypeError):
             LOGGER.error(f'An exception occurred when retrieving the cell value.')
             value = None
@@ -255,8 +336,7 @@ class ConnectivityMatrixEditor(TVBWidget):
             if max_val != matrix.max():
                 self._update_matrices_view(self.new_connectivity)
 
-            self.cell_value.layout.visibility = "hidden"
-            self.change_button.layout.visibility = "hidden"
+            self.popup.layout.visibility = "hidden"
 
             x = self.layout_offset + self.col * self.cell_size
             y = self.layout_offset + self.row * self.cell_size
@@ -268,6 +348,24 @@ class ConnectivityMatrixEditor(TVBWidget):
                 matrix_ui[0].stroke_rect(x, y, self.cell_size, self.cell_size)
 
             matrix_ui[5].clear()
+
+    def on_click_cancel(self, change=None):
+        self.popup.layout.visibility = "hidden"
+
+        matrix_name = self.clicked_matrix + "_matrix"
+        matrix_ui = getattr(self, matrix_name)
+        x = self.layout_offset + self.col * self.cell_size
+        y = self.layout_offset + self.row * self.cell_size
+
+        # Redraw the cell with original color to remove highlight
+        with canvas.hold_canvas(matrix_ui[0]):
+            matrix_ui[0].fill_style = self._generate_color(self.new_connectivity, self.row, self.col,
+                                                        self.clicked_matrix, 
+                                                        self.new_connectivity._getattribute_(self.clicked_matrix)[self.from_row + int(self.row)][self.from_col + int(self.col)])
+            matrix_ui[0].fill_rect(x, y, self.cell_size, self.cell_size)
+            matrix_ui[0].stroke_rect(x, y, self.cell_size, self.cell_size)
+
+        matrix_ui[5].clear()
 
     def saved_connectivities(self):
         conn_list = []
@@ -283,9 +381,8 @@ class ConnectivityMatrixEditor(TVBWidget):
                 return conn
 
     def on_click_save(self, change):
-        self.cell_value.layout.visibility = "hidden"
-        self.change_button.layout.visibility = "hidden"
-
+        self.popup.layout.visibility = "hidden"
+        
         conn = self.new_connectivity
         self.connectivity_history_list.insert(0, conn)
         self.connectivity = conn
@@ -321,9 +418,8 @@ class ConnectivityMatrixEditor(TVBWidget):
                                     )
 
         def on_connectivity_change(change):
-            self.cell_value.layout.visibility = "hidden"
-            self.change_button.layout.visibility = "hidden"
-
+            self.popup.layout.visibility = "hidden"
+            
             self.is_connectivity_being_edited = False
             self.connectivity = change["new"]
             self.new_connectivity = self._prepare_new_connectivity()
