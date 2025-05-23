@@ -3,7 +3,7 @@
 # Anaconda needs to be installed upfront
 conda update -n base -c defaults conda
 conda create -y --name tvb-widgets python=3.8 nomkl numba scipy numpy jupyterlab
-conda install -y --name tvb-widgets -c conda-forge pyvista
+conda install -y --name tvb-widgets -c conda-forge k3d
 
 pip install --upgrade pip
 pip install -r ../requirements.txt

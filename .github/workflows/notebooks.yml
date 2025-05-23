@@ -9,9 +9,11 @@ on:
 jobs:
   build:
     name: Run notebooks
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+#    env:
+#      ACTIONS_RUNNER_DEBUG: true
     steps:
       - uses: actions/checkout@v4
 
@@ -30,6 +32,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .
           python -m pip install nbformat nbconvert
+
+      - name: Clean ~/.mne directory for Dicom widget
+        run: rm -rf /home/runner/.mne
 
       - name: Run notebooks
         run: xvfb-run -a python ./dev/notebook_runner.py notebooks

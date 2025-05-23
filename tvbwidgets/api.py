@@ -12,7 +12,7 @@ from .ui.dicom_widget import DicomWidget
 from .ui.phase_plane_widget import PhasePlaneWidget
 from .ui.spacetime_widget import SpaceTimeVisualizerWidget
 from .ui.storage_widget import StorageWidget
-from .ui.head_widget import HeadBrowser, HeadWidget, HeadWidgetConfig
+from .ui.head_widget import HeadBrowser, HeadWidget
 from .ui.ts.mne_ts_widget import TimeSeriesWidgetMNE
 from .ui.ts.plotly_ts_widget import TimeSeriesWidgetPlotly
 from .ui.ts.ts_widget_browser import TimeSeriesBrowser
