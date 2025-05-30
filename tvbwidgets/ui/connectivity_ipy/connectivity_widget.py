@@ -7,24 +7,18 @@
 
 import ipywidgets
 import matplotlib
-import numpy
-import pyvista
-import numpy as np
 from numpy import ndarray
 from tvb.basic.neotraits.api import HasTraits
 from tvb.datatypes.connectivity import Connectivity
 from tvbwidgets.ui.base_widget import TVBWidget
-from tvbwidgets.ui.connectivity_ipy.outputs_3d import PyVistaOutput
 from tvbwidgets.ui.connectivity_ipy.operations import ConnectivityOperations
-from tvbwidgets.ui.connectivity_ipy.config import ConnectivityConfig
 from tvbwidgets.ui.connectivity_ipy.global_context import CONTEXT, ObservableAttrs
+from tvbwidgets.ui.head_widget import HeadWidget
 
 DROPDOWN_KEY = 'dropdown'
-pyvista.set_jupyter_backend('trame')
 
 
 class CustomOutput(ipywidgets.Output):
-    CONFIG = ConnectivityConfig()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -108,102 +102,16 @@ class Connectivity2DViewer(ipywidgets.VBox, TVBWidget):
         self.children = (dropdown, *self.children)
 
 
-class Connectivity3DViewer(ipywidgets.VBox):
-
-    def __init__(self, width, height, **kwargs):
-        self.output = PyVistaOutput()
-        self.output.plotter.window_size = [width, height]
-        self.output.plotter.set_background("darkgrey")
-
-        super(Connectivity3DViewer, self).__init__([self.output], *kwargs)
-
-        self.__init_view_connectivity()
-        CONTEXT.observe(lambda *args: self.__refresh_connectivity(), ObservableAttrs.CONNECTIVITY)
-
-    def __init_view_connectivity(self):
-        points, edges = self.__add_actors()
-        points_toggle, edges_toggle = self.__init_controls()
-
-        def on_change_points(change):
-            if change['new']:
-                self.output.display_actor(points)
-            else:
-                self.output.hide_actor(points)
-            self.output.update_plot()
-
-        points_toggle.observe(on_change_points, 'value')
-
-        def on_change_edges(change):
-            if change['new']:
-                self.output.display_actor(edges)
-            else:
-                self.output.hide_actor(edges)
-            self.output.update_plot()
-
-        edges_toggle.observe(on_change_edges, 'value')
-
-        self.children = [
-            ipywidgets.HBox(children=(
-                points_toggle, edges_toggle)),
-            self.output]
-        self.output.display_actor(points)
-        self.output.display_actor(edges)
-        self.output.update_plot()
-
-    def __refresh_connectivity(self):
-        self.output.plotter.clear()
-        self.__init_view_connectivity()
-        self.output.update_plot()
-
-    def __init_controls(self):
-        points_toggle = ipywidgets.ToggleButton(value=True,
-                                                description='Points'
-                                                )
-        edges_toggle = ipywidgets.ToggleButton(value=True,
-                                               description='Edges',
-                                               )
-
-        return points_toggle, edges_toggle
-
-    def __add_actors(self):
-        plotter = self.output.plotter
-        points = CONTEXT.connectivity.centres
-
-        mesh_points = pyvista.PolyData(points)
-
-        points_color = self.output.CONFIG.points_color
-        points_size = self.output.CONFIG.point_size
-        edge_color = self.output.CONFIG.edge_color
-
-        points_actor = plotter.add_points(mesh_points, color=points_color, point_size=points_size)
-
-        edges_coords = self.__extract_edges()
-        edges_actor = plotter.add_lines(edges_coords, color=edge_color, width=1)
-        plotter.camera_position = 'xy'
-
-        return points_actor, edges_actor
-
-    def __extract_edges(self):
-        connectivity = CONTEXT.connectivity
-        edge_indices = np.nonzero(connectivity.weights)
-        edges = list(zip(edge_indices[0], edge_indices[1]))
-
-        edges_coords = []
-        points = connectivity.centres
-
-        for (i, j) in edges:
-            edges_coords.append(points[i])
-            edges_coords.append(points[j])
-
-        return numpy.array(edges_coords)
-
-
 class ConnectivityViewers(ipywidgets.Accordion):
-    def __init__(self, width, height, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        head_widget = HeadWidget([CONTEXT.connectivity], 600, 550)
+        CONTEXT.observe(lambda *args: head_widget.refresh_plot([CONTEXT.connectivity]), ObservableAttrs.CONNECTIVITY)
+
         self.children = [
             Connectivity2DViewer(),
-            Connectivity3DViewer(width, height)
+            head_widget
         ]
         self.set_title(0, '2D Connectivity Matrix viewer')
         self.set_title(1, '3D Connectivity viewer')
@@ -237,18 +145,17 @@ class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
             return None
         return conn[0]
 
-    def __init__(self, connectivity, default_active_tab='both', width=500, height=500, **kwargs):
+    def __init__(self, connectivity, default_active_tab='both', **kwargs):
 
         style = self.DEFAULT_BORDER
         super().__init__(**kwargs, layout=style)
 
-        config = ConnectivityConfig(name=f'Connectivity - {str(connectivity.number_of_regions)}')
         CONTEXT.connectivity = connectivity
 
         viewers_visible = default_active_tab in ['both', 'viewers']
         operations_visible = default_active_tab in ['both', 'operations']
 
-        self.viewers_tab = ConnectivityViewers(width, height)
+        self.viewers_tab = ConnectivityViewers()
         self.viewers_tab.layout.display = viewers_visible and 'inline-block' or 'none'
         self.operations_tab = ConnectivityOperations()
         self.operations_tab.layout.display = operations_visible and 'inline-block' or 'none'
@@ -271,10 +178,11 @@ class ConnectivityWidget(ipywidgets.VBox, TVBWidget):
 
         sections_container = ipywidgets.HBox(children=tabs)
 
+        connectivity_name = f'Connectivity - {str(connectivity.number_of_regions)}'
         children = [
             ipywidgets.VBox(
                 children=(
-                    ipywidgets.HTML(value=f'<h1>{config.name}</h1>'),
+                    ipywidgets.HTML(value=f'<h1>{connectivity_name}</h1>'),
                     ipywidgets.HBox(children=(
                         viewers_checkbox,
                         operations_checkbox

@@ -29,15 +29,14 @@ def test_add_datatype(caplog, mocker):
         """Mock plot drawing"""
         pass
 
-    mocker.patch('tvbwidgets.ui.head_widget.CustomOutput.update_plot', mock_update_plot)
+    mocker.patch('k3d.Plot.display', mock_update_plot)
 
     logger = logging.getLogger('tvbwidgets')
     logger.propagate = True
 
-    connectivity = Connectivity(centres=numpy.zeros((10, 3)))
+    connectivity = Connectivity(centres=numpy.zeros((10, 3)), weights=numpy.ones((10, 10)))
     widget = api.HeadWidget([connectivity])
-    assert widget.output_plot.total_actors == 1
-    assert len(widget.plot_controls.children) == 1
+    assert len(widget.plot.objects) == 2
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
@@ -56,7 +55,7 @@ def test_add_datatype(caplog, mocker):
         assert caplog.records[0].levelname == 'WARNING'
         assert NOT_SUPPORTED in caplog.text
 
-    widget = api.HeadWidget()
+    widget = api.HeadWidget([])
 
     caplog.clear()
     with caplog.at_level(logging.DEBUG):
@@ -67,7 +66,7 @@ def test_add_datatype(caplog, mocker):
     caplog.clear()
     widget.add_datatype(RegionMapping())
     assert caplog.records[0].levelname == 'INFO'
-    assert 'cmap' in caplog.text
+    assert 'second argument' in caplog.text
 
     caplog.clear()
     widget.add_datatype(10)
@@ -75,34 +74,20 @@ def test_add_datatype(caplog, mocker):
     assert NOT_SUPPORTED in caplog.text
 
     widget.add_datatype(connectivity)
-    assert widget.output_plot.total_actors == 1
-    assert len(widget.plot_controls.children) == 1
+    assert len(widget.plot.objects) == 2
 
     face = FaceSurface(vertices=numpy.zeros((10, 3)), triangles=numpy.zeros((10, 3), dtype=int))
     widget.add_datatype(face)
-    assert widget.output_plot.total_actors == 2
-    assert len(widget.plot_controls.children) == 2
+    assert len(widget.plot.objects) == 3
 
     seeg = SensorsInternal(locations=numpy.zeros((10, 3)))
     widget.add_datatype(seeg)
-    assert widget.output_plot.total_actors == 3
-    assert len(widget.plot_controls.children) == 3
+    assert len(widget.plot.objects) == 4
 
     cortex = CorticalSurface(vertices=numpy.zeros((10, 3)), triangles=numpy.zeros((10, 3), dtype=int))
     reg_map = RegionMapping(array_data=numpy.zeros(10, dtype=int))
-    config = api.HeadWidgetConfig(name='Cortex')
-    config.add_region_mapping_as_cmap(reg_map)
-    widget.add_datatype(cortex)
-    assert widget.output_plot.total_actors == 4
-    assert len(widget.plot_controls.children) == 4
-
-    left_spots = widget.output_plot.MAX_ACTORS - widget.output_plot.total_actors
-
-    caplog.clear()
-    for _ in range(left_spots + 1):
-        widget.add_datatype(connectivity)
-    assert caplog.records[0].levelname == 'INFO'
-    assert 'reached the maximum' in caplog.text
+    widget.add_datatype(cortex, reg_map)
+    assert len(widget.plot.objects) == 5
 
     logger.propagate = False
 
