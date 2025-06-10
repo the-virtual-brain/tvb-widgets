@@ -58,3 +58,5 @@ This project has received funding from the European Union’s Horizon Europe Pro
 
 This projects also has contribution from @peeplika as part of Google Summer of Code, through INCF organization (https://summerofcode.withgoogle.com/programs/2024/organizations/incf).
 
+This project has received funding from the European Union’s Research and Innovation Program Horizon Europe under Grant Agreement No. 101137289 (Virtual Brain Twin Project).
+
