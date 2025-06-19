@@ -8,6 +8,7 @@
 from .ui.connectivity_ipy.connectivity_widget import ConnectivityWidget
 from .ui.connectivity_react.connectivity_widget import ConnectivityWidgetReact
 from .ui.connectivity_matrix_editor_widget import ConnectivityMatrixEditor
+from .ui.connectivity_spacetime_widget import ConnectivitySpaceTimeWidget
 from .ui.dicom_widget import DicomWidget
 from .ui.phase_plane_widget import PhasePlaneWidget
 from .ui.spacetime_widget import SpaceTimeVisualizerWidget
