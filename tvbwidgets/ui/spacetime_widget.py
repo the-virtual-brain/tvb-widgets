@@ -4,11 +4,17 @@
 #
 # (c) 2022-2025, TVB Widgets Team
 #
+"""
+..moduleauthor:: Priya Yadav <priyayadav012004@gmail.com>
+..moduleauthor:: Paula Prodan <paula.prodan@codemart.ro>
+"""
+
 import k3d
 import numpy
 from IPython.core.display_functions import display
 from ipywidgets import HBox, BoundedFloatText, Layout, Text, Tab, HTML, Output
 from matplotlib import pyplot as plt
+import matplotlib.colors as mcolors
 from matplotlib.gridspec import GridSpec
 
 from tvbwidgets.ui.base_widget import TVBWidget
@@ -54,9 +60,13 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self._prepare_plot_details()
         self.hbox.children = [self.tab, self.plot_details]
 
+    def _get_intervals(self):
+        intervals = numpy.linspace(self.from_time, self.to_time, self.num_slices + 1)
+        return intervals
+
     def _prepare_connectivity(self, slice_id):
         """Prepares data for different slices."""
-        intervals = numpy.linspace(self.from_time, self.to_time, self.num_slices + 1)
+        intervals = self._get_intervals()
         if slice_id == 0:
             slice_range = self.to_time
             prev_slice_range = self.from_time
@@ -76,7 +86,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
     def _get_z_translation(self, slice_id):
         if slice_id == 0:
             return - 1 / 3
-        return slice_id / 10;
+        return slice_id / 10
 
     def _get_transform_matrix(self, slice_id=0):
         translate = numpy.array([
@@ -99,10 +109,12 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
     def _change_camera_position(self, slice_id=None):
         if slice_id is None:
+            # All slices view
             self.plot.camera = [-2.5, 0, 1.5,  # camera position
                                 0, 0, 0,  # look at center of grid
                                 0, 1, 0]
         else:
+            # Single slice view
             self.plot.camera = [0 + self._get_x_translation(slice_id), 0, 2 + self._get_z_translation(slice_id),
                                 0 + self._get_x_translation(slice_id), 0, 0,
                                 0, 1, 0]
@@ -116,12 +128,18 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                     texture.visible = False
                 else:
                     self._change_camera_position(i)
+                    intervals = self._get_intervals()
+                    if i == 0:
+                        self.selection.value = f"{intervals[0]:.2f} .. {intervals[-1]:.2f}"
+                    else:
+                        self.selection.value = f"{intervals[i - 1]:.2f} .. {intervals[i]:.2f}"
             self.picked_slice_id = clicked_id
         else:
             self.picked_slice_id = None
             self._change_camera_position()
             for texture in self.plot.objects:
                 texture.visible = True
+            self.selection.value = "None"
 
     def _prepare_plot(self):
         plot = k3d.Plot(grid_visible=False, camera_auto_fit=False, camera_no_rotate=True, camera_no_zoom=True,
@@ -164,7 +182,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             max=max_time,
             step=0.1,
             layout=Layout(width='160px'),
-            description='from[ms]:',
+            description='From[ms]:',
             disabled=False
         )
         self.option_from_time.observe(self.on_change, names="value")
@@ -175,15 +193,17 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             max=max_time,
             step=0.1,
             layout=Layout(width='160px'),
-            description='to[ms]:',
+            description='To[ms]:',
             disabled=False
         )
         self.option_to_time.observe(self.on_change, names="value")
 
         self.selection = Text(
             value="None",
-            description="selection[ms]:",
-            layout=Layout(width="200px")
+            description="Selection[ms]:",
+            style={'description_width': '150px'},
+            layout=Layout(width="350px"),
+            disabled=True
         )
         self.options.children = [self.option_conduction_speed, self.option_from_time, self.option_to_time,
                                  self.selection]
@@ -213,8 +233,6 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             display(self.fig)
 
     def _custom_colormap(self, connectivity):
-        import matplotlib.colors as mcolors
-
         colors = [
             '#000033', '#4d1c34', '#7a3282', '#8ea674', '#27913c', '#1c464a',
             '#247663', '#38bcaa', '#a9e9ff', '#5fcdfc', '#36a0c1', '#f99e2c',

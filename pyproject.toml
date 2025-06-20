@@ -34,7 +34,6 @@ dependencies = [
     "mne>=1.0",
     "numpy<2",
     "plotly==5.14.0",
-    "pythreejs",
     "k3d",
     "ipyreact>=0.4.1",
     "requests",
