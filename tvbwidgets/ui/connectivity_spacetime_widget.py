@@ -35,7 +35,6 @@ class ConnectivitySpaceTimeWidget(TVBWidget):
         self.interactive_plot = Output(layout=Layout(width=str(self.width) + 'px', height=str(self.height) + 'px'))
         with self.interactive_plot:
             self.plot.display()
-        self.plot.mode = 'callback'
 
         self.plot_overview = Output()
         self._create_plots_overview()
@@ -84,11 +83,9 @@ class ConnectivitySpaceTimeWidget(TVBWidget):
         return translate
 
     def _get_texture(self, connectivity_slice, slice_id):
-        # TODO: choose colormap and background color
         texture = k3d.texture(attribute=connectivity_slice,
-                              color_map=k3d.matplotlib_color_maps.Coolwarm,
+                              color_map=self._custom_colormap(None),
                               color_range=[connectivity_slice.min(), connectivity_slice.max()],
-                              opacity_function=[-1, 1, 1, 1],
                               name='Slice',
                               interpolation=False,
                               model_matrix=self._get_transform_matrix(slice_id))
@@ -122,7 +119,7 @@ class ConnectivitySpaceTimeWidget(TVBWidget):
 
     def _prepare_plot(self):
         plot = k3d.Plot(grid_visible=False, camera_auto_fit=False, camera_no_rotate=True, camera_no_zoom=True,
-                        camera_no_pan=True, camera_fov=30, menu_visibility=True, background_color=0x999999)
+                        camera_no_pan=True, camera_fov=30, menu_visibility=False, background_color=0x999999)
         return plot
 
     def _prepare_scene(self):
@@ -137,6 +134,7 @@ class ConnectivitySpaceTimeWidget(TVBWidget):
     def display(self):
         display(self.options)
         display(self.hbox)
+        self.plot.mode = 'callback'
 
     def _add_options(self):
         self.options = HBox(layout=self.DEFAULT_BORDER)
@@ -196,20 +194,19 @@ class ConnectivitySpaceTimeWidget(TVBWidget):
             self.options.children[2].value = self.options.children[2].max
         self.from_time = self.options.children[1].value
         self.to_time = self.options.children[2].value
-        # self.plot_details.value = self._generate_details()
+        self.plot_details.value = self._generate_details()
 
         for idx in range(len(self.plot.objects)):
             conn_slice = self._prepare_connectivity(idx)
             texture = self.plot.objects[idx]
             texture.attribute = conn_slice
             texture.color_range = [conn_slice.min(), conn_slice.max()]
-            self.ims[idx].imshow(self._generate_colors(conn_slice))
+            self.ims[idx].imshow(self._custom_colormap(conn_slice))
 
         with self.plot_overview:
             display(self.fig)
 
-    def _generate_colors(self, connectivity):
-        #TODO: use single cmap
+    def _custom_colormap(self, connectivity):
         import matplotlib.colors as mcolors
 
         colors = [
@@ -217,9 +214,18 @@ class ConnectivitySpaceTimeWidget(TVBWidget):
             '#247663', '#38bcaa', '#a9e9ff', '#5fcdfc', '#36a0c1', '#f99e2c',
             '#fc5326', '#df0537'
         ]
-        self.color_scheme = mcolors.LinearSegmentedColormap.from_list('color_scheme', colors)
-        self.norm = mcolors.Normalize(vmin=0, vmax=3)
-        color_data = self.color_scheme(self.norm(connectivity))[:, :, :3]
+        color_scheme = mcolors.LinearSegmentedColormap.from_list('color_scheme', colors)
+
+        if connectivity is None:
+            k3d_scheme = []
+            for x in numpy.linspace(0, 1, max(color_scheme.N, 256)):
+                r, g, b = color_scheme(x)[:3]
+                k3d_scheme.append((x, r, g, b))
+            return k3d_scheme
+
+
+        norm = mcolors.Normalize(vmin=0, vmax=3)
+        color_data = color_scheme(norm(connectivity))[:, :, :3]
         return color_data
 
     def _create_plots_overview(self):
@@ -232,7 +238,7 @@ class ConnectivitySpaceTimeWidget(TVBWidget):
             position = gs[int(i / 3), int(i % 3)]
             ax = self.fig.add_subplot(position)
             connectivity = self._prepare_connectivity(i)
-            colors = self._generate_colors(connectivity)
+            colors = self._custom_colormap(connectivity)
             ax.imshow(colors)
             ax.set_xticks(numpy.arange(0, n, 5))
             ax.set_yticks(numpy.arange(0, n, 5))
