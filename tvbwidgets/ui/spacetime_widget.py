@@ -247,7 +247,6 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                 k3d_scheme.append((x, r, g, b))
             return k3d_scheme
 
-
         norm = mcolors.Normalize(vmin=0, vmax=3)
         color_data = color_scheme(norm(connectivity))[:, :, :3]
         return color_data
@@ -282,19 +281,20 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
     def _generate_details(self):
         return f"""<br>
-            <div style="line-height:1px;">
-            <br><h3>PLOT DETAILS</h3> <br><br>
-            <h4>conduction speed:</h4><br> 
-            {self.conduction_speed} mm/ms<br>
-            <h4>min(non-zero) </h4><h4>delay: </h4><br>
-            {numpy.min(self.connectivity.tract_lengths[numpy.nonzero(self.connectivity.tract_lengths)]) / self.conduction_speed} ms<br>
-            <h4>max delay: </h4><br>
-            {numpy.max(self.connectivity.tract_lengths) / self.conduction_speed} ms<br>
-            <h4>min(non-zero) </h4><h4>tract length:</h4> <br>
-            {numpy.min(self.connectivity.tract_lengths[numpy.nonzero(self.connectivity.tract_lengths)])} mm<br>
-            <h4>max tract length: </h4><br>
-            {numpy.max(self.connectivity.tract_lengths, )} mm<br>
-            <h4>min(non-zero) </h4><h4>weight: </h4><br>
-            {numpy.min(self.connectivity.weights[numpy.nonzero(self.connectivity.weights)])}<br>
-            <h4>max weight: </h4><br>
-            {numpy.max(self.connectivity.weights)}<br><br></div>"""
+                    <div style="line-height:1;">
+                    <h3>PLOT DETAILS</h3>
+                    <h4>conduction speed:</h4> 
+                    <p>{self.conduction_speed} mm/ms</p>
+                    <h4>min(non-zero) delay:</h4>
+                    <p>{numpy.min(self.connectivity.tract_lengths[numpy.nonzero(self.connectivity.tract_lengths)]) / self.conduction_speed} ms</p>
+                    <h4>max delay:</h4>
+                    <p>{numpy.max(self.connectivity.tract_lengths) / self.conduction_speed} ms</p>
+                    <h4>min(non-zero) tract length:</h4>
+                    <p>{numpy.min(self.connectivity.tract_lengths[numpy.nonzero(self.connectivity.tract_lengths)])} mm</p>
+                    <h4>max tract length:</h4>
+                    <p>{numpy.max(self.connectivity.tract_lengths, )} mm</p>
+                    <h4>min(non-zero) weight:</h4>
+                    <p>{numpy.min(self.connectivity.weights[numpy.nonzero(self.connectivity.weights)])}</p>
+                    <h4>max weight:</h4>
+                    <p>{numpy.max(self.connectivity.weights)}</p>
+                    </div>"""
