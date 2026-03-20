@@ -113,7 +113,7 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         container1 = widgets.Box([out1], layout=widgets.Layout(
             width='1200px',
-            height='600px',
+            height=f'{int(self.size * 1.2) + 50}px',
             overflow_x='auto',
             overflow_y='auto',
         ))
@@ -252,20 +252,20 @@ class ConnectivityMatrixEditor(TVBWidget):
             matrix = getattr(self.new_connectivity, matrix_name)
             max_val = matrix.max()
             matrix[self.from_row + int(self.row)][self.from_col + int(self.col)] = value
-            if max_val != matrix.max():
-                self._update_matrices_view(self.new_connectivity)
-
             self.cell_value.layout.visibility = "hidden"
             self.change_button.layout.visibility = "hidden"
 
             x = self.layout_offset + self.col * self.cell_size
             y = self.layout_offset + self.row * self.cell_size
 
-            with canvas.hold_canvas(matrix_ui[0]):
-                matrix_ui[0].fill_style = self._generate_color(self.new_connectivity, self.row, self.col,
+            if max_val != matrix.max():
+                self._update_matrices_view(self.new_connectivity)
+            else:
+                with canvas.hold_canvas(matrix_ui[0]):
+                   matrix_ui[0].fill_style = self._generate_color(self.new_connectivity, self.row, self.col,
                                                                self.clicked_matrix, value)
-                matrix_ui[0].fill_rect(x, y, self.cell_size, self.cell_size)
-                matrix_ui[0].stroke_rect(x, y, self.cell_size, self.cell_size)
+                   matrix_ui[0].fill_rect(x, y, self.cell_size, self.cell_size)
+                   matrix_ui[0].stroke_rect(x, y, self.cell_size, self.cell_size)
 
             matrix_ui[5].clear()
 
