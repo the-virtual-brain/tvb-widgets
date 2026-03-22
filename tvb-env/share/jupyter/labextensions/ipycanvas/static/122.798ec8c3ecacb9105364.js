@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkipycanvas=self.webpackChunkipycanvas||[]).push([[122],{122:(e,s,t)=>{t.r(s),t.d(s,{default:()=>c});var a=t(615),i=t(815),n=t(836),r=t(797);const c={id:"ipycanvas:plugin",requires:[a.IJupyterWidgetRegistry],activate:function(e,s){s.registerWidget({name:r.p,version:r.e,exports:Object.assign(Object.assign({},i),n)})},autoStart:!0}}}]);

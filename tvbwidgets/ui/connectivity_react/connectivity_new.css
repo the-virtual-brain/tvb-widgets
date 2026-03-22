@@ -1,0 +1,72 @@
+.conn-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: #f7f7f7;
+  border-radius: 8px;
+  font-family: Arial, sans-serif;
+}
+
+.conn-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.conn-btn {
+  padding: 6px 20px;
+  border: 2px solid #4a90d9;
+  border-radius: 20px;
+  background: white;
+  color: #4a90d9;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.conn-btn:hover { background: #e8f0fb; }
+.conn-btn.active { background: #4a90d9; color: white; }
+
+.conn-btn-clear {
+  padding: 5px 14px;
+  border: 1.5px solid #e74c3c;
+  border-radius: 20px;
+  background: white;
+  color: #e74c3c;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.conn-btn-clear:hover { background: #fdecea; }
+
+/* Fix: use inline-block instead of absolute positioning
+   so the container doesn't collapse */
+.conn-viz {
+  position: relative;
+  display: block;
+  line-height: 0;
+}
+
+/* Fix: canvas is the base layer, sits in normal flow */
+.conn-canvas {
+  display: block;
+}
+
+/* Fix: SVG overlays exactly on top of canvas using absolute */
+.conn-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.conn-info {
+  font-size: 12px;
+  color: #555;
+  min-height: 18px;
+  text-align: center;
+}
