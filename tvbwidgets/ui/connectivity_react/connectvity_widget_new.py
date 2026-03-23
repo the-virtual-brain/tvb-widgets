@@ -17,7 +17,7 @@ _HERE = pathlib.Path(__file__).resolve().parent
 
 
 def _to_flat_list(arr):
-    """Convert numpy array to flat 1D list regardless of shape."""
+    
     if arr is None:
         return []
     a = np.array(arr)
@@ -25,18 +25,14 @@ def _to_flat_list(arr):
 
 
 def _to_list(arr):
-    """Convert numpy array to list, return [] if None."""
+   
     if arr is None:
         return []
     return np.array(arr).tolist()
 
 
 class ConnectivityWidget(ipyreact.Widget):
-    """
-    Connectivity Edge Bundle Widget — Hybrid Canvas + SVG.
-    Drop-in replacement for ConnectivityWidgetReact.
-    """
-
+   
     _esm = _HERE / 'connectivity_new.tsx'
     _css = (_HERE / 'connectivity_new.css').read_text()
 
@@ -70,5 +66,5 @@ class ConnectivityWidget(ipyreact.Widget):
         super().__init__(**kwargs)
 
 
-# Backwards-compatible alias so existing notebooks don't break
+
 ConnectivityWidgetReact = ConnectivityWidget

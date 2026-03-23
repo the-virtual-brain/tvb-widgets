@@ -47,7 +47,6 @@ const STYLES = {
   info:   { fontSize: "12px", color: "#555", minHeight: "18px", textAlign: "center" },
 };
 
-// ─── Build regions — filter by threshold when in tracts mode ─────────────────
 
 function buildRegions(labels, matrix, threshold, mode) {
   const n = labels.length;
@@ -57,8 +56,6 @@ function buildRegions(labels, matrix, threshold, mode) {
       if (i === j) continue;
       const val = matrix[i][j];
       if (val === 0) continue;
-      // For tract_lengths: only include edges where tract >= threshold (min) and <= threshold (max)
-      // threshold is [minVal, maxVal] — user slides to filter range
       if (mode === "tracts" && (val < threshold[0] || val > threshold[1])) continue;
       imports.push(labels[j]);
     }
@@ -66,7 +63,7 @@ function buildRegions(labels, matrix, threshold, mode) {
   });
 }
 
-// ─── bilink ───────────────────────────────────────────────────────────────────
+
 
 function bilink(root) {
   const map = new Map(root.leaves().map(d => [d.data.name, d]));
@@ -83,7 +80,6 @@ function bilink(root) {
   return root;
 }
 
-// ─── Canvas rendering ─────────────────────────────────────────────────────────
 
 function drawEdge(ctx, src, tgt, color, lineGen) {
   const d = lineGen(src.path(tgt));
@@ -119,7 +115,7 @@ function renderEdges(canvas, root, selectedName, lineGen) {
   ctx.restore();
 }
 
-// ─── Compute min/max tract lengths for slider range ───────────────────────────
+
 
 function getTractRange(labels, matrix) {
   const n = labels.length;
@@ -135,7 +131,7 @@ function getTractRange(labels, matrix) {
   return [Math.floor(min), Math.ceil(max)];
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+
 
 export default function Connectivity({ connectivity }) {
   const canvasRef                       = React.useRef(null);
@@ -143,7 +139,7 @@ export default function Connectivity({ connectivity }) {
   const [selectedName, setSelectedName] = React.useState(null);
   const [infoText, setInfoText]         = React.useState("Click a region to highlight its connections.");
 
-  // Tract length slider state — [minThreshold, maxThreshold]
+
   const tractRange   = React.useMemo(() => {
     return getTractRange(connectivity.region_labels, connectivity.tract_lengths);
   }, [connectivity]);
@@ -151,7 +147,7 @@ export default function Connectivity({ connectivity }) {
   const [tractMin, setTractMin] = React.useState(null);
   const [tractMax, setTractMax] = React.useState(null);
 
-  // Initialise slider bounds once tractRange is known
+
   React.useEffect(() => {
     setTractMin(tractRange[0]);
     setTractMax(tractRange[1]);
