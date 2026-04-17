@@ -272,7 +272,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         plt.close(self.fig)
 
     def _prepare_plot_details(self):
-        layout = self.DEFAULT_BORDER
+        layout = {**self.DEFAULT_BORDER}
         layout['min_width'] = "150px"
         self.plot_details = HTML(
             value=self._generate_details(),
