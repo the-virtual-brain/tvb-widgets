@@ -76,8 +76,9 @@ def test_add_options(wid):
     assert wid.options.children[3].value == "None"
 
 
-
-
-    
-
-
+def test_default_border_not_mutated(wid):
+    from tvbwidgets.ui.base_widget import TVBWidget
+    assert 'min_width' not in TVBWidget.DEFAULT_BORDER, (
+        "SpaceTimeVisualizerWidget mutated the shared TVBWidget.DEFAULT_BORDER. "
+        "Use layout = {**self.DEFAULT_BORDER} instead of layout = self.DEFAULT_BORDER."
+    )

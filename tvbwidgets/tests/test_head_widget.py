@@ -126,3 +126,24 @@ def test_head_widget(mocker):
 
     widget.load_selected_file(Sensors, '.txt')
     assert 'Could not load' in widget.message_label.value
+
+
+def test_head_widget_title_renders_class_name(mocker):
+    mocker.patch('k3d.Plot.display', lambda self: None)
+    widget = api.HeadWidget([])
+    html_widget = widget.children[0]
+    assert 'HeadWidget' in html_widget.value
+    assert "<class" not in html_widget.value, (
+        "HeadWidget title is rendering the class object. "
+        "Use HeadWidget.__name__ in the f-string, not HeadWidget directly."
+    )
+
+
+def test_head_widget_accepts_extra_kwargs(mocker):
+    mocker.patch('k3d.Plot.display', lambda self: None)
+    try:
+        widget = api.HeadWidget([], description="test")
+    except TypeError as e:
+        raise AssertionError(
+            f"HeadWidget crashed with extra kwargs — likely *kwargs instead of **kwargs: {e}"
+        )
