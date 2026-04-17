@@ -57,8 +57,8 @@ class HeadWidget(ipywidgets.VBox, TVBWidget):
         Docs
         """
         self.output = ipywidgets.Output(layout=ipywidgets.Layout(width=str(width) + 'px', height=str(height) + 'px'))
-        super(HeadWidget, self).__init__([ipywidgets.HTML(value=f'<h1>{HeadWidget}</h1>'), self.output],
-                                         layout=self.DEFAULT_BORDER, *kwargs)
+        super(HeadWidget, self).__init__([ipywidgets.HTML(value=f'<h1>{HeadWidget.__name__}</h1>'), self.output],
+                                         layout=self.DEFAULT_BORDER, **kwargs)
         self.plot = None
         self.refresh_plot(datatypes)
 
