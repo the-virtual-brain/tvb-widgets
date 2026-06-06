@@ -29,12 +29,10 @@ def test_display(wid):
     assert isinstance(wid, ConnectivityMatrixEditor)
 
 def test_make_header(wid):
-    assert len(wid.header.children) == 5
+    assert len(wid.header.children) == 3
     assert isinstance(wid.header.children[0], widgets.Dropdown)
-    assert isinstance(wid.header.children[1], widgets.Text)
-    assert isinstance(wid.header.children[2], widgets.Button)
-    assert isinstance(wid.header.children[3], widgets.Button)
-    assert isinstance(wid.header.children[4], widgets.Dropdown)
+    assert isinstance(wid.header.children[1], widgets.Button)
+    assert isinstance(wid.header.children[2], widgets.Dropdown)
 
 def test_get_quadrant_range(wid):
     wid._get_quadrant_range(selection = 1)
