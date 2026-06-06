@@ -67,7 +67,7 @@ def generate_ts_with_mode_and_sv(length=5e3, cutoff=500, conn=None):
 
     phi_n_scaling = (jrm.a * jrm.A * (jrm.p_max - jrm.p_min) * 0.5) ** 2 / 2.
     sigma = np.zeros(6)
-    sigma[3] = phi_n_scaling
+    sigma[3] = phi_n_scaling.item()
 
     sim = simulator.Simulator(model=jrm,
                               connectivity=conn,

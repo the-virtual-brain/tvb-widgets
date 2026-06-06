@@ -10,11 +10,11 @@ import pyunicore.client
 from pathlib import Path
 from typing import Callable
 from datetime import datetime
+from importlib.metadata import PackageNotFoundError, version
 from urllib.error import HTTPError
 from pyunicore.helpers.jobs import Description
 from pyunicore.client import JobStatus
 from pyunicore.credentials import AuthenticationFailedException, OIDCToken
-from pkg_resources import get_distribution, DistributionNotFound
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.core.hpc.config import HPCConfig
 from tvbwidgets.core.logger.builder import get_logger
@@ -120,13 +120,13 @@ class HPCLaunch(object):
             LOGGER.info(f'Found tvb-widgets version: {remote_version} remotely!')
 
             try:
-                local_version = get_distribution("tvb-widgets").version
+                local_version = version("tvb-widgets")
                 if remote_version != local_version:
                     LOGGER.info(f"Found a different remote version {remote_version} of tvb-widgets  "
                                 f"installed on the HPC environment, than the local {local_version}, "
                                 f"we will recreate env from Pipy to hopefully match.")
                     return False
-            except DistributionNotFound:
+            except PackageNotFoundError:
                 # If local installation is from sources, then we can not install it remotely from Pypi
                 pass
 
