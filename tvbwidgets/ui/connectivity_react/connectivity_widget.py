@@ -6,41 +6,65 @@
 #
 
 import pathlib
+import numpy as np
 
 import ipyreact
 import traitlets
-from IPython.display import HTML
 
 from .connectivity_model import ConnectivityDTO
 
+_HERE = pathlib.Path(__file__).resolve().parent
 
-class ConnectivityWidgetReact(ipyreact.Widget):
-    _esm = pathlib.Path(__file__).resolve().parent / 'Connectivity.tsx'
-    css_rules = (pathlib.Path(__file__).resolve().parent / 'Connectivity.css').read_text()
-    HTML("<style>" + css_rules + "</style>")
+
+def _to_flat_list(arr):
+    
+    if arr is None:
+        return []
+    a = np.array(arr)
+    return a.flatten().tolist()
+
+
+def _to_list(arr):
+   
+    if arr is None:
+        return []
+    return np.array(arr).tolist()
+
+
+class ConnectivityWidget(ipyreact.Widget):
+   
+    _esm = _HERE / 'connectivity.tsx'
+    _css = (_HERE / 'connectivity.css').read_text()
+
     connectivity = traitlets.Any().tag(sync=True)
 
     def __init__(self, connectivity=None, **kwargs):
+        if connectivity is None:
+            raise ValueError("Please provide a TVB Connectivity object.")
+
         self.connectivity = ConnectivityDTO(
             region_labels=connectivity.region_labels.tolist(),
-            weights=connectivity.weights.tolist(),
-            undirected=connectivity.undirected,
-            tract_lengths=connectivity.tract_lengths.tolist(),
-            speed=connectivity.speed.tolist(),
-            centres=connectivity.centres.tolist(),
-            cortical=connectivity.cortical.tolist(),
-            hemispheres=connectivity.hemispheres.tolist(),
-            orientations=connectivity.orientations.tolist(),
-            areas=connectivity.areas.tolist(),
-            idelays=connectivity.idelays and connectivity.idelays.tolist(),
-            delays=connectivity.delays and connectivity.delays.tolist(),
-            number_of_regions=connectivity.number_of_regions,
-            number_of_connections=connectivity.number_of_connections,
+            weights=_to_list(connectivity.weights),
+            undirected=bool(connectivity.undirected),
+            tract_lengths=_to_list(connectivity.tract_lengths),
+            speed=_to_flat_list(connectivity.speed),
+            centres=_to_list(connectivity.centres),
+            cortical=_to_flat_list(connectivity.cortical),
+            hemispheres=_to_flat_list(connectivity.hemispheres),
+            orientations=_to_list(connectivity.orientations),
+            areas=_to_flat_list(connectivity.areas),
+            # delays and idelays are (n,n) matrices — flatten to 1D for DTO
+            idelays=_to_flat_list(connectivity.idelays),
+            delays=_to_flat_list(connectivity.delays),
+            number_of_regions=int(connectivity.number_of_regions),
+            number_of_connections=int(connectivity.number_of_connections),
             parent_connectivity=connectivity.parent_connectivity,
-            saved_selection=connectivity.saved_selection
+            saved_selection=list(connectivity.saved_selection) if connectivity.saved_selection else [],
         ).trait_values()
-        print('init ConnectivityWidget')
-        if connectivity is None:
-            "Please provide a connectivity"
 
+        print(f"ConnectivityWidget ready — {connectivity.number_of_regions} regions.")
         super().__init__(**kwargs)
+
+
+
+ConnectivityWidgetReact = ConnectivityWidget
