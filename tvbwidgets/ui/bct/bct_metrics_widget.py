@@ -1,4 +1,3 @@
-
 import numpy as np
 import plotly.graph_objects as go
 import matplotlib.cm as cm
@@ -27,6 +26,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
         super().__init__(**kwargs)
         self.connectivity = connectivity if connectivity is not None else Connectivity.from_file()
         self._editor_instance = None
+        self._loaded_matrix_attr = None
         self._build_ui()
         self._register_callbacks()
         self.logger.info("BCTMetricsProjectionWidget initialized.")
@@ -38,6 +38,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
         self.connectivity = datatype
         self.logger.info(f"Connectivity updated: {datatype.gid.hex}")
         self._editor_instance = None
+        self._loaded_matrix_attr = None
         with self._editor_output:
             clear_output(wait=True)
         with self._results_output:
@@ -48,9 +49,24 @@ class BCTMetricsProjectionWidget(TVBWidget):
     def _build_ui(self):
         self._hint = widgets.HTML(
             "<span style='color:#888; font-size:12px'>"
-            "Select an analyzer below to load the connectivity editor."
+            "Load your connectivity below, then pick an analyzer to run on it."
             "</span>"
         )
+
+        self._matrix_label = widgets.HTML("<b>Connectivity</b>")
+        self._matrix_dropdown = widgets.Dropdown(
+            options=[("Weights", "weights"), ("Tract lengths", "tract_lengths")],
+            value="weights",
+            layout=widgets.Layout(width="100%"),
+        )
+
+        self._load_btn = widgets.Button(
+            description="Edit connectivity",
+            button_style="primary",
+            layout=widgets.Layout(width="180px", margin="8px 0"),
+        )
+
+        self._editor_output = widgets.Output()
 
         group_names = list(ANALYZER_GROUPS.keys())
         self._group_label = widgets.HTML("<b>Analyzer group</b>")
@@ -68,14 +84,6 @@ class BCTMetricsProjectionWidget(TVBWidget):
 
         self._desc_label = widgets.HTML(value=self._current_description_html())
 
-        self._load_btn = widgets.Button(
-            description="Load",
-            button_style="primary",
-            icon="play",
-            layout=widgets.Layout(width="160px", margin="8px 0"),
-        )
-
-        self._editor_output = widgets.Output()
         self._results_output = widgets.Output()
         self._dialog_output = widgets.Output()
         self._status = widgets.HTML("")
@@ -91,14 +99,16 @@ class BCTMetricsProjectionWidget(TVBWidget):
 
         self._ui = widgets.VBox([
             self._hint,
+            self._matrix_label,
+            self._matrix_dropdown,
+            self._load_btn,
+            self._editor_output,
+            self._divider,
             self._group_label,
             self._group_dropdown,
             self._analyzer_label,
             self._analyzer_dropdown,
             self._desc_label,
-            self._load_btn,
-            self._divider,
-            self._editor_output,
             self._divider,
             widgets.HBox([self._run_btn, self._status]),
             self._dialog_output,
@@ -154,8 +164,15 @@ class BCTMetricsProjectionWidget(TVBWidget):
             self._run_btn.disabled = False
             return
 
-        connectivity = ed.get_connectivity()
         analyzer_name = self._analyzer_dropdown.value
+        required_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
+
+        if self._loaded_matrix_attr != required_attr:
+            self._status.value = ""
+            self._show_matrix_mismatch_dialog(analyzer_name, required_attr)
+            return
+
+        connectivity = ed.get_connectivity()
         target_matrix = self._get_analyzer_matrix(connectivity, analyzer_name)
 
         issues = self._validate_global(target_matrix, analyzer_name)
@@ -257,6 +274,67 @@ class BCTMetricsProjectionWidget(TVBWidget):
 
         dialog_box = widgets.VBox(
             [message_html, widgets.HBox([continue_btn, cancel_btn])],
+            layout=widgets.Layout(
+                border="1px solid #555",
+                border_radius="4px",
+                padding="10px",
+                margin="8px 0",
+                background="#2e2e2e",
+            ),
+        )
+
+        with self._dialog_output:
+            clear_output(wait=True)
+            display(dialog_box)
+
+    def _matrix_label_text(self, matrix_attr):
+        return "tract lengths" if matrix_attr == "tract_lengths" else "weights"
+
+    def _show_matrix_mismatch_dialog(self, analyzer_name, required_attr):
+        loaded_label = self._matrix_label_text(self._loaded_matrix_attr)
+        required_label = self._matrix_label_text(required_attr)
+
+        message_html = widgets.HTML(
+            "<div style='background:#3a3a3a; border:1px solid #555; "
+            "border-radius:4px; padding:10px 14px; color:#ffffff; font-size:13px;'>"
+            f"<b>{analyzer_name}</b> needs the <b>{required_label}</b> connectivity, "
+            f"but you've loaded and edited the <b>{loaded_label}</b> matrix. "
+            "Switch the editor to the correct matrix before running."
+            "</div>"
+        )
+
+        switch_btn = widgets.Button(
+            description=f"Load {required_label} editor",
+            button_style="",
+            layout=widgets.Layout(width="220px", margin="8px 8px 0 0"),
+        )
+        cancel_btn = widgets.Button(
+            description="Cancel",
+            button_style="",
+            layout=widgets.Layout(width="100px", margin="8px 0 0 0"),
+        )
+
+        def _on_switch(b):
+            with self._dialog_output:
+                clear_output()
+            with self._results_output:
+                clear_output()
+            self._matrix_dropdown.value = required_attr
+            self._show_editor(self.connectivity)
+            self._status.value = ""
+            self._run_btn.disabled = False
+
+        def _on_cancel(b):
+            with self._dialog_output:
+                clear_output()
+            self._status.value = "<span style='color:gray'>Cancelled.</span>"
+            self._run_btn.disabled = False
+
+        switch_btn.on_click(_on_switch)
+        cancel_btn.on_click(_on_cancel)
+
+        dialog_box = widgets.VBox(
+            [message_html, widgets.HBox([switch_btn, cancel_btn])],
             layout=widgets.Layout(
                 border="1px solid #555",
                 border_radius="4px",
@@ -556,17 +634,22 @@ class BCTMetricsProjectionWidget(TVBWidget):
         analyzer_name = self._analyzer_dropdown.value if hasattr(self, "_analyzer_dropdown") else None
         if analyzer_name is None or analyzer_name not in BCT_METRICS:
             return "<i style='color:gray'><b>Select an analyzer to see its description.</b></i>"
-        return f"<i style='color:gray'><b>{BCT_METRICS[analyzer_name]['description']}</b></i>"
+        matrix_attr = BCT_METRICS[analyzer_name].get("matrix_attr", "weights")
+        matrix_label = self._matrix_label_text(matrix_attr)
+        return (
+            f"<i style='color:gray'><b>{BCT_METRICS[analyzer_name]['description']}</b></i>"
+            f"<br><span style='color:#888; font-size:11px'>Uses the {matrix_label} matrix.</span>"
+        )
 
     def _show_editor(self, connectivity):
-        analyzer_name = self._analyzer_dropdown.value
-        matrix_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
+        matrix_attr = self._matrix_dropdown.value
         editor_cls = BCTTractLengthsMatrixEditor if matrix_attr == "tract_lengths" else BCTConnectivityMatrixEditor
 
         with self._editor_output:
             clear_output(wait=True)
             ed = editor_cls(connectivity)
             self._editor_instance = ed
+            self._loaded_matrix_attr = matrix_attr
             ed.display()
 
     def _log_connectivity_diff(self, connectivity, analyzer_name):
