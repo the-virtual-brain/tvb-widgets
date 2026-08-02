@@ -10,7 +10,9 @@ jobs:
   build:
     name: Run notebooks
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
+
       fail-fast: false
 #    env:
 #      ACTIONS_RUNNER_DEBUG: true
