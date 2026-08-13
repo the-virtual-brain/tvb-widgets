@@ -47,9 +47,16 @@ class BCTMetricsProjectionWidget(TVBWidget):
             clear_output(wait=True)
 
     def _build_ui(self):
+        self._title = widgets.HTML(
+            "<h3 style='margin-bottom:4px'>BCT Metrics Projection</h3>"
+            "<span style='color:#555; font-size:14px';font-weight:600;'>"
+            "Compute Brain Connectivity Toolbox (BCT) metrics on brain connectivity and visualize the network properties."
+            "</span>"
+        )
+
         self._hint = widgets.HTML(
             "<span style='color:#888; font-size:12px'>"
-            "Load your connectivity below, then pick an analyzer to run on it."
+            "Use 'Edit connectivity' below to review or modify the matrix, hit 'Save' then pick an analyzer to run on it."
             "</span>"
         )
 
@@ -98,6 +105,8 @@ class BCTMetricsProjectionWidget(TVBWidget):
         self._divider = widgets.HTML("<hr style='margin: 12px 0; border-color: #ddd'>")
 
         self._ui = widgets.VBox([
+            self._title,
+            self._divider,
             self._hint,
             self._matrix_label,
             self._matrix_dropdown,
@@ -120,13 +129,6 @@ class BCTMetricsProjectionWidget(TVBWidget):
         self._analyzer_dropdown.observe(self._on_analyzer_change, names="value")
         self._load_btn.on_click(self._on_load)
         self._run_btn.on_click(self._on_run)
-
-        with self._editor_output:
-            display(widgets.HTML(
-                "<span style='color:#888; font-size:12px'>"
-                "Edit connectivity values, then hit Save before running."
-                "</span>"
-            ))
 
     def _on_group_change(self, change):
         new_group = change["new"]
@@ -159,7 +161,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
         ed = self._editor_instance
         if ed is None:
             self._status.value = (
-                "<span style='color:red'>Hit Load first to load the connectivity editor.</span>"
+                "<span style='color:red'>Click 'Edit connectivity' first to load the connectivity editor.</span>"
             )
             self._run_btn.disabled = False
             return
@@ -558,7 +560,6 @@ class BCTMetricsProjectionWidget(TVBWidget):
         display(widgets.VBox([selector, view_output]))
 
     def _render_single_matrix(self, matrix, connectivity, analyzer_name, label):
-        """NxN pairwise matrix -> square heatmap with region labels on both axes."""
         matrix = np.array(matrix, dtype=float)
         region_labels = list(connectivity.region_labels)
         n = len(region_labels)
@@ -661,18 +662,10 @@ class BCTMetricsProjectionWidget(TVBWidget):
         if len(changed) == 0:
             print(f"Using default {matrix_attr} (no edits detected)")
         else:
-            print(f"Using edited {matrix_attr} — {len(changed)} cell(s) modified:")
-            for row, col in changed:
-                orig_val   = original[row, col]
-                edited_val = current[row, col]
-                label_row  = connectivity.region_labels[row]
-                label_col  = connectivity.region_labels[col]
-                print(f"  [{label_row}] → [{label_col}]  {orig_val:.4f} → {edited_val:.4f}")
+            print(f"Using edited {matrix_attr} — {len(changed)} cell(s) modified")
         print("─" * 40)
 
     def _plot_histogram(self, region_labels, node_values, analyzer_name):
-        """Region-indexed per-node values -> publication-style bar chart.
-        """
         values = np.array(node_values, dtype=float)
         values[np.isinf(values)] = 0
 
