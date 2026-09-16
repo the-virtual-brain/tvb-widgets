@@ -1,7 +1,6 @@
 import numpy as np
 import plotly.graph_objects as go
-import matplotlib.cm as cm
-import matplotlib.colors as mcolors
+import matplotlib
 import ipywidgets as widgets
 import traceback
 from IPython.display import display, clear_output
@@ -678,12 +677,12 @@ class BCTMetricsProjectionWidget(TVBWidget):
         sorted_labels = np.array(region_labels)[sort_idx]
 
         if min_val < mean_val < max_val:
-            norm = mcolors.TwoSlopeNorm(vmin=min_val, vcenter=mean_val, vmax=max_val)
+            norm = matplotlib.colors.TwoSlopeNorm(vmin=min_val, vcenter=mean_val, vmax=max_val)
         elif min_val == max_val:
-            norm = mcolors.Normalize(vmin=min_val - 0.5, vmax=max_val + 0.5)
+            norm = matplotlib.colors.Normalize(vmin=min_val - 0.5, vmax=max_val + 0.5)
         else:
-            norm = mcolors.Normalize(vmin=min_val, vmax=max_val)
-        cmap = cm.get_cmap("RdYlBu_r")
+            norm = matplotlib.colors.Normalize(vmin=min_val, vmax=max_val)
+        cmap = matplotlib.colormaps["RdYlBu_r"]
         bar_colors = [
             f"rgba({int(r*255)},{int(g*255)},{int(b*255)},{a:.2f})"
             for r, g, b, a in [cmap(norm(v)) for v in sorted_vals]
