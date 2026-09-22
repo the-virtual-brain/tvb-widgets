@@ -46,13 +46,6 @@ class BCTMetricsProjectionWidget(TVBWidget):
             clear_output(wait=True)
 
     def _build_ui(self):
-        self._title = widgets.HTML(
-            "<h3 style='margin-bottom:4px'>BCT Metrics Projection</h3>"
-            "<span style='color:#555; font-size:14px';font-weight:600;'>"
-            "Compute Brain Connectivity Toolbox (BCT) metrics on brain connectivity and visualize the network properties."
-            "</span>"
-        )
-
         self._hint = widgets.HTML(
             "<span style='color:#888; font-size:12px'>"
             "Use 'Edit connectivity' below to review or modify the matrix, hit 'Save' then pick an analyzer to run on it."
@@ -104,8 +97,6 @@ class BCTMetricsProjectionWidget(TVBWidget):
         self._divider = widgets.HTML("<hr style='margin: 12px 0; border-color: #ddd'>")
 
         self._ui = widgets.VBox([
-            self._title,
-            self._divider,
             self._hint,
             self._matrix_label,
             self._matrix_dropdown,
