@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 import matplotlib
 import ipywidgets as widgets
 import traceback
+import copy
 from IPython.display import display, clear_output
 
 from tvb.datatypes.connectivity import Connectivity
@@ -208,23 +209,33 @@ class BCTMetricsProjectionWidget(TVBWidget):
             fixed[fixed < 0] = 0
         return fixed
 
-    def _validation_dialog_text(self, issues):
+    def _validation_dialog_text(self, issues, analyzer_name):
         messages = []
         if "self_loops" in issues:
             messages.append(
-                "Self-loops detected — the diagonal of the connectivity matrix has non-zero values."
+                "Self-self connections detected: the main diagonal of this matrix has non-zero values.<br>"
+                f"BCT network matrices should not contain self-self connections, so <b>{analyzer_name}</b> "
+                "needs all values on the main diagonal set to 0.<br>"
+                "The diagonal will be set to 0 for this analysis."
             )
         if "negative_weights" in issues:
             messages.append(
-                "Negative weights detected — this analyzer does not support negative weights."
+                "Negative weights detected: this matrix contains values below 0.<br>"
+                f"<b>{analyzer_name}</b> does not support negative weights. "
+                "The matrix must only contain values of 0 or above.<br>"
+                "The negative values will be set to 0 for this analysis."
             )
-        return "<br>".join(messages)
+        messages.append(
+            "<span style='color:#ff6b6b'>* Your default or saved matrix will not change "
+            "unless you press 'Save' in the editor.</span>"
+        )
+        return "<br><br>".join(messages)
 
     def _validation_fix_label(self, issues):
         if "self_loops" in issues and "negative_weights" in issues:
-            return "Remove self-loops & negative weights, continue"
+            return "Remove self-self connections & negative weights, continue"
         elif "self_loops" in issues:
-            return "Remove self-loops & continue"
+            return "Remove self-self connections & continue"
         else:
             return "Remove negative weights & continue"
 
@@ -232,14 +243,14 @@ class BCTMetricsProjectionWidget(TVBWidget):
         message_html = widgets.HTML(
             "<div style='background:#3a3a3a; border:1px solid #555; "
             "border-radius:4px; padding:10px 14px; color:#ffffff; font-size:13px;'>"
-            + self._validation_dialog_text(issues) +
+            + self._validation_dialog_text(issues, analyzer_name) +
             "</div>"
         )
 
         continue_btn = widgets.Button(
             description=self._validation_fix_label(issues),
             button_style="",
-            layout=widgets.Layout(width="280px", margin="8px 8px 0 0"),
+            layout=widgets.Layout(width="320px", margin="8px 8px 0 0"),
         )
         cancel_btn = widgets.Button(
             description="Cancel",
@@ -251,9 +262,20 @@ class BCTMetricsProjectionWidget(TVBWidget):
             with self._dialog_output:
                 clear_output()
             matrix_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
-            sanitized = self._sanitize_weights(getattr(connectivity, matrix_attr), issues)
-            setattr(connectivity, matrix_attr, sanitized)
-            self._execute_analysis(connectivity, analyzer_name)
+            ed = self._editor_instance
+            had_unsaved = self._has_unsaved_edits(ed, matrix_attr)
+
+            fixed_conn = copy.copy(connectivity)
+            setattr(fixed_conn, matrix_attr,
+                    self._sanitize_weights(getattr(connectivity, matrix_attr), issues))
+
+            draft = self._sanitize_weights(getattr(ed.new_connectivity, matrix_attr), issues)
+            setattr(ed.new_connectivity, matrix_attr, draft)
+            ed.is_connectivity_being_edited = True
+            ed._update_matrices_view(ed.new_connectivity)
+
+            self._execute_analysis(fixed_conn, analyzer_name, source_conn=connectivity,
+                                   applied_fixes=issues, had_unsaved=had_unsaved)
 
         def _on_cancel(b):
             with self._dialog_output:
@@ -354,7 +376,8 @@ class BCTMetricsProjectionWidget(TVBWidget):
         matrix_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
         return getattr(connectivity, matrix_attr)
 
-    def _execute_analysis(self, connectivity, analyzer_name):
+    def _execute_analysis(self, connectivity, analyzer_name, source_conn=None,
+                          applied_fixes=None, had_unsaved=None):
         try:
             spec = BCT_METRICS[analyzer_name]
             raw_result = spec["fn"](connectivity)
@@ -362,7 +385,9 @@ class BCTMetricsProjectionWidget(TVBWidget):
 
             with self._results_output:
                 clear_output(wait=True)
-                self._log_connectivity_diff(connectivity, analyzer_name)
+                self._log_analysis_source(
+                    source_conn if source_conn is not None else connectivity,
+                    analyzer_name, applied_fixes, had_unsaved)
                 self._render_results(components, spec.get("labels", []), connectivity,
                                       analyzer_name, spec["func_name"])
 
@@ -643,16 +668,50 @@ class BCTMetricsProjectionWidget(TVBWidget):
             self._loaded_matrix_attr = matrix_attr
             ed.display()
 
-    def _log_connectivity_diff(self, connectivity, analyzer_name):
-        matrix_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
-        current  = getattr(connectivity, matrix_attr)
-        original = getattr(self.connectivity, matrix_attr)
-        diff     = current - original
-        changed  = np.argwhere(diff != 0)
-        if len(changed) == 0:
-            print(f"Using default {matrix_attr} (no edits detected)")
+    def _has_unsaved_edits(self, ed, matrix_attr):
+        return not np.array_equal(getattr(ed.new_connectivity, matrix_attr),
+                                  getattr(ed.get_connectivity(), matrix_attr))
+
+    def _applied_fixes_text(self, issues):
+        parts = []
+        if "self_loops" in issues:
+            parts.append("self-self connections removed")
+        if "negative_weights" in issues:
+            parts.append("negative weights set to 0")
+        return " and ".join(parts)
+
+    def _source_text(self, source_conn, matrix_attr):
+        label = self._matrix_label_text(matrix_attr)
+        if source_conn is self.connectivity:
+            return f"default {label}"
+        changed = np.argwhere(getattr(source_conn, matrix_attr) != getattr(self.connectivity, matrix_attr))
+        return f"saved {label} ({len(changed)} cell(s) changed from default)"
+
+    def _analysis_source_lines(self, source_conn, matrix_attr, applied_fixes, had_unsaved):
+        source = self._source_text(source_conn, matrix_attr)
+        if not applied_fixes:
+            lines = [f"Analysis used the {source}."]
+            if had_unsaved:
+                lines.append("Your unsaved cell changes in the editor were not used in this analysis. "
+                             "Press 'Save' and run again to include them.")
+            return lines
+
+        fixes = self._applied_fixes_text(applied_fixes)
+        lines = [f"Analysis used the {source}, with {fixes}."]
+        if had_unsaved:
+            lines.append("Your unsaved cell changes were not used in this analysis.")
+            lines.append(f"The editor now shows {fixes} on top of your unsaved changes. "
+                         "Press 'Save' to keep them together.")
         else:
-            print(f"Using edited {matrix_attr} — {len(changed)} cell(s) modified")
+            lines.append(f"The editor now shows {fixes}, not saved yet. Press 'Save' to keep this.")
+        return lines
+
+    def _log_analysis_source(self, source_conn, analyzer_name, applied_fixes=None, had_unsaved=None):
+        matrix_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
+        if had_unsaved is None:
+            had_unsaved = self._has_unsaved_edits(self._editor_instance, matrix_attr)
+        for line in self._analysis_source_lines(source_conn, matrix_attr, applied_fixes, had_unsaved):
+            print(line)
         print("─" * 40)
 
     def _plot_histogram(self, region_labels, node_values, analyzer_name):
