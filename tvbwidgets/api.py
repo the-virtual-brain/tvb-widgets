@@ -18,6 +18,7 @@ from .ui.ts.plotly_ts_widget import TimeSeriesWidgetPlotly
 from .ui.ts.ts_widget_browser import TimeSeriesBrowser
 from .ui.pse_widget import PSEWidget
 from .ui.pse_launcher_widget import PSELauncher
+from .ui.bct.bct_metrics_widget import BCTMetricsProjectionWidget
 from tvbwidgets.core.hpc.config import HPCConfig
 from IPython.core.display_functions import display
 from tvb.datatypes.time_series import TimeSeries
