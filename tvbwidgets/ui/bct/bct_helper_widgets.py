@@ -14,15 +14,6 @@ class BCTConnectivityMatrixEditor(ConnectivityMatrixEditor):
         self.tab.children = [self.tab.children[0]]
         self.tab.set_title(0, "weights")
 
-class BCTTractLengthsMatrixEditor(ConnectivityMatrixEditor):
-    """ConnectivityMatrixEditor stripped to tract_lengths tab only.
-    """
-
-    def __init__(self, connectivity, **kwargs):
-        super().__init__(connectivity, **kwargs)
-        self.tab.children = [self.tab.children[1]]
-        self.tab.set_title(0, "tract_lengths")
-
 class ColoredConnectivityHeadWidget(HeadWidget):
     """HeadWidget with per-node coloring driven by BCT metric values."""
 

@@ -12,7 +12,6 @@ from tvbwidgets import get_logger
 from tvbwidgets.ui.bct.bct_metrics_data import BCT_METRICS, ANALYZER_GROUPS, NETWORK_VECTOR_OVERRIDES
 from tvbwidgets.ui.bct.bct_helper_widgets import (
     BCTConnectivityMatrixEditor,
-    BCTTractLengthsMatrixEditor,
     ColoredConnectivityHeadWidget,
 )
 from tvbwidgets.ui.bct.bct_compat import apply_bct_patches
@@ -26,10 +25,9 @@ class BCTMetricsProjectionWidget(TVBWidget):
         super().__init__(**kwargs)
         self.connectivity = connectivity if connectivity is not None else Connectivity.from_file()
         self._editor_instance = None
-        self._loaded_matrix_attr = None
         self._build_ui()
         self._register_callbacks()
-        self._refresh_run_state()
+        self._show_editor(self.connectivity)
         self.logger.info("BCTMetricsProjectionWidget initialized.")
 
     def add_datatype(self, datatype):
@@ -38,37 +36,25 @@ class BCTMetricsProjectionWidget(TVBWidget):
             raise ValueError(f"Expected Connectivity, got {type(datatype)}")
         self.connectivity = datatype
         self.logger.info(f"Connectivity updated: {datatype.gid.hex}")
-        self._editor_instance = None
-        self._loaded_matrix_attr = None
-        with self._editor_output:
-            clear_output(wait=True)
+        self._status.value = ""
         with self._results_output:
             clear_output(wait=True)
         with self._dialog_output:
             clear_output(wait=True)
-        self._refresh_run_state()
+        self._show_editor(self.connectivity)
 
     def _build_ui(self):
         dropdown_width = "320px"
 
         self._hint = widgets.HTML(
-            "<span style='color:#888; font-size:12px'>"
-            "Use 'Edit connectivity' below to review or modify the matrix, hit 'Save' then pick an analyzer to run on it."
-            "</span>"
+            "<div style='font-size:13px; padding:8px 12px; margin:4px 0 8px 0; "
+            "border-left:4px solid var(--jp-brand-color1, #2196f3); "
+            "background:rgba(33, 150, 243, 0.08); border-radius:2px;'>"
+            "Review or modify the weights matrix below, hit 'Save', then pick an analyzer to run on it."
+            "</div>"
         )
 
         self._matrix_label = widgets.HTML("<b>Connectivity</b>")
-        self._matrix_dropdown = widgets.Dropdown(
-            options=[("Weights", "weights"), ("Tract lengths", "tract_lengths")],
-            value="weights",
-            layout=widgets.Layout(width=dropdown_width),
-        )
-
-        self._load_btn = widgets.Button(
-            description="Edit connectivity",
-            button_style="primary",
-            layout=widgets.Layout(width="180px", margin="8px 0"),
-        )
 
         self._editor_output = widgets.Output()
 
@@ -104,10 +90,9 @@ class BCTMetricsProjectionWidget(TVBWidget):
         self._divider = widgets.HTML("<hr style='margin: 12px 0; border-color: #ddd'>")
 
         self._ui = widgets.VBox([
+            self._divider,
             self._hint,
             self._matrix_label,
-            self._matrix_dropdown,
-            self._load_btn,
             self._editor_output,
             self._divider,
             self._group_label,
@@ -125,7 +110,6 @@ class BCTMetricsProjectionWidget(TVBWidget):
     def _register_callbacks(self):
         self._group_dropdown.observe(self._on_group_change, names="value")
         self._analyzer_dropdown.observe(self._on_analyzer_change, names="value")
-        self._load_btn.on_click(self._on_load)
         self._run_btn.on_click(self._on_run)
 
     def _on_group_change(self, change):
@@ -143,14 +127,6 @@ class BCTMetricsProjectionWidget(TVBWidget):
             clear_output()
         self._refresh_run_state()
 
-    def _on_load(self, btn):
-        self._status.value = ""
-        self._show_editor(self.connectivity)
-        with self._results_output:
-            clear_output()
-        with self._dialog_output:
-            clear_output()
-
     def _on_run(self, btn):
         if self._has_undirected_mismatch():
             self._refresh_run_state()
@@ -167,26 +143,10 @@ class BCTMetricsProjectionWidget(TVBWidget):
         with self._dialog_output:
             clear_output(wait=True)
 
-        ed = self._editor_instance
-        if ed is None:
-            self._status.value = (
-                "<span style='color:red'>Click 'Edit connectivity' first to load the connectivity editor.</span>"
-            )
-            self._refresh_run_state()
-            return
-
         analyzer_name = self._analyzer_dropdown.value
-        required_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
-
-        if self._loaded_matrix_attr != required_attr:
-            self._status.value = ""
-            self._show_matrix_mismatch_dialog(analyzer_name, required_attr)
-            return
-
         connectivity = self._current_connectivity()
-        target_matrix = self._get_analyzer_matrix(connectivity, analyzer_name)
 
-        issues = self._validate_global(target_matrix, analyzer_name)
+        issues = self._validate_global(connectivity.weights, analyzer_name)
         if issues:
             self._status.value = ""
             self._show_validation_dialog(issues, connectivity, analyzer_name)
@@ -268,16 +228,13 @@ class BCTMetricsProjectionWidget(TVBWidget):
         def _on_continue(b):
             with self._dialog_output:
                 clear_output()
-            matrix_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
             ed = self._editor_instance
-            had_unsaved = self._has_unsaved_edits(ed, matrix_attr)
+            had_unsaved = self._has_unsaved_edits(ed)
 
             fixed_conn = copy.copy(connectivity)
-            setattr(fixed_conn, matrix_attr,
-                    self._sanitize_weights(getattr(connectivity, matrix_attr), issues))
+            fixed_conn.weights = self._sanitize_weights(connectivity.weights, issues)
 
-            draft = self._sanitize_weights(getattr(ed.new_connectivity, matrix_attr), issues)
-            setattr(ed.new_connectivity, matrix_attr, draft)
+            ed.new_connectivity.weights = self._sanitize_weights(ed.new_connectivity.weights, issues)
             ed.is_connectivity_being_edited = True
             ed._update_matrices_view(ed.new_connectivity)
 
@@ -295,67 +252,6 @@ class BCTMetricsProjectionWidget(TVBWidget):
 
         dialog_box = widgets.VBox(
             [message_html, widgets.HBox([continue_btn, cancel_btn])],
-            layout=widgets.Layout(
-                border="1px solid #555",
-                border_radius="4px",
-                padding="10px",
-                margin="8px 0",
-                background="#2e2e2e",
-            ),
-        )
-
-        with self._dialog_output:
-            clear_output(wait=True)
-            display(dialog_box)
-
-    def _matrix_label_text(self, matrix_attr):
-        return "tract lengths" if matrix_attr == "tract_lengths" else "weights"
-
-    def _show_matrix_mismatch_dialog(self, analyzer_name, required_attr):
-        loaded_label = self._matrix_label_text(self._loaded_matrix_attr)
-        required_label = self._matrix_label_text(required_attr)
-
-        message_html = widgets.HTML(
-            "<div style='background:#3a3a3a; border:1px solid #555; "
-            "border-radius:4px; padding:10px 14px; color:#ffffff; font-size:13px;'>"
-            f"<b>{analyzer_name}</b> needs the <b>{required_label}</b> connectivity, "
-            f"but you've loaded and edited the <b>{loaded_label}</b> matrix. "
-            "Switch the editor to the correct matrix before running."
-            "</div>"
-        )
-
-        switch_btn = widgets.Button(
-            description=f"Load {required_label} editor",
-            button_style="",
-            layout=widgets.Layout(width="220px", margin="8px 8px 0 0"),
-        )
-        cancel_btn = widgets.Button(
-            description="Cancel",
-            button_style="",
-            layout=widgets.Layout(width="100px", margin="8px 0 0 0"),
-        )
-
-        def _on_switch(b):
-            with self._dialog_output:
-                clear_output()
-            with self._results_output:
-                clear_output()
-            self._matrix_dropdown.value = required_attr
-            self._show_editor(self.connectivity)
-            self._status.value = ""
-            self._refresh_run_state()
-
-        def _on_cancel(b):
-            with self._dialog_output:
-                clear_output()
-            self._status.value = "<span style='color:gray'>Cancelled.</span>"
-            self._refresh_run_state()
-
-        switch_btn.on_click(_on_switch)
-        cancel_btn.on_click(_on_cancel)
-
-        dialog_box = widgets.VBox(
-            [message_html, widgets.HBox([switch_btn, cancel_btn])],
             layout=widgets.Layout(
                 border="1px solid #555",
                 border_radius="4px",
@@ -397,10 +293,6 @@ class BCTMetricsProjectionWidget(TVBWidget):
             self._undirected_warning.value = ""
             self._run_btn.disabled = False
 
-    def _get_analyzer_matrix(self, connectivity, analyzer_name):
-        matrix_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
-        return getattr(connectivity, matrix_attr)
-
     def _execute_analysis(self, connectivity, analyzer_name, source_conn=None,
                           applied_fixes=None, had_unsaved=None):
         try:
@@ -412,7 +304,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
                 clear_output(wait=True)
                 self._log_analysis_source(
                     source_conn if source_conn is not None else connectivity,
-                    analyzer_name, applied_fixes, had_unsaved)
+                    applied_fixes, had_unsaved)
                 self._render_results(components, spec.get("labels", []), connectivity,
                                       analyzer_name, spec["func_name"])
 
@@ -675,29 +567,19 @@ class BCTMetricsProjectionWidget(TVBWidget):
         analyzer_name = self._analyzer_dropdown.value if hasattr(self, "_analyzer_dropdown") else None
         if analyzer_name is None or analyzer_name not in BCT_METRICS:
             return "<i style='color:gray'><b>Select an analyzer to see its description.</b></i>"
-        matrix_attr = BCT_METRICS[analyzer_name].get("matrix_attr", "weights")
-        matrix_label = self._matrix_label_text(matrix_attr)
-        return (
-            f"<i style='color:gray'><b>{BCT_METRICS[analyzer_name]['description']}</b></i>"
-            f"<br><span style='color:#888; font-size:11px'>Uses the {matrix_label} matrix.</span>"
-        )
+        return f"<i style='color:gray'><b>{BCT_METRICS[analyzer_name]['description']}</b></i>"
 
     def _show_editor(self, connectivity):
-        matrix_attr = self._matrix_dropdown.value
-        editor_cls = BCTTractLengthsMatrixEditor if matrix_attr == "tract_lengths" else BCTConnectivityMatrixEditor
-
         with self._editor_output:
             clear_output(wait=True)
-            ed = editor_cls(connectivity)
+            ed = BCTConnectivityMatrixEditor(connectivity)
             self._editor_instance = ed
-            self._loaded_matrix_attr = matrix_attr
             ed.display()
 
         self._refresh_run_state()
 
-    def _has_unsaved_edits(self, ed, matrix_attr):
-        return not np.array_equal(getattr(ed.new_connectivity, matrix_attr),
-                                  getattr(ed.get_connectivity(), matrix_attr))
+    def _has_unsaved_edits(self, ed):
+        return not np.array_equal(ed.new_connectivity.weights, ed.get_connectivity().weights)
 
     def _applied_fixes_text(self, issues):
         parts = []
@@ -707,15 +589,14 @@ class BCTMetricsProjectionWidget(TVBWidget):
             parts.append("negative weights set to 0")
         return " and ".join(parts)
 
-    def _source_text(self, source_conn, matrix_attr):
-        label = self._matrix_label_text(matrix_attr)
+    def _source_text(self, source_conn):
         if source_conn is self.connectivity:
-            return f"default {label}"
-        changed = np.argwhere(getattr(source_conn, matrix_attr) != getattr(self.connectivity, matrix_attr))
-        return f"saved {label} ({len(changed)} cell(s) changed from default)"
+            return "default weights"
+        changed = np.argwhere(source_conn.weights != self.connectivity.weights)
+        return f"saved weights ({len(changed)} cell(s) changed from default)"
 
-    def _analysis_source_lines(self, source_conn, matrix_attr, applied_fixes, had_unsaved):
-        source = self._source_text(source_conn, matrix_attr)
+    def _analysis_source_lines(self, source_conn, applied_fixes, had_unsaved):
+        source = self._source_text(source_conn)
         if not applied_fixes:
             lines = [f"Analysis used the {source}."]
             if had_unsaved:
@@ -733,11 +614,10 @@ class BCTMetricsProjectionWidget(TVBWidget):
             lines.append(f"The editor now shows {fixes}, not saved yet. Press 'Save' to keep this.")
         return lines
 
-    def _log_analysis_source(self, source_conn, analyzer_name, applied_fixes=None, had_unsaved=None):
-        matrix_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
+    def _log_analysis_source(self, source_conn, applied_fixes=None, had_unsaved=None):
         if had_unsaved is None:
-            had_unsaved = self._has_unsaved_edits(self._editor_instance, matrix_attr)
-        for line in self._analysis_source_lines(source_conn, matrix_attr, applied_fixes, had_unsaved):
+            had_unsaved = self._has_unsaved_edits(self._editor_instance)
+        for line in self._analysis_source_lines(source_conn, applied_fixes, had_unsaved):
             print(line)
         print("─" * 40)
 
