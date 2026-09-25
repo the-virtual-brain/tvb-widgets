@@ -24,7 +24,7 @@ BCT_METRICS = {
     "ModularityOpCSMU": {
         "description": short_doc(bct.modularity_und.__doc__),
         "func_name": "modularity_und",
-        "undirected": True,
+        "undirected": False,
         "fn": lambda c: bct.modularity_und(c.weights),
         "labels": ["Optimal Community Structure", "Maximized Modularity"],
     },
@@ -93,7 +93,7 @@ BCT_METRICS = {
     "CentralityKCoreness": {
         "description": short_doc(bct.kcoreness_centrality_bu.__doc__),
         "func_name": "kcoreness_centrality_bu",
-        "undirected": False,
+        "undirected": True,
         "fn": lambda c: bct.kcoreness_centrality_bu(c.binarized_weights),
         "labels": ["Node coreness (BU)", "Size of k-core"],
     },
@@ -132,7 +132,7 @@ BCT_METRICS = {
     "ParticipationCoefficentSign": {
         "description": short_doc(bct.participation_coef_sign.__doc__),
         "func_name": "participation_coef_sign",
-        "undirected": True,
+        "undirected": False,
         "fn": lambda c: bct.participation_coef_sign(c.weights, bct.modularity_dir(c.weights)[0]),
         "labels": [
             "Participation Coefficient (positive weights)",
@@ -199,7 +199,7 @@ BCT_METRICS = {
     "Degree": {
         "description": short_doc(bct.degrees_und.__doc__),
         "func_name": "degrees_und",
-        "undirected": True,
+        "undirected": False,
         "fn": lambda c: bct.degrees_und(c.weights),
     },
     "DegreeIOD": {
@@ -249,7 +249,7 @@ BCT_METRICS = {
     "DensityUndirected": {
         "description": short_doc(bct.density_und.__doc__),
         "func_name": "density_und",
-        "undirected": True,
+        "undirected": False,
         "fn": lambda c: bct.density_und(c.weights),
     },
 }

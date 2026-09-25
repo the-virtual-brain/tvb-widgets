@@ -29,6 +29,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
         self._loaded_matrix_attr = None
         self._build_ui()
         self._register_callbacks()
+        self._refresh_run_state()
         self.logger.info("BCTMetricsProjectionWidget initialized.")
 
     def add_datatype(self, datatype):
@@ -45,8 +46,11 @@ class BCTMetricsProjectionWidget(TVBWidget):
             clear_output(wait=True)
         with self._dialog_output:
             clear_output(wait=True)
+        self._refresh_run_state()
 
     def _build_ui(self):
+        dropdown_width = "320px"
+
         self._hint = widgets.HTML(
             "<span style='color:#888; font-size:12px'>"
             "Use 'Edit connectivity' below to review or modify the matrix, hit 'Save' then pick an analyzer to run on it."
@@ -57,7 +61,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
         self._matrix_dropdown = widgets.Dropdown(
             options=[("Weights", "weights"), ("Tract lengths", "tract_lengths")],
             value="weights",
-            layout=widgets.Layout(width="100%"),
+            layout=widgets.Layout(width=dropdown_width),
         )
 
         self._load_btn = widgets.Button(
@@ -72,15 +76,17 @@ class BCTMetricsProjectionWidget(TVBWidget):
         self._group_label = widgets.HTML("<b>Analyzer group</b>")
         self._group_dropdown = widgets.Dropdown(
             options=group_names,
-            layout=widgets.Layout(width="100%"),
+            layout=widgets.Layout(width=dropdown_width),
         )
 
         first_group_analyzers = ANALYZER_GROUPS[group_names[0]] if group_names else []
         self._analyzer_label = widgets.HTML("<b>Analyzer</b>")
         self._analyzer_dropdown = widgets.Dropdown(
             options=first_group_analyzers,
-            layout=widgets.Layout(width="100%"),
+            layout=widgets.Layout(width=dropdown_width),
         )
+
+        self._undirected_warning = widgets.HTML("", layout=widgets.Layout(margin="0 0 0 12px", flex="1"))
 
         self._desc_label = widgets.HTML(value=self._current_description_html())
 
@@ -107,7 +113,8 @@ class BCTMetricsProjectionWidget(TVBWidget):
             self._group_label,
             self._group_dropdown,
             self._analyzer_label,
-            self._analyzer_dropdown,
+            widgets.HBox([self._analyzer_dropdown, self._undirected_warning],
+                         layout=widgets.Layout(align_items="center")),
             self._desc_label,
             self._divider,
             widgets.HBox([self._run_btn, self._status]),
@@ -128,9 +135,13 @@ class BCTMetricsProjectionWidget(TVBWidget):
         if analyzers:
             self._analyzer_dropdown.value = analyzers[0]
         self._desc_label.value = self._current_description_html()
+        self._refresh_run_state()
 
     def _on_analyzer_change(self, change):
         self._desc_label.value = self._current_description_html()
+        with self._dialog_output:
+            clear_output()
+        self._refresh_run_state()
 
     def _on_load(self, btn):
         self._status.value = ""
@@ -141,6 +152,13 @@ class BCTMetricsProjectionWidget(TVBWidget):
             clear_output()
 
     def _on_run(self, btn):
+        if self._has_undirected_mismatch():
+            self._refresh_run_state()
+            self._status.value = ""
+            with self._results_output:
+                clear_output()
+            return
+
         self._run_btn.disabled = True
         self._status.value = "<span style='color:orange'>Running...</span>"
 
@@ -154,7 +172,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
             self._status.value = (
                 "<span style='color:red'>Click 'Edit connectivity' first to load the connectivity editor.</span>"
             )
-            self._run_btn.disabled = False
+            self._refresh_run_state()
             return
 
         analyzer_name = self._analyzer_dropdown.value
@@ -165,24 +183,13 @@ class BCTMetricsProjectionWidget(TVBWidget):
             self._show_matrix_mismatch_dialog(analyzer_name, required_attr)
             return
 
-        connectivity = ed.get_connectivity()
+        connectivity = self._current_connectivity()
         target_matrix = self._get_analyzer_matrix(connectivity, analyzer_name)
 
         issues = self._validate_global(target_matrix, analyzer_name)
         if issues:
             self._status.value = ""
             self._show_validation_dialog(issues, connectivity, analyzer_name)
-            return
-
-        analyzer_issues = self._validate_analyzer_specific(target_matrix, analyzer_name)
-        if analyzer_issues:
-            self._status.value = (
-                "<span style='color:red'>This analyzer requires an undirected "
-                "(symmetric) connectivity matrix, but the input matrix is directed. "
-                "Edit the connectivity to symmetrize it, or pick an analyzer that "
-                "supports directed input.</span>"
-            )
-            self._run_btn.disabled = False
             return
 
         self._execute_analysis(connectivity, analyzer_name)
@@ -281,7 +288,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
             with self._dialog_output:
                 clear_output()
             self._status.value = "<span style='color:gray'>Cancelled.</span>"
-            self._run_btn.disabled = False
+            self._refresh_run_state()
 
         continue_btn.on_click(_on_continue)
         cancel_btn.on_click(_on_cancel)
@@ -336,13 +343,13 @@ class BCTMetricsProjectionWidget(TVBWidget):
             self._matrix_dropdown.value = required_attr
             self._show_editor(self.connectivity)
             self._status.value = ""
-            self._run_btn.disabled = False
+            self._refresh_run_state()
 
         def _on_cancel(b):
             with self._dialog_output:
                 clear_output()
             self._status.value = "<span style='color:gray'>Cancelled.</span>"
-            self._run_btn.disabled = False
+            self._refresh_run_state()
 
         switch_btn.on_click(_on_switch)
         cancel_btn.on_click(_on_cancel)
@@ -365,12 +372,30 @@ class BCTMetricsProjectionWidget(TVBWidget):
     def _is_undirected(self, weights):
         return np.allclose(weights, weights.T)
 
-    def _validate_analyzer_specific(self, weights, analyzer_name):
-        issues = []
+    def _current_connectivity(self):
+        ed = self._editor_instance
+        return ed.get_connectivity() if ed is not None else self.connectivity
+
+    def _has_undirected_mismatch(self):
+        analyzer_name = self._analyzer_dropdown.value
         requires_undirected = BCT_METRICS.get(analyzer_name, {}).get("undirected", False)
-        if requires_undirected and not self._is_undirected(weights):
-            issues.append("requires_undirected")
-        return issues
+        if not requires_undirected:
+            return False
+        return not self._is_undirected(self._current_connectivity().weights)
+
+    def _refresh_run_state(self):
+        if self._has_undirected_mismatch():
+            self._undirected_warning.value = (
+                "<span style='color:red'>"
+                f"<b>{self._analyzer_dropdown.value}</b> requires an undirected (symmetric) connectivity, "
+                "but the current connectivity is directed. "
+                "Choose another analyzer or load an undirected connectivity."
+                "</span>"
+            )
+            self._run_btn.disabled = True
+        else:
+            self._undirected_warning.value = ""
+            self._run_btn.disabled = False
 
     def _get_analyzer_matrix(self, connectivity, analyzer_name):
         matrix_attr = BCT_METRICS.get(analyzer_name, {}).get("matrix_attr", "weights")
@@ -400,7 +425,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
             with self._results_output:
                 print(traceback.format_exc())
         finally:
-            self._run_btn.disabled = False
+            self._refresh_run_state()
 
     def _normalize_result(self, raw):
         if isinstance(raw, (tuple, list)):
@@ -667,6 +692,8 @@ class BCTMetricsProjectionWidget(TVBWidget):
             self._editor_instance = ed
             self._loaded_matrix_attr = matrix_attr
             ed.display()
+
+        self._refresh_run_state()
 
     def _has_unsaved_edits(self, ed, matrix_attr):
         return not np.array_equal(getattr(ed.new_connectivity, matrix_attr),
