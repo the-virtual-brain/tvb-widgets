@@ -24,7 +24,7 @@ BCT_METRICS = {
     "ModularityOpCSMU": {
         "description": short_doc(bct.modularity_und.__doc__),
         "func_name": "modularity_und",
-        "undirected": False,
+        "undirected": True,
         "fn": lambda c: bct.modularity_und(c.weights),
         "labels": ["Optimal Community Structure", "Maximized Modularity"],
     },
@@ -127,7 +127,7 @@ BCT_METRICS = {
     "ParticipationCoefficentSign": {
         "description": short_doc(bct.participation_coef_sign.__doc__),
         "func_name": "participation_coef_sign",
-        "undirected": False,
+        "undirected": True,
         "fn": lambda c: bct.participation_coef_sign(c.weights, bct.modularity_dir(c.weights)[0]),
         "labels": [
             "Participation Coefficient (positive weights)",
@@ -194,7 +194,7 @@ BCT_METRICS = {
     "Degree": {
         "description": short_doc(bct.degrees_und.__doc__),
         "func_name": "degrees_und",
-        "undirected": False,
+        "undirected": True,
         "fn": lambda c: bct.degrees_und(c.weights),
     },
     "DegreeIOD": {
@@ -218,7 +218,7 @@ BCT_METRICS = {
     "Strength": {
         "description": short_doc(bct.strengths_und.__doc__),
         "func_name": "strengths_und",
-        "undirected": False,
+        "undirected": True,
         "fn": lambda c: bct.strengths_und(c.weights),
     },
     "StrengthISOS": {
@@ -230,7 +230,7 @@ BCT_METRICS = {
     "StrengthWeights": {
         "description": short_doc(bct.strengths_und_sign.__doc__),
         "func_name": "strengths_und_sign",
-        "undirected": False,
+        "undirected": True,
         "fn": lambda c: bct.strengths_und_sign(c.weights),
         "labels": ["Positive Strength", "Negative Strength", "Total Positive Weight", "Total Negative Weight"],
     },
@@ -244,7 +244,7 @@ BCT_METRICS = {
     "DensityUndirected": {
         "description": short_doc(bct.density_und.__doc__),
         "func_name": "density_und",
-        "undirected": False,
+        "undirected": True,
         "fn": lambda c: bct.density_und(c.weights),
     },
 }
