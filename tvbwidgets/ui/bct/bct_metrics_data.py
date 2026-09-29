@@ -60,9 +60,9 @@ BCT_METRICS = {
         "description": short_doc(bct.findwalks.__doc__),
         "func_name": "findwalks",
         "undirected": False,
-        "fn": lambda c: bct.findwalks(c.weights),
+        "fn": lambda c: bct.findwalks(c.weights)[:2],
         "labels": ["Walk count tensor (per region pair, per path length)",
-                   "Total number of walks found", "Walk length distribution"],
+                   "Total number of walks found"],
     },
     "CentralityNodeBinary": {
         "description": short_doc(bct.betweenness_bin.__doc__),
