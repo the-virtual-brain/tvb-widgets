@@ -7,6 +7,7 @@ import copy
 from IPython.display import display, clear_output
 
 from tvb.datatypes.connectivity import Connectivity
+from tvb.core.adapters.arguments_serialisation import parse_slice, slice_str
 from tvbwidgets.ui.base_widget import TVBWidget
 from tvbwidgets import get_logger
 from tvbwidgets.ui.bct.bct_metrics_data import BCT_METRICS, ANALYZER_GROUPS, NETWORK_VECTOR_OVERRIDES
@@ -324,7 +325,8 @@ class BCTMetricsProjectionWidget(TVBWidget):
             self._render_network_vector(label, value, analyzer_name)
         if grouped["matrix"]:
             self._render_matrix_group(grouped["matrix"], connectivity, analyzer_name)
-        
+        for label, value in grouped["tensor"]:
+            self._render_tensor(label, value, connectivity, analyzer_name)
 
     def _render_scalars(self, scalar_items):
         cards = []
@@ -532,6 +534,44 @@ class BCTMetricsProjectionWidget(TVBWidget):
             height=700,
         )
         fig.show()
+
+    def _render_tensor(self, label, tensor, connectivity, analyzer_name):
+        tensor = np.asarray(tensor, dtype=float)
+        default_slice = (slice(None), slice(None)) + (0,) * (tensor.ndim - 2)
+
+        slice_input = widgets.Text(
+            value=slice_str(default_slice),
+            description="Slice:",
+            continuous_update=False,
+            layout=widgets.Layout(width="300px"),
+        )
+        slice_info = widgets.HTML()
+        view_output = widgets.Output()
+
+        def _render_slice(slice_text):
+            slice_used = default_slice
+            message = ""
+            try:
+                if slice_text.strip():
+                    slice_used = parse_slice(slice_text)
+                matrix = tensor[slice_used]
+                if matrix.ndim != 2:
+                    raise ValueError("the slice does not give a 2D matrix")
+            except (ValueError, IndexError, TypeError):
+                slice_used = default_slice
+                matrix = tensor[slice_used]
+                message = (f"<span style='color:#ff9800'>Invalid slice '{slice_text}', "
+                           "showing the default slice instead.</span><br>")
+
+            slice_info.value = f"{message}Matrix shape {tensor.shape}, current slice {slice_str(slice_used)}"
+            with view_output:
+                clear_output(wait=True)
+                self._render_single_matrix(matrix, connectivity, analyzer_name,
+                                           f"{label} {slice_str(slice_used)}")
+
+        slice_input.observe(lambda change: _render_slice(change["new"]), names="value")
+        _render_slice(slice_input.value)
+        display(widgets.VBox([slice_input, slice_info, view_output]))
 
     def _current_description_html(self):
         analyzer_name = self._analyzer_dropdown.value if hasattr(self, "_analyzer_dropdown") else None
