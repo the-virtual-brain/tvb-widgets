@@ -35,13 +35,6 @@ BCT_METRICS = {
         "fn": lambda c: bct.distance_bin(c.weights),
         "labels": ["Distance matrix"],
     },
-    "DistanceDWEI": {
-        "description": short_doc(bct.distance_wei.__doc__),
-        "func_name": "distance_wei",
-        "undirected": False,
-        "fn": lambda c: bct.distance_wei(c.weights),
-        "labels": ["Distance matrix", "Number of edges in shortest path"],
-    },
     "DistanceRDM": {
         "description": short_doc(bct.breadthdist.__doc__),
         "func_name": "breadthdist",
@@ -251,7 +244,7 @@ BCT_METRICS = {
 
 ANALYZER_GROUPS = {
     "Modularity": ["ModularityOCSM", "ModularityOpCSMU"],
-    "Distance"  : ["DistanceDBIN", "DistanceDWEI", "DistanceRDM", "DistanceRDA", "DistanceNETW"],
+    "Distance"  : ["DistanceDBIN", "DistanceRDM", "DistanceRDA", "DistanceNETW"],
     "Centrality": ["CentralityNodeBinary", "CentralityNodeWeighted", "CentralityEigenVector", "CentralityKCoreness", "CentralityKCorenessBD", "CentralityShortcuts", "FlowCoefficents", "ParticipationCoefficent", "ParticipationCoefficentSign", "SubgraphCentrality"],
     "Clustering": ["ClusteringCoefficent", "ClusteringCoefficentBU", "ClusteringCoefficentWU", "ClusteringCoefficentWD", "TransitivityBinaryDirected", "TransitivityWeightedDirected", "TransitivityBinaryUndirected", "TransitivityWeightedUndirected"],
     "Degree and Similarity": ["Degree", "DegreeIOD", "MatchingIndex", "Strength", "StrengthISOS", "StrengthWeights"],
