@@ -1,6 +1,6 @@
 import numpy as np
 import plotly.graph_objects as go
-import matplotlib
+import k3d
 import ipywidgets as widgets
 import traceback
 import copy
@@ -645,26 +645,23 @@ class BCTMetricsProjectionWidget(TVBWidget):
     def _plot_histogram(self, region_labels, node_values, analyzer_name):
         values = np.array(node_values, dtype=float)
         values[np.isinf(values)] = 0
+        values[np.isnan(values)] = 0
 
         mean_val = float(np.mean(values))
-        std_val  = float(np.std(values))
-        min_val  = float(np.min(values))
-        max_val  = float(np.max(values))
-        sort_idx      = np.argsort(values)[::-1]
-        sorted_vals   = values[sort_idx]
+        std_val = float(np.std(values))
+        min_val = float(np.min(values))
+        max_val = float(np.max(values))
+        sort_idx = np.argsort(values)[::-1]
+        sorted_vals = values[sort_idx]
         sorted_labels = np.array(region_labels)[sort_idx]
 
-        if min_val < mean_val < max_val:
-            norm = matplotlib.colors.TwoSlopeNorm(vmin=min_val, vcenter=mean_val, vmax=max_val)
-        elif min_val == max_val:
-            norm = matplotlib.colors.Normalize(vmin=min_val - 0.5, vmax=max_val + 0.5)
+        color_map = np.array(k3d.matplotlib_color_maps.viridis, dtype=float).reshape(-1, 4)
+        if max_val > min_val:
+            t = (sorted_vals - min_val) / (max_val - min_val)
         else:
-            norm = matplotlib.colors.Normalize(vmin=min_val, vmax=max_val)
-        cmap = matplotlib.colormaps["RdYlBu_r"]
-        bar_colors = [
-            f"rgba({int(r*255)},{int(g*255)},{int(b*255)},{a:.2f})"
-            for r, g, b, a in [cmap(norm(v)) for v in sorted_vals]
-        ]
+            t = np.full(len(sorted_vals), 0.5)
+        rgb = np.stack([np.interp(t, color_map[:, 0], color_map[:, c]) for c in (1, 2, 3)], axis=1)
+        bar_colors = [f"rgb({r},{g},{b})" for r, g, b in np.round(rgb * 255).astype(int)]
 
         fig = go.Figure()
 
