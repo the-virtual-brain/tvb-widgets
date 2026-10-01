@@ -541,10 +541,10 @@ class BCTMetricsProjectionWidget(TVBWidget):
 
         slice_input = widgets.Text(
             value=slice_str(default_slice),
-            description="Slice:",
             continuous_update=False,
-            layout=widgets.Layout(width="300px"),
+            layout=widgets.Layout(width="200px", margin="0 0 0 20px"),
         )
+        slice_hint = widgets.HTML("Type a slice in numpy syntax, for example [:, :, 3], and press Enter:")
         slice_info = widgets.HTML()
         view_output = widgets.Output()
 
@@ -563,7 +563,8 @@ class BCTMetricsProjectionWidget(TVBWidget):
                 message = (f"<span style='color:#ff9800'>Invalid slice '{slice_text}', "
                            "showing the default slice instead.</span><br>")
 
-            slice_info.value = f"{message}Matrix shape {tensor.shape}, current slice {slice_str(slice_used)}"
+            slice_info.value = (f"{message}Matrix shape {tensor.shape}"
+                                f"<br>Current slice {slice_str(slice_used)}")
             with view_output:
                 clear_output(wait=True)
                 self._render_single_matrix(matrix, connectivity, analyzer_name,
@@ -571,7 +572,9 @@ class BCTMetricsProjectionWidget(TVBWidget):
 
         slice_input.observe(lambda change: _render_slice(change["new"]), names="value")
         _render_slice(slice_input.value)
-        display(widgets.VBox([slice_input, slice_info, view_output]))
+        slice_row = widgets.HBox([slice_hint, slice_input],
+                                 layout=widgets.Layout(align_items="center"))
+        display(widgets.VBox([slice_row, slice_info, view_output]))
 
     def _current_description_html(self):
         analyzer_name = self._analyzer_dropdown.value if hasattr(self, "_analyzer_dropdown") else None
