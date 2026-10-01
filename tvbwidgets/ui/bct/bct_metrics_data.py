@@ -1,7 +1,6 @@
 
 
 import bct
-import numpy as np
 
 def short_doc(doc):
     if not doc:
@@ -35,14 +34,14 @@ BCT_METRICS = {
         "fn": lambda c: bct.distance_bin(c.weights),
         "labels": ["Distance matrix"],
     },
-    "DistanceRDM": {
+    "DistanceRDM (Breadth-first search)": {
         "description": short_doc(bct.breadthdist.__doc__),
         "func_name": "breadthdist",
         "undirected": False,
         "fn": lambda c: bct.breadthdist(c.weights),
         "labels": ["Reachability matrix", "Distance matrix"],
     },
-    "DistanceRDA": {
+    "DistanceRDA (Algebraic path count)": {
         "description": short_doc(bct.reachdist.__doc__),
         "func_name": "reachdist",
         "undirected": False,
@@ -99,7 +98,7 @@ BCT_METRICS = {
         "fn": lambda c: bct.erange(c.binarized_weights),
         "labels": ["Edge Range", "Average Range (Eta)", "Shortcut Edges", "Fraction of Shortcuts"],
     },
-    "FlowCoefficents": {
+    "FlowCoefficients": {
         "description": short_doc(bct.flow_coef_bd.__doc__),
         "func_name": "flow_coef_bd",
         "undirected": False,
@@ -110,14 +109,14 @@ BCT_METRICS = {
             "Paths flowing across the central node",
         ],
     },
-    "ParticipationCoefficent": {
+    "ParticipationCoefficient": {
         "description": short_doc(bct.participation_coef.__doc__),
         "func_name": "participation_coef",
         "undirected": False,
         "fn": lambda c: bct.participation_coef(c.weights, bct.modularity_dir(c.weights)[0]),
         "labels": ["Participation Coefficient"],
     },
-    "ParticipationCoefficentSign": {
+    "ParticipationCoefficientSign": {
         "description": short_doc(bct.participation_coef_sign.__doc__),
         "func_name": "participation_coef_sign",
         "undirected": True,
@@ -134,25 +133,25 @@ BCT_METRICS = {
         "fn": lambda c: bct.subgraph_centrality(c.binarized_weights),
         "labels": ["Subgraph Centrality"],
     },
-    "ClusteringCoefficent": {
+    "ClusteringCoefficient": {
         "description": short_doc(bct.clustering_coef_bd.__doc__),
         "func_name": "clustering_coef_bd",
         "undirected": False,
         "fn": lambda c: bct.clustering_coef_bd(c.binarized_weights),
     },
-    "ClusteringCoefficentBU": {
+    "ClusteringCoefficientBU": {
         "description": short_doc(bct.clustering_coef_bu.__doc__),
         "func_name": "clustering_coef_bu",
         "undirected": True,
         "fn": lambda c: bct.clustering_coef_bu(c.binarized_weights),
     },
-    "ClusteringCoefficentWU": {
+    "ClusteringCoefficientWU": {
         "description": short_doc(bct.clustering_coef_wu.__doc__),
         "func_name": "clustering_coef_wu",
         "undirected": True,
         "fn": lambda c: bct.clustering_coef_wu(c.scaled_weights()),
     },
-    "ClusteringCoefficentWD": {
+    "ClusteringCoefficientWD": {
         "description": short_doc(bct.clustering_coef_wd.__doc__),
         "func_name": "clustering_coef_wd",
         "undirected": False,
@@ -244,9 +243,9 @@ BCT_METRICS = {
 
 ANALYZER_GROUPS = {
     "Modularity": ["ModularityOCSM", "ModularityOpCSMU"],
-    "Distance"  : ["DistanceDBIN", "DistanceRDM", "DistanceRDA", "DistanceNETW"],
-    "Centrality": ["CentralityNodeBinary", "CentralityNodeWeighted", "CentralityEigenVector", "CentralityKCoreness", "CentralityKCorenessBD", "CentralityShortcuts", "FlowCoefficents", "ParticipationCoefficent", "ParticipationCoefficentSign", "SubgraphCentrality"],
-    "Clustering": ["ClusteringCoefficent", "ClusteringCoefficentBU", "ClusteringCoefficentWU", "ClusteringCoefficentWD", "TransitivityBinaryDirected", "TransitivityWeightedDirected", "TransitivityBinaryUndirected", "TransitivityWeightedUndirected"],
+    "Distance"  : ["DistanceDBIN", "DistanceRDM (Breadth-first search)", "DistanceRDA (Algebraic path count)", "DistanceNETW"],
+    "Centrality": ["CentralityNodeBinary", "CentralityNodeWeighted", "CentralityEigenVector", "CentralityKCoreness", "CentralityKCorenessBD", "CentralityShortcuts", "FlowCoefficients", "ParticipationCoefficient", "ParticipationCoefficientSign", "SubgraphCentrality"],
+    "Clustering": ["ClusteringCoefficient", "ClusteringCoefficientBU", "ClusteringCoefficientWU", "ClusteringCoefficientWD", "TransitivityBinaryDirected", "TransitivityWeightedDirected", "TransitivityBinaryUndirected", "TransitivityWeightedUndirected"],
     "Degree and Similarity": ["Degree", "DegreeIOD", "MatchingIndex", "Strength", "StrengthISOS", "StrengthWeights"],
     "Density": ["DensityDirected", "DensityUndirected"],
 }

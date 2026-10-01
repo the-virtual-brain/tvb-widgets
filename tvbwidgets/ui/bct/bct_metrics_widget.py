@@ -179,10 +179,8 @@ class BCTMetricsProjectionWidget(TVBWidget):
 
     def _validation_dialog_text(self, analyzer_name):
         return (
-            "Negative weights detected: this matrix contains values below 0.<br>"
-            f"<b>{analyzer_name}</b> does not support negative weights. "
-            "The matrix must only contain values of 0 or above.<br>"
-            "The negative values will be set to 0 for this analysis.<br><br>"
+            f"This matrix contains negative weights, which <b>{analyzer_name}</b> does not support. "
+            "If you continue, they will be set to 0 for this analysis.<br><br>"
             "<span style='color:#ff6b6b'>* Your default or saved matrix will not change.</span>"
         )
 
@@ -331,10 +329,13 @@ class BCTMetricsProjectionWidget(TVBWidget):
     def _render_scalars(self, scalar_items):
         cards = []
         for label, value in scalar_items:
-            try:
-                display_value = f"{float(value):.4f}"
-            except (TypeError, ValueError):
+            if isinstance(value, (int, np.integer)):
                 display_value = str(value)
+            else:
+                try:
+                    display_value = f"{float(value):.4f}"
+                except (TypeError, ValueError):
+                    display_value = str(value)
             cards.append(widgets.HTML(
                 "<div style='display:inline-block; border:1px solid #444; "
                 "padding:8px 14px; margin:4px;'>"
@@ -544,7 +545,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
             continuous_update=False,
             layout=widgets.Layout(width="200px", margin="0 0 0 20px"),
         )
-        slice_hint = widgets.HTML("Type a slice in numpy syntax, for example [:, :, 3], and press Enter:")
+        slice_hint = widgets.HTML("Type a slice in numpy syntax and press Enter:")
         slice_info = widgets.HTML()
         view_output = widgets.Output()
 
@@ -610,9 +611,9 @@ class BCTMetricsProjectionWidget(TVBWidget):
 
     def _self_loops_notice_lines(self, analyzer_name):
         return [
-            "Self-self connections detected: the main diagonal of this matrix has non-zero values.",
-            f"BCT network matrices should not contain self-self connections, so <b>{analyzer_name}</b> "
-            "needs all values on the main diagonal set to 0."
+            "The main diagonal of this matrix had non-zero values (self-self connections). "
+            "BCT network matrices should not contain them, so they were set to 0 before running "
+            f"<b>{analyzer_name}</b>."
         ]
 
     def _analysis_source_lines(self, source_conn, applied_fixes, had_unsaved):
