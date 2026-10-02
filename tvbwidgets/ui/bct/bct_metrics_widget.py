@@ -384,7 +384,6 @@ class BCTMetricsProjectionWidget(TVBWidget):
                 node_values=node_values,
                 region_labels=connectivity.region_labels,
             )
-            viz.display()
             display(viz)
 
         with hist_out:
@@ -407,31 +406,31 @@ class BCTMetricsProjectionWidget(TVBWidget):
         fig = go.Figure(go.Bar(
             x=list(range(len(vector))),
             y=vector.tolist(),
-            marker=dict(
-                color=vector.tolist(),
-                colorscale="Viridis",
-                showscale=True,
-                colorbar=dict(title=label, tickfont=dict(color="#ccc"), titlefont=dict(color="#ccc")),
-            ),
+            marker={
+                "color": vector.tolist(),
+                "colorscale": "Viridis",
+                "showscale": True,
+                "colorbar": {"title": label, "tickfont": {"color": "#ccc"}, "titlefont": {"color": "#ccc"}},
+            },
             hovertemplate="index: <b>%{x}</b><br>value: <b>%{y:.4f}</b><extra></extra>",
         ))
         fig.add_hline(
             y=mean_v,
-            line=dict(color="#00e5ff", width=1.5, dash="dash"),
-            annotation=dict(text=f"μ = {mean_v:.3f}", font=dict(color="#00e5ff", size=11),
-                            xanchor="left", x=1.01, xref="paper"),
+            line={"color": "#00e5ff", "width": 1.5, "dash": "dash"},
+            annotation={"text": f"μ = {mean_v:.3f}", "font": {"color": "#00e5ff", "size": 11},
+                        "xanchor": "left", "x": 1.01, "xref": "paper"},
         )
         fig.update_layout(
-            title=dict(text=f"<b>{analyzer_name}</b>  —  {label}",
-                       font=dict(color="white", size=14, family="Arial"), x=0.5, xanchor="center"),
+            title={"text": f"<b>{analyzer_name}</b>  —  {label}",
+                   "font": {"color": "white", "size": 14, "family": "Arial"}, "x": 0.5, "xanchor": "center"},
             paper_bgcolor="#1e1e2e",
             plot_bgcolor="#252535",
-            xaxis=dict(title=dict(text="Index", font=dict(color="#aaa", size=12)),
-                       tickfont=dict(color="#bbb"), gridcolor="rgba(255,255,255,0.06)"),
-            yaxis=dict(title=dict(text=label, font=dict(color="#aaa", size=12)),
-                       tickfont=dict(color="#bbb"), gridcolor="rgba(255,255,255,0.08)"),
+            xaxis={"title": {"text": "Index", "font": {"color": "#aaa", "size": 12}},
+                   "tickfont": {"color": "#bbb"}, "gridcolor": "rgba(255,255,255,0.06)"},
+            yaxis={"title": {"text": label, "font": {"color": "#aaa", "size": 12}},
+                   "tickfont": {"color": "#bbb"}, "gridcolor": "rgba(255,255,255,0.08)"},
             height=420,
-            margin=dict(l=70, r=140, t=60, b=60),
+            margin={"l": 70, "r": 140, "t": 60, "b": 60},
         )
         fig.show()
 
@@ -488,14 +487,14 @@ class BCTMetricsProjectionWidget(TVBWidget):
             zmin=p2,
             zmax=p98,
             colorscale=colorscale,
-            colorbar=dict(
-                title=dict(text=label, font=dict(color="#ccc", size=11), side="right"),
-                tickfont=dict(color="#ccc", size=10),
-                thickness=16,
-                len=0.85,
-                outlinecolor="#555",
-                outlinewidth=1,
-            ),
+            colorbar={
+                "title": {"text": label, "font": {"color": "#ccc", "size": 11}, "side": "right"},
+                "tickfont": {"color": "#ccc", "size": 10},
+                "thickness": 16,
+                "len": 0.85,
+                "outlinecolor": "#555",
+                "outlinewidth": 1,
+            },
             hovertemplate=(
                 "Source: <b>%{y}</b><br>"
                 "Target: <b>%{x}</b><br>"
@@ -505,33 +504,33 @@ class BCTMetricsProjectionWidget(TVBWidget):
         ))
 
         fig.update_layout(
-            title=dict(
-                text=f"<b>{analyzer_name}</b>  —  {label}",
-                font=dict(color="white", size=14, family="Arial"),
-                x=0.5, xanchor="center",
-            ),
+            title={
+                "text": f"<b>{analyzer_name}</b>  —  {label}",
+                "font": {"color": "white", "size": 14, "family": "Arial"},
+                "x": 0.5, "xanchor": "center",
+            },
             paper_bgcolor="#1e1e2e",
             plot_bgcolor="#1e1e2e",
-            xaxis=dict(
-                title=dict(text="Target Region", font=dict(color="#aaa", size=12)),
-                tickangle=-75,
-                tickfont=dict(size=7, color="#bbb"),
-                gridcolor="rgba(255,255,255,0.0)",
-                linecolor="#555",
-                automargin=True,
-                constrain="domain",
-            ),
-            yaxis=dict(
-                title=dict(text="Source Region", font=dict(color="#aaa", size=12)),
-                tickfont=dict(size=7, color="#bbb"),
-                gridcolor="rgba(255,255,255,0.0)",
-                linecolor="#555",
-                autorange="reversed",
-                automargin=True,
-                scaleanchor="x",
-                scaleratio=1,
-            ),
-            margin=dict(l=130, r=130, t=70, b=100),
+            xaxis={
+                "title": {"text": "Target Region", "font": {"color": "#aaa", "size": 12}},
+                "tickangle": -75,
+                "tickfont": {"size": 7, "color": "#bbb"},
+                "gridcolor": "rgba(255,255,255,0.0)",
+                "linecolor": "#555",
+                "automargin": True,
+                "constrain": "domain",
+            },
+            yaxis={
+                "title": {"text": "Source Region", "font": {"color": "#aaa", "size": 12}},
+                "tickfont": {"size": 7, "color": "#bbb"},
+                "gridcolor": "rgba(255,255,255,0.0)",
+                "linecolor": "#555",
+                "autorange": "reversed",
+                "automargin": True,
+                "scaleanchor": "x",
+                "scaleratio": 1,
+            },
+            margin={"l": 130, "r": 130, "t": 70, "b": 100},
             height=700,
         )
         fig.show()
@@ -669,10 +668,10 @@ class BCTMetricsProjectionWidget(TVBWidget):
         fig.add_trace(go.Bar(
             x=list(sorted_labels),
             y=sorted_vals.tolist(),
-            marker=dict(
-                color=bar_colors,
-                line=dict(color="rgba(255,255,255,0.12)", width=0.5),
-            ),
+            marker={
+                "color": bar_colors,
+                "line": {"color": "rgba(255,255,255,0.12)", "width": 0.5},
+            },
             customdata=np.stack([sorted_labels, sorted_vals], axis=1),
             hovertemplate=(
                 "<b>%{customdata[0]}</b><br>"
@@ -685,49 +684,49 @@ class BCTMetricsProjectionWidget(TVBWidget):
             y1=mean_val + std_val,
             fillcolor="rgba(0,229,255,0.06)",
             line_width=0,
-            annotation=dict(
-                text="±1σ",
-                font=dict(color="rgba(0,229,255,0.45)", size=10),
-                xanchor="right",
-                x=0,
-                xref="paper",
-            ),
+            annotation={
+                "text": "±1σ",
+                "font": {"color": "rgba(0,229,255,0.45)", "size": 10},
+                "xanchor": "right",
+                "x": 0,
+                "xref": "paper",
+            },
         )
 
         fig.update_layout(
-            title=dict(
-                text=f"<b>{analyzer_name}</b>",
-                font=dict(color="white", size=15, family="Arial"),
-                x=0.5, xanchor="center",
-            ),
+            title={
+                "text": f"<b>{analyzer_name}</b>",
+                "font": {"color": "white", "size": 15, "family": "Arial"},
+                "x": 0.5, "xanchor": "center",
+            },
             paper_bgcolor="#1e1e2e",
             plot_bgcolor="#252535",
-            xaxis=dict(
-                title=dict(text="Brain Region (sorted by value)", font=dict(color="#aaa", size=12)),
-                tickangle=-75,
-                tickfont=dict(size=7, color="#bbb"),
-                gridcolor="rgba(255,255,255,0.05)",
-                linecolor="#555",
-                automargin=True,
-            ),
-            yaxis=dict(
-                title=dict(
-                    text=analyzer_name.split("—")[-1].strip(),
-                    font=dict(color="#aaa", size=12),
-                ),
-                tickfont=dict(color="#bbb", size=10),
-                gridcolor="rgba(255,255,255,0.07)",
-                linecolor="#555",
-                zeroline=True,
-                zerolinecolor="rgba(255,255,255,0.12)",
-            ),
-            hoverlabel=dict(bgcolor="#1a1a2e", font_size=12, font_color="white"),
-            margin=dict(l=70, r=120, t=60, b=120),
+            xaxis={
+                "title": {"text": "Brain Region (sorted by value)", "font": {"color": "#aaa", "size": 12}},
+                "tickangle": -75,
+                "tickfont": {"size": 7, "color": "#bbb"},
+                "gridcolor": "rgba(255,255,255,0.05)",
+                "linecolor": "#555",
+                "automargin": True,
+            },
+            yaxis={
+                "title": {
+                    "text": analyzer_name.split("—")[-1].strip(),
+                    "font": {"color": "#aaa", "size": 12},
+                },
+                "tickfont": {"color": "#bbb", "size": 10},
+                "gridcolor": "rgba(255,255,255,0.07)",
+                "linecolor": "#555",
+                "zeroline": True,
+                "zerolinecolor": "rgba(255,255,255,0.12)",
+            },
+            hoverlabel={"bgcolor": "#1a1a2e", "font_size": 12, "font_color": "white"},
+            margin={"l": 70, "r": 120, "t": 60, "b": 120},
             height=560,
             dragmode="zoom",
             showlegend=False,
         )
-        fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.04, bgcolor="#333"))
+        fig.update_xaxes(rangeslider={"visible": True, "thickness": 0.04, "bgcolor": "#333"})
         fig.show()
 
     def display(self):

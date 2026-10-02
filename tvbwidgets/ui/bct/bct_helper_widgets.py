@@ -61,6 +61,3 @@ class ColoredConnectivityHeadWidget(HeadWidget):
 
         self.plot += self._points_obj
         self.plot += lines
-
-    def display(self):
-        pass

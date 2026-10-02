@@ -12,6 +12,8 @@ NETWORK_VECTOR_OVERRIDES = {
     ("kcoreness_centrality_bd", 1),
 }
 
+DISTANCE_MATRIX_LABEL = "Distance matrix"
+
 BCT_METRICS = {
     "ModularityOCSM": {
         "description": short_doc(bct.modularity_dir.__doc__),
@@ -32,21 +34,21 @@ BCT_METRICS = {
         "func_name": "distance_bin",
         "undirected": False,
         "fn": lambda c: bct.distance_bin(c.weights),
-        "labels": ["Distance matrix"],
+        "labels": [DISTANCE_MATRIX_LABEL],
     },
     "DistanceRDM (Breadth-first search)": {
         "description": short_doc(bct.breadthdist.__doc__),
         "func_name": "breadthdist",
         "undirected": False,
         "fn": lambda c: bct.breadthdist(c.weights),
-        "labels": ["Reachability matrix", "Distance matrix"],
+        "labels": ["Reachability matrix", DISTANCE_MATRIX_LABEL],
     },
     "DistanceRDA (Algebraic path count)": {
         "description": short_doc(bct.reachdist.__doc__),
         "func_name": "reachdist",
         "undirected": False,
         "fn": lambda c: bct.reachdist(c.weights),
-        "labels": ["Reachability matrix", "Distance matrix"],
+        "labels": ["Reachability matrix", DISTANCE_MATRIX_LABEL],
     },
     "DistanceNETW": {
         "description": short_doc(bct.findwalks.__doc__),
