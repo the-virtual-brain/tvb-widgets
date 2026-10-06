@@ -262,12 +262,17 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
     def _set_edge_operations_popup_visible(self, visible):
         self.edge_operations_popup.layout.visibility = "visible" if visible else "hidden"
 
+    @staticmethod
+    def _format_error(message):
+        if not message:
+            return ""
+        return '<span style="color:#d32f2f;font-size:11px;">{}</span>'.format(message)
+
     def _set_edge_operation_error(self, message):
-        if message:
-            self.edge_operation_error_label.value = (
-                '<span style="color:#d32f2f;font-size:11px;">{}</span>'.format(message))
-        else:
-            self.edge_operation_error_label.value = ""
+        self.edge_operation_error_label.value = self._format_error(message)
+
+    def _set_selection_error(self, message):
+        self.selection_error_label.value = self._format_error(message)
 
     def _on_apply_edge_operation(self, change):
         self._set_edge_operation_error("")
@@ -404,11 +409,16 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         save_button.add_class("lsc-btn")
         save_button.on_click(self._on_save_selection)
 
+        self.selection_error_label = widgets.HTML(value="")
+        self.selection_error_label.add_class("lsc-selection-error")
+        name_field = widgets.VBox([self.selection_name_input, self.selection_error_label])
+        name_field.add_class("lsc-selection-name-field")
+
         controls_row = widgets.HBox(
             [select_all_button, select_none_button, self.selection_dropdown,
-             self.selection_name_input, save_button],
+             name_field, save_button],
             layout=widgets.Layout(align_items="center", gap="8px", justify_content="center",
-                                  margin="10px 0 14px 0"),
+                                  margin="10px 0 14px 0", overflow="visible"),
         )
 
         left_indices, right_indices = self._split_hemispheres()
@@ -519,7 +529,14 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
             checkbox.value = bool(mask[idx])
 
     def _on_save_selection(self, change):
+        self._set_selection_error("")
+
         name = self.selection_name_input.value.strip()
+        if name == NEW_SELECTION_OPTION:
+            self._set_selection_error('"{}" is not valid as a selection name.'.format(NEW_SELECTION_OPTION))
+            LOGGER.warning("Select Nodes: '%s' is not valid as a selection name." % name)
+            return
+
         if not name:
             name = "Selection {}".format(len(self._node_selections) + 1)
 
@@ -540,6 +557,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self._toggle_popup(self.edge_operations_popup)
 
     def _on_select_nodes_click(self, change):
+        self._set_selection_error("")
         self._toggle_popup(self.select_nodes_popup)
 
     def _on_reset_edits_click(self, change):
