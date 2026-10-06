@@ -280,6 +280,11 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
                 "Edge Operations: '%s' is not a valid numeric weight change." % self.weight_change_input.value)
             return
 
+        if not numpy.isfinite(value):
+            self._set_edge_operation_error("Weight change must be a finite number.")
+            LOGGER.warning("Edge Operations: '%s' is not a finite weight change." % self.weight_change_input.value)
+            return
+
         operation = self.operation_dropdown.value
         edge_type = self.edge_type_dropdown.value
 
