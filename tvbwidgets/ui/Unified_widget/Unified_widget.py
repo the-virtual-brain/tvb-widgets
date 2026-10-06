@@ -1,7 +1,6 @@
 import numpy
 import ipycanvas as canvas
 import ipywidgets as widgets
-from tvb.datatypes.connectivity import Connectivity
 
 from tvbwidgets.core.logger.builder import get_logger
 from tvbwidgets.ui.base_widget import TVBWidget
@@ -16,6 +15,7 @@ NEW_SELECTION_OPTION = "New selection"
 NODE_CHECKBOX_COLUMNS = 4
 EDITED_CELL_OUTLINE_COLOR = "#ff8800"
 EDITED_CELL_OUTLINE_WIDTH = 2
+EDITABLE_MATRICES = ("weights", "tract_lengths")
 
 
 class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
@@ -47,6 +47,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self._node_checkboxes = {}
         self._active_node_mask = [True] * len(connectivity.region_labels)
 
+        self._last_edited_matrix = None
         self._last_edited_rows = []
         self._last_edited_cols = []
 
@@ -152,6 +153,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.space_time_container.children = [space_time_widget.options, space_time_widget.hbox]
 
     def _on_matrix_editor_saved(self, change):
+        self._last_edited_matrix = None
         self._last_edited_rows, self._last_edited_cols = [], []
         self._rebuild_space_time_widget(self.matrix_editor.connectivity)
 
@@ -303,9 +305,10 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
             LOGGER.warning("Edge Operations: cannot divide by zero.")
             return
 
-        weights = self.matrix_editor.new_connectivity.weights
+        matrix_name = self._get_visible_matrix_name()
+        matrix = getattr(self.matrix_editor.new_connectivity, matrix_name)
         idx = numpy.ix_(rows, cols)
-        current = weights[idx]
+        current = matrix[idx]
 
         if operation == "Set":
             new_values = numpy.full_like(current, value)
@@ -318,19 +321,27 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         elif operation == "Divide":
             new_values = current / value
 
-        weights[idx] = numpy.clip(new_values, 0, None)
+        matrix[idx] = numpy.clip(new_values, 0, None)
 
         self.matrix_editor.is_connectivity_being_edited = True
         self.matrix_editor._update_matrices_view(self.matrix_editor.new_connectivity)
 
+        self._last_edited_matrix = matrix_name
         self._last_edited_rows, self._last_edited_cols = rows, cols
-        self._highlight_edited_cells(rows, cols)
+        self._highlight_edited_cells(matrix_name, rows, cols)
 
-        self.head_widget.refresh_edges(self.matrix_editor.new_connectivity, weights)
+        if matrix_name == "weights":
+            self.head_widget.refresh_edges(self.matrix_editor.new_connectivity, matrix)
 
-    def _highlight_edited_cells(self, rows, cols):
+    def _get_visible_matrix_name(self):
+        selected_index = self.matrix_editor.tab.selected_index
+        if selected_index is None:
+            return EDITABLE_MATRICES[0]
+        return EDITABLE_MATRICES[selected_index]
+
+    def _highlight_edited_cells(self, matrix_name, rows, cols):
         editor = self.matrix_editor
-        weights_canvas = editor.weights_matrix
+        matrix_canvas = getattr(editor, matrix_name + "_matrix")
         from_row, from_col, num_rows = editor.from_row, editor.from_col, editor.num_rows
         cell_size, offset = editor.cell_size, editor.layout_offset
 
@@ -339,18 +350,18 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         if not visible_rows or not visible_cols:
             return
 
-        with canvas.hold_canvas(weights_canvas[5]):
-            weights_canvas[5].line_width = EDITED_CELL_OUTLINE_WIDTH
-            weights_canvas[5].stroke_style = EDITED_CELL_OUTLINE_COLOR
+        with canvas.hold_canvas(matrix_canvas[5]):
+            matrix_canvas[5].line_width = EDITED_CELL_OUTLINE_WIDTH
+            matrix_canvas[5].stroke_style = EDITED_CELL_OUTLINE_COLOR
             for r in visible_rows:
                 for c in visible_cols:
                     x = offset + (c - from_col) * cell_size
                     y = offset + (r - from_row) * cell_size
-                    weights_canvas[5].stroke_rect(x, y, cell_size, cell_size)
+                    matrix_canvas[5].stroke_rect(x, y, cell_size, cell_size)
 
     def _on_matrix_quadrant_changed(self, change):
-        if self._last_edited_rows and self._last_edited_cols:
-            self._highlight_edited_cells(self._last_edited_rows, self._last_edited_cols)
+        if self._last_edited_matrix and self._last_edited_rows and self._last_edited_cols:
+            self._highlight_edited_cells(self._last_edited_matrix, self._last_edited_rows, self._last_edited_cols)
 
     def _build_select_nodes_popup(self):
         conn_label = getattr(self.connectivity, "title", None) or self.connectivity.gid.hex[:8]
@@ -535,6 +546,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         editor.weights_matrix[5].clear()
         editor.tract_lengths_matrix[5].clear()
 
+        self._last_edited_matrix = None
         self._last_edited_rows, self._last_edited_cols = [], []
         self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
         self.head_widget.highlight_node_edges(editor.new_connectivity, self.node_dropdown.value, None)
