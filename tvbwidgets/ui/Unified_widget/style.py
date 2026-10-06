@@ -49,6 +49,19 @@ _STYLE = """
     border: none !important;
     font-weight: 700 !important;
 }
+.lsc-wrapper .lsc-selection-name-field {
+    position: relative;
+    overflow: visible;
+}
+.lsc-wrapper .lsc-selection-error {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    white-space: nowrap;
+}
+.lsc-wrapper .lsc-selection-error .widget-html-content {
+    line-height: 16px;
+}
 .lsc-wrapper .lsc-btn button {
     border-radius: 3px !important;
 }
