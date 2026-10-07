@@ -518,7 +518,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         name = change["new"]
         if name == NEW_SELECTION_OPTION:
             self.selection_name_input.value = ""
-            self._set_all_checkboxes(True)
+            self._set_all_checkboxes(False)
             return
 
         mask = self._node_selections.get(name)
@@ -527,6 +527,9 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.selection_name_input.value = name
         for idx, checkbox in self._node_checkboxes.items():
             checkbox.value = bool(mask[idx])
+
+        self._active_node_mask = mask
+        self.head_widget.set_node_selection(self.connectivity, mask)
 
     def _on_save_selection(self, change):
         self._set_selection_error("")
