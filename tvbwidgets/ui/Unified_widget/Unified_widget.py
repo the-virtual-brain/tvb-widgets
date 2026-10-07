@@ -41,6 +41,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.matrix_editor = ConnectivityMatrixEditor(connectivity, **matrix_editor_kwargs)
         self._unclip_matrix_scroll_containers()
         self.matrix_editor.save_button.on_click(self._on_matrix_editor_saved)
+        self.matrix_editor.popup_change.on_click(self._on_matrix_cell_changed)
         self.matrix_editor.quadrants.observe(self._on_matrix_quadrant_changed, names="value")
 
         self._node_selections = {}
@@ -156,6 +157,14 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self._last_edited_matrix = None
         self._last_edited_rows, self._last_edited_cols = [], []
         self._rebuild_space_time_widget(self.matrix_editor.connectivity)
+
+    def _on_matrix_cell_changed(self, change):
+        editor = self.matrix_editor
+        if getattr(editor, "clicked_matrix", None) != "weights":
+            return
+        if editor.popup.layout.visibility != "hidden":
+            return
+        self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
 
     def _build_matrix_tab(self):
         selection_label = widgets.HTML(
