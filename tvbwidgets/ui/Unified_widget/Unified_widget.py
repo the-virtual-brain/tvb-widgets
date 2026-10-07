@@ -52,6 +52,9 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self._last_edited_rows = []
         self._last_edited_cols = []
 
+        self._highlighted_node = None
+        self._highlighted_direction = None
+
         head_view_tab = self._build_head_view_tab()
         space_time_tab = self._build_space_time_tab()
         control_tab = self._build_matrix_tab()
@@ -127,7 +130,15 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         return bar
 
     def _on_node_direction_click(self, direction):
-        self.head_widget.highlight_node_edges(self.matrix_editor.new_connectivity, self.node_dropdown.value, direction)
+        self._highlighted_node = self.node_dropdown.value
+        self._highlighted_direction = direction
+        self.head_widget.highlight_node_edges(self.matrix_editor.new_connectivity, self._highlighted_node, direction)
+
+    def _refresh_node_highlight(self):
+        if self._highlighted_direction is None:
+            return
+        self.head_widget.highlight_node_edges(self.matrix_editor.new_connectivity, self._highlighted_node,
+                                              self._highlighted_direction)
 
     def _build_space_time_tab(self):
         self.space_time_container = widgets.VBox(layout=widgets.Layout(width="100%"))
@@ -165,6 +176,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         if editor.popup.layout.visibility != "hidden":
             return
         self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
+        self._refresh_node_highlight()
 
     def _build_matrix_tab(self):
         selection_label = widgets.HTML(
@@ -351,6 +363,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
         if matrix_name == "weights":
             self.head_widget.refresh_edges(self.matrix_editor.new_connectivity, matrix)
+            self._refresh_node_highlight()
 
     def _get_visible_matrix_name(self):
         selected_index = self.matrix_editor.tab.selected_index
@@ -585,6 +598,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self._last_edited_rows, self._last_edited_cols = [], []
         self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
         self.head_widget.highlight_node_edges(editor.new_connectivity, self.node_dropdown.value, None)
+        self._highlighted_direction = None
 
         self._active_node_mask = [True] * len(self.connectivity.region_labels)
         self._set_all_checkboxes(True)
