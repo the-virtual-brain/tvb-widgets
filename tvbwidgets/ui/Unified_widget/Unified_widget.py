@@ -42,7 +42,12 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self._unclip_matrix_scroll_containers()
         self.matrix_editor.save_button.on_click(self._on_matrix_editor_saved)
         self.matrix_editor.popup_change.on_click(self._on_matrix_cell_changed)
-        self.matrix_editor.quadrants.observe(self._on_matrix_quadrant_changed, names="value")
+        self.matrix_editor.quadrants.observe(self._redraw_edited_cells_outline, names="value")
+        self.matrix_editor.weights_matrix.on_mouse_down(self._redraw_edited_cells_outline)
+        self.matrix_editor.tract_lengths_matrix.on_mouse_down(self._redraw_edited_cells_outline)
+        self.matrix_editor.popup_change.on_click(self._redraw_edited_cells_outline)
+        self.matrix_editor.popup_cancel.on_click(self._redraw_edited_cells_outline)
+        self.matrix_editor.tab.observe(self._redraw_edited_cells_outline, names="selected_index")
 
         self._node_selections = {}
         self._node_checkboxes = {}
@@ -391,7 +396,11 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
                     y = offset + (r - from_row) * cell_size
                     matrix_canvas[5].stroke_rect(x, y, cell_size, cell_size)
 
-    def _on_matrix_quadrant_changed(self, change):
+    def _redraw_edited_cells_outline(self, *args):
+        if not self.matrix_editor.is_connectivity_being_edited:
+            self._last_edited_matrix = None
+            self._last_edited_rows, self._last_edited_cols = [], []
+            return
         if self._last_edited_matrix and self._last_edited_rows and self._last_edited_cols:
             self._highlight_edited_cells(self._last_edited_matrix, self._last_edited_rows, self._last_edited_cols)
 
