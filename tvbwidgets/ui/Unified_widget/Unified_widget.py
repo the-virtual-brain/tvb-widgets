@@ -572,7 +572,9 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
             return
 
         if not name:
-            name = "Selection {}".format(len(self._node_selections) + 1)
+            self._set_selection_error("An empty name is not valid as a selection name.")
+            LOGGER.warning("Select Nodes: an empty name is not valid as a selection name.")
+            return
 
         mask = self._current_mask()
         self._node_selections[name] = mask
