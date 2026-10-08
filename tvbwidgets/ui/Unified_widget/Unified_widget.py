@@ -16,7 +16,8 @@ NODE_CHECKBOX_COLUMNS = 4
 EDITED_CELL_OUTLINE_COLOR = "#ff8800"
 EDITED_CELL_OUTLINE_WIDTH = 2
 EDITABLE_MATRICES = ("weights", "tract_lengths")
-
+ERROR_MESSAGE_COLOR = "#d32f2f"
+WARNING_MESSAGE_COLOR = "#e65100"
 
 class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
@@ -289,13 +290,16 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.edge_operations_popup.layout.visibility = "visible" if visible else "hidden"
 
     @staticmethod
-    def _format_error(message):
+    def _format_error(message, color=ERROR_MESSAGE_COLOR):
         if not message:
             return ""
-        return '<span style="color:#d32f2f;font-size:11px;">{}</span>'.format(message)
+        return '<span style="color:{};font-size:11px;">{}</span>'.format(color, message)
 
     def _set_edge_operation_error(self, message):
         self.edge_operation_error_label.value = self._format_error(message)
+
+    def _set_edge_operation_warning(self, message):
+        self.edge_operation_error_label.value = self._format_error(message, WARNING_MESSAGE_COLOR)
 
     def _set_selection_error(self, message):
         self.selection_error_label.value = self._format_error(message)
@@ -332,6 +336,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
             rows, cols = unselected, unselected
 
         if not rows or not cols:
+            self._set_edge_operation_warning("No edges of this type for the current selection.")
             LOGGER.info("Edge Operations: '%s' set is empty for the current node selection - nothing to apply."
                         % edge_type)
             return
