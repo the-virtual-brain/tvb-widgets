@@ -114,3 +114,33 @@ def test_plots_overview_uses_max_weight(connectivity):
     widget = SpaceTimeVisualizerWidget(connectivity)
     colors = widget._custom_colormap(numpy.array([[3.0, 10.0]]))
     assert not numpy.allclose(colors[0][0], colors[0][1])
+
+def test_update_connectivity(connectivity):
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    plot = widget.plot
+    new_connectivity = Connectivity.from_file()
+    new_connectivity.weights = new_connectivity.weights * 2
+    new_connectivity.configure()
+    widget.update_connectivity(new_connectivity)
+    assert widget.plot is plot
+    assert numpy.allclose(widget.plot.objects[0].attribute, new_connectivity.weights)
+
+def test_update_connectivity_keeps_time_interval(connectivity):
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    widget.option_from_time.value = 20.0
+    widget.option_to_time.value = 60.0
+    widget.update_connectivity(connectivity)
+    assert math.isclose(widget.option_from_time.value, 20.0)
+    assert math.isclose(widget.option_to_time.value, 60.0)
+
+def test_update_connectivity_changes_time_limits(connectivity):
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    longer = Connectivity.from_file()
+    longer.tract_lengths = numpy.full_like(longer.tract_lengths, 200.0)
+    longer.configure()
+    widget.update_connectivity(longer)
+    assert math.isclose(widget.option_from_time.min, 200.0)
+    assert math.isclose(widget.option_to_time.max, 200.0)
+    widget.update_connectivity(connectivity)
+    assert math.isclose(widget.option_from_time.min, connectivity.tract_lengths.min())
+    assert math.isclose(widget.option_to_time.max, connectivity.tract_lengths.max())

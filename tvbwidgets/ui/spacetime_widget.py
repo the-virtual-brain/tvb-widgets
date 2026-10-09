@@ -141,11 +141,14 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                         self.selection.value = f"{intervals[i - 1]:.2f} .. {intervals[i]:.2f}"
             self.picked_slice_id = clicked_id
         else:
-            self.picked_slice_id = None
-            self._change_camera_position()
-            for texture in self.plot.objects:
-                texture.visible = True
-            self.selection.value = "None"
+            self._show_all_slices()
+
+    def _show_all_slices(self):
+        self.picked_slice_id = None
+        self._change_camera_position()
+        for texture in self.plot.objects:
+            texture.visible = True
+        self.selection.value = "None"
 
     def _prepare_plot(self):
         plot = k3d.Plot(grid_visible=False, camera_auto_fit=False, camera_no_rotate=True, camera_no_zoom=True,
@@ -224,6 +227,10 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             self.options.children[2].min = self.connectivity.tract_lengths.min() / self.conduction_speed
             self.options.children[1].value = self.options.children[1].min
             self.options.children[2].value = self.options.children[2].max
+        self._refresh_plots()
+
+    def _refresh_plots(self):
+        self.conduction_speed = self.options.children[0].value
         self.from_time = self.options.children[1].value
         self.to_time = self.options.children[2].value
         self.plot_details.value = self._generate_details()
@@ -237,6 +244,39 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
         with self.plot_overview:
             display(self.fig)
+
+    @staticmethod
+    def _set_bounds(option, new_min, new_max):
+        if new_max >= option.min:
+            option.max = new_max
+            option.min = new_min
+        else:
+            option.min = new_min
+            option.max = new_max
+
+    def update_connectivity(self, connectivity):
+        self.connectivity = connectivity
+        speed, from_time, to_time = self.options.children[:3]
+        from_at_min = from_time.value == from_time.min
+        to_at_max = to_time.value == to_time.max
+
+        for option in (speed, from_time, to_time):
+            option.unobserve(self.on_change, names="value")
+        speed.max = max(round(connectivity.tract_lengths.max(), 2), 1.0)
+        new_min = connectivity.tract_lengths.min() / speed.value
+        new_max = connectivity.tract_lengths.max() / speed.value
+        self._set_bounds(from_time, new_min, new_max)
+        self._set_bounds(to_time, new_min, new_max)
+        if from_at_min:
+            from_time.value = new_min
+        if to_at_max:
+            to_time.value = new_max
+        for option in (speed, from_time, to_time):
+            option.observe(self.on_change, names="value")
+
+        self._show_all_slices()
+        self.plot_overview.clear_output()
+        self._refresh_plots()
 
     def _custom_colormap(self, connectivity):
         colors = [

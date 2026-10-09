@@ -21,6 +21,7 @@ WARNING_MESSAGE_COLOR = "#e65100"
 VIEW_TAB_INDEX = 0
 SPACE_TIME_TAB_INDEX = 1
 
+
 class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
     def __init__(self, connectivity, view_width=None, view_height=None,
@@ -184,16 +185,19 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
     def _on_matrix_editor_saved(self, change):
         self._last_edited_matrix = None
         self._last_edited_rows, self._last_edited_cols = [], []
-        self._rebuild_space_time_widget(self.matrix_editor.connectivity)
+        self._update_space_time()
+
+    def _update_space_time(self):
+        self.space_time_widget.update_connectivity(self.matrix_editor.new_connectivity)
 
     def _on_matrix_cell_changed(self, change):
         editor = self.matrix_editor
-        if getattr(editor, "clicked_matrix", None) != "weights":
-            return
         if editor.popup.layout.visibility != "hidden":
             return
-        self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
-        self._refresh_node_highlight()
+        if getattr(editor, "clicked_matrix", None) == "weights":
+            self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
+            self._refresh_node_highlight()
+        self._update_space_time()
 
     def _build_matrix_tab(self):
         selection_label = widgets.HTML(
@@ -385,6 +389,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         if matrix_name == "weights":
             self.head_widget.refresh_edges(self.matrix_editor.new_connectivity, matrix)
             self._refresh_node_highlight()
+        self._update_space_time()
 
     def _get_visible_matrix_name(self):
         selected_index = self.matrix_editor.tab.selected_index
@@ -626,6 +631,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
         self.head_widget.highlight_node_edges(editor.new_connectivity, self.node_dropdown.value, None)
         self._highlighted_direction = None
+        self._update_space_time()
 
         self._active_node_mask = [True] * len(self.connectivity.region_labels)
         self._set_all_checkboxes(True)
