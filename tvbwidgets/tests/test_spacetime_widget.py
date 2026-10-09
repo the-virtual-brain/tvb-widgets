@@ -1,5 +1,6 @@
 import k3d
 import math
+import numpy
 import pytest
 import matplotlib
 from ipywidgets import Tab, Output, BoundedFloatText, Text, HBox, HTML
@@ -82,3 +83,15 @@ def test_default_border_not_mutated(wid):
         "SpaceTimeVisualizerWidget mutated the shared TVBWidget.DEFAULT_BORDER. "
         "Use layout = {**self.DEFAULT_BORDER} instead of layout = self.DEFAULT_BORDER."
     )
+
+def test_all_weights_zero(connectivity):
+    connectivity.weights = numpy.zeros_like(connectivity.weights)
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    assert isinstance(widget.plot_details, HTML)
+
+
+def test_all_tract_lengths_zero(connectivity):
+    connectivity.tract_lengths = numpy.zeros_like(connectivity.tract_lengths)
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    speed = widget.option_conduction_speed
+    assert speed.min <= speed.value <= speed.max
