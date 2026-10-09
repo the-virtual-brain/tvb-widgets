@@ -98,10 +98,16 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
         return translate
 
+    def _get_color_range(self):
+        max_weight = float(numpy.max(self.connectivity.weights))
+        if max_weight <= 0:
+            max_weight = 1.0
+        return [0, max_weight]
+
     def _get_texture(self, connectivity_slice, slice_id):
         texture = k3d.texture(attribute=connectivity_slice,
                               color_map=self._custom_colormap(None),
-                              color_range=[connectivity_slice.min(), connectivity_slice.max()],
+                              color_range=self._get_color_range(),
                               name='Slice',
                               interpolation=False,
                               model_matrix=self._get_transform_matrix(slice_id))
@@ -226,7 +232,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             conn_slice = self._prepare_connectivity(idx)
             texture = self.plot.objects[idx]
             texture.attribute = conn_slice
-            texture.color_range = [conn_slice.min(), conn_slice.max()]
+            texture.color_range = self._get_color_range()
             self.ims[idx].imshow(self._custom_colormap(conn_slice))
 
         with self.plot_overview:
@@ -247,7 +253,8 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                 k3d_scheme.append((x, r, g, b))
             return k3d_scheme
 
-        norm = mcolors.Normalize(vmin=0, vmax=3)
+        min_weight, max_weight = self._get_color_range()
+        norm = mcolors.Normalize(vmin=min_weight, vmax=max_weight)
         color_data = color_scheme(norm(connectivity))[:, :, :3]
         return color_data
 

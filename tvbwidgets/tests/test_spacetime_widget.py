@@ -95,3 +95,22 @@ def test_all_tract_lengths_zero(connectivity):
     widget = SpaceTimeVisualizerWidget(connectivity)
     speed = widget.option_conduction_speed
     assert speed.min <= speed.value <= speed.max
+
+def test_same_color_range_for_all_slices(connectivity):
+    connectivity.weights = numpy.where(connectivity.tract_lengths > 80, 1.0, 3.0)
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    ranges = {tuple(texture.color_range) for texture in widget.plot.objects}
+    assert len(ranges) == 1
+
+def test_color_range_not_empty(connectivity):
+    for value in (0.0, 5.0):
+        connectivity.weights = numpy.full_like(connectivity.weights, value)
+        widget = SpaceTimeVisualizerWidget(connectivity)
+        for texture in widget.plot.objects:
+            assert texture.color_range[0] < texture.color_range[1]
+
+def test_plots_overview_uses_max_weight(connectivity):
+    connectivity.weights = numpy.where(connectivity.tract_lengths > 80, 3.0, 10.0)
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    colors = widget._custom_colormap(numpy.array([[3.0, 10.0]]))
+    assert not numpy.allclose(colors[0][0], colors[0][1])
