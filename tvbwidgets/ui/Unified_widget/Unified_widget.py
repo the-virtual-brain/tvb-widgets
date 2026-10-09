@@ -18,6 +18,8 @@ EDITED_CELL_OUTLINE_WIDTH = 2
 EDITABLE_MATRICES = ("weights", "tract_lengths")
 ERROR_MESSAGE_COLOR = "#d32f2f"
 WARNING_MESSAGE_COLOR = "#e65100"
+VIEW_TAB_INDEX = 0
+SPACE_TIME_TAB_INDEX = 1
 
 class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
@@ -72,6 +74,9 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.tabs = widgets.Tab(children=[self.view_subtabs, control_tab])
         self.tabs.set_title(0, "VIEW")
         self.tabs.set_title(1, "CONTROL")
+
+        self.tabs.observe(self._enable_space_time_click, names="selected_index")
+        self.view_subtabs.observe(self._enable_space_time_click, names="selected_index")
 
         for tab_widget in (self.tabs, self.view_subtabs, self.matrix_editor.tab):
             tab_widget.layout.overflow = "visible"
@@ -169,6 +174,12 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
         self.space_time_widget = space_time_widget
         self.space_time_container.children = [space_time_widget.options, space_time_widget.hbox]
+
+    def _enable_space_time_click(self, change):
+        if self.tabs.selected_index != VIEW_TAB_INDEX or self.view_subtabs.selected_index != SPACE_TIME_TAB_INDEX:
+            return
+        self.space_time_widget.plot.mode = 'view'
+        self.space_time_widget.plot.mode = 'callback'
 
     def _on_matrix_editor_saved(self, change):
         self._last_edited_matrix = None
