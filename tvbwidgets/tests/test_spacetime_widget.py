@@ -1,5 +1,6 @@
 import k3d
 import math
+import numpy
 import pytest
 import matplotlib
 from ipywidgets import Tab, Output, BoundedFloatText, Text, HBox, HTML
@@ -82,3 +83,64 @@ def test_default_border_not_mutated(wid):
         "SpaceTimeVisualizerWidget mutated the shared TVBWidget.DEFAULT_BORDER. "
         "Use layout = {**self.DEFAULT_BORDER} instead of layout = self.DEFAULT_BORDER."
     )
+
+def test_all_weights_zero(connectivity):
+    connectivity.weights = numpy.zeros_like(connectivity.weights)
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    assert isinstance(widget.plot_details, HTML)
+
+
+def test_all_tract_lengths_zero(connectivity):
+    connectivity.tract_lengths = numpy.zeros_like(connectivity.tract_lengths)
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    speed = widget.option_conduction_speed
+    assert speed.min <= speed.value <= speed.max
+
+def test_same_color_range_for_all_slices(connectivity):
+    connectivity.weights = numpy.where(connectivity.tract_lengths > 80, 1.0, 3.0)
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    ranges = {tuple(texture.color_range) for texture in widget.plot.objects}
+    assert len(ranges) == 1
+
+def test_color_range_not_empty(connectivity):
+    for value in (0.0, 5.0):
+        connectivity.weights = numpy.full_like(connectivity.weights, value)
+        widget = SpaceTimeVisualizerWidget(connectivity)
+        for texture in widget.plot.objects:
+            assert texture.color_range[0] < texture.color_range[1]
+
+def test_plots_overview_uses_max_weight(connectivity):
+    connectivity.weights = numpy.where(connectivity.tract_lengths > 80, 3.0, 10.0)
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    colors = widget._custom_colormap(numpy.array([[3.0, 10.0]]))
+    assert not numpy.allclose(colors[0][0], colors[0][1])
+
+def test_update_connectivity(connectivity):
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    plot = widget.plot
+    new_connectivity = Connectivity.from_file()
+    new_connectivity.weights = new_connectivity.weights * 2
+    new_connectivity.configure()
+    widget.update_connectivity(new_connectivity)
+    assert widget.plot is plot
+    assert numpy.allclose(widget.plot.objects[0].attribute, new_connectivity.weights)
+
+def test_update_connectivity_keeps_time_interval(connectivity):
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    widget.option_from_time.value = 20.0
+    widget.option_to_time.value = 60.0
+    widget.update_connectivity(connectivity)
+    assert math.isclose(widget.option_from_time.value, 20.0)
+    assert math.isclose(widget.option_to_time.value, 60.0)
+
+def test_update_connectivity_changes_time_limits(connectivity):
+    widget = SpaceTimeVisualizerWidget(connectivity)
+    longer = Connectivity.from_file()
+    longer.tract_lengths = numpy.full_like(longer.tract_lengths, 200.0)
+    longer.configure()
+    widget.update_connectivity(longer)
+    assert math.isclose(widget.option_from_time.min, 200.0)
+    assert math.isclose(widget.option_to_time.max, 200.0)
+    widget.update_connectivity(connectivity)
+    assert math.isclose(widget.option_from_time.min, connectivity.tract_lengths.min())
+    assert math.isclose(widget.option_to_time.max, connectivity.tract_lengths.max())

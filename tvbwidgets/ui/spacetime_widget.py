@@ -98,10 +98,16 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
         return translate
 
+    def _get_color_range(self):
+        max_weight = float(numpy.max(self.connectivity.weights))
+        if max_weight <= 0:
+            max_weight = 1.0
+        return [0, max_weight]
+
     def _get_texture(self, connectivity_slice, slice_id):
         texture = k3d.texture(attribute=connectivity_slice,
                               color_map=self._custom_colormap(None),
-                              color_range=[connectivity_slice.min(), connectivity_slice.max()],
+                              color_range=self._get_color_range(),
                               name='Slice',
                               interpolation=False,
                               model_matrix=self._get_transform_matrix(slice_id))
@@ -135,11 +141,14 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                         self.selection.value = f"{intervals[i - 1]:.2f} .. {intervals[i]:.2f}"
             self.picked_slice_id = clicked_id
         else:
-            self.picked_slice_id = None
-            self._change_camera_position()
-            for texture in self.plot.objects:
-                texture.visible = True
-            self.selection.value = "None"
+            self._show_all_slices()
+
+    def _show_all_slices(self):
+        self.picked_slice_id = None
+        self._change_camera_position()
+        for texture in self.plot.objects:
+            texture.visible = True
+        self.selection.value = "None"
 
     def _prepare_plot(self):
         plot = k3d.Plot(grid_visible=False, camera_auto_fit=False, camera_no_rotate=True, camera_no_zoom=True,
@@ -167,7 +176,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.option_conduction_speed = BoundedFloatText(
             value=1.0,
             min=0.1,
-            max=round(max_time, 2),
+            max=max(round(max_time, 2), 1.0),
             step=0.1,
             layout=Layout(width='170px'),
             style={'description_width': 'initial'},
@@ -218,6 +227,10 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             self.options.children[2].min = self.connectivity.tract_lengths.min() / self.conduction_speed
             self.options.children[1].value = self.options.children[1].min
             self.options.children[2].value = self.options.children[2].max
+        self._refresh_plots()
+
+    def _refresh_plots(self):
+        self.conduction_speed = self.options.children[0].value
         self.from_time = self.options.children[1].value
         self.to_time = self.options.children[2].value
         self.plot_details.value = self._generate_details()
@@ -226,11 +239,44 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             conn_slice = self._prepare_connectivity(idx)
             texture = self.plot.objects[idx]
             texture.attribute = conn_slice
-            texture.color_range = [conn_slice.min(), conn_slice.max()]
+            texture.color_range = self._get_color_range()
             self.ims[idx].imshow(self._custom_colormap(conn_slice))
 
         with self.plot_overview:
             display(self.fig)
+
+    @staticmethod
+    def _set_bounds(option, new_min, new_max):
+        if new_max >= option.min:
+            option.max = new_max
+            option.min = new_min
+        else:
+            option.min = new_min
+            option.max = new_max
+
+    def update_connectivity(self, connectivity):
+        self.connectivity = connectivity
+        speed, from_time, to_time = self.options.children[:3]
+        from_at_min = from_time.value == from_time.min
+        to_at_max = to_time.value == to_time.max
+
+        for option in (speed, from_time, to_time):
+            option.unobserve(self.on_change, names="value")
+        speed.max = max(round(connectivity.tract_lengths.max(), 2), 1.0)
+        new_min = connectivity.tract_lengths.min() / speed.value
+        new_max = connectivity.tract_lengths.max() / speed.value
+        self._set_bounds(from_time, new_min, new_max)
+        self._set_bounds(to_time, new_min, new_max)
+        if from_at_min:
+            from_time.value = new_min
+        if to_at_max:
+            to_time.value = new_max
+        for option in (speed, from_time, to_time):
+            option.observe(self.on_change, names="value")
+
+        self._show_all_slices()
+        self.plot_overview.clear_output()
+        self._refresh_plots()
 
     def _custom_colormap(self, connectivity):
         colors = [
@@ -247,7 +293,8 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                 k3d_scheme.append((x, r, g, b))
             return k3d_scheme
 
-        norm = mcolors.Normalize(vmin=0, vmax=3)
+        min_weight, max_weight = self._get_color_range()
+        norm = mcolors.Normalize(vmin=min_weight, vmax=max_weight)
         color_data = color_scheme(norm(connectivity))[:, :, :3]
         return color_data
 
@@ -279,6 +326,13 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             layout=layout
         )
 
+    @staticmethod
+    def _min_non_zero(values):
+        non_zero = values[numpy.nonzero(values)]
+        if non_zero.size == 0:
+            return 0
+        return numpy.min(non_zero)
+
     def _generate_details(self):
         return f"""<br>
                     <div style="line-height:1;">
@@ -286,15 +340,15 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                     <h4>conduction speed:</h4> 
                     <p>{self.conduction_speed} mm/ms</p>
                     <h4>min(non-zero) delay:</h4>
-                    <p>{numpy.min(self.connectivity.tract_lengths[numpy.nonzero(self.connectivity.tract_lengths)]) / self.conduction_speed} ms</p>
+                    <p>{self._min_non_zero(self.connectivity.tract_lengths) / self.conduction_speed} ms</p>
                     <h4>max delay:</h4>
                     <p>{numpy.max(self.connectivity.tract_lengths) / self.conduction_speed} ms</p>
                     <h4>min(non-zero) tract length:</h4>
-                    <p>{numpy.min(self.connectivity.tract_lengths[numpy.nonzero(self.connectivity.tract_lengths)])} mm</p>
+                    <p>{self._min_non_zero(self.connectivity.tract_lengths)} mm</p>
                     <h4>max tract length:</h4>
                     <p>{numpy.max(self.connectivity.tract_lengths, )} mm</p>
                     <h4>min(non-zero) weight:</h4>
-                    <p>{numpy.min(self.connectivity.weights[numpy.nonzero(self.connectivity.weights)])}</p>
+                    <p>{self._min_non_zero(self.connectivity.weights)}</p>
                     <h4>max weight:</h4>
                     <p>{numpy.max(self.connectivity.weights)}</p>
                     </div>"""
