@@ -167,7 +167,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.option_conduction_speed = BoundedFloatText(
             value=1.0,
             min=0.1,
-            max=round(max_time, 2),
+            max=max(round(max_time, 2), 1.0),
             step=0.1,
             layout=Layout(width='170px'),
             style={'description_width': 'initial'},
@@ -279,6 +279,13 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             layout=layout
         )
 
+    @staticmethod
+    def _min_non_zero(values):
+        non_zero = values[numpy.nonzero(values)]
+        if non_zero.size == 0:
+            return 0
+        return numpy.min(non_zero)
+
     def _generate_details(self):
         return f"""<br>
                     <div style="line-height:1;">
@@ -286,15 +293,15 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                     <h4>conduction speed:</h4> 
                     <p>{self.conduction_speed} mm/ms</p>
                     <h4>min(non-zero) delay:</h4>
-                    <p>{numpy.min(self.connectivity.tract_lengths[numpy.nonzero(self.connectivity.tract_lengths)]) / self.conduction_speed} ms</p>
+                    <p>{self._min_non_zero(self.connectivity.tract_lengths) / self.conduction_speed} ms</p>
                     <h4>max delay:</h4>
                     <p>{numpy.max(self.connectivity.tract_lengths) / self.conduction_speed} ms</p>
                     <h4>min(non-zero) tract length:</h4>
-                    <p>{numpy.min(self.connectivity.tract_lengths[numpy.nonzero(self.connectivity.tract_lengths)])} mm</p>
+                    <p>{self._min_non_zero(self.connectivity.tract_lengths)} mm</p>
                     <h4>max tract length:</h4>
                     <p>{numpy.max(self.connectivity.tract_lengths, )} mm</p>
                     <h4>min(non-zero) weight:</h4>
-                    <p>{numpy.min(self.connectivity.weights[numpy.nonzero(self.connectivity.weights)])}</p>
+                    <p>{self._min_non_zero(self.connectivity.weights)}</p>
                     <h4>max weight:</h4>
                     <p>{numpy.max(self.connectivity.weights)}</p>
                     </div>"""
