@@ -52,6 +52,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.matrix_editor.popup_change.on_click(self._redraw_edited_cells_outline)
         self.matrix_editor.popup_cancel.on_click(self._redraw_edited_cells_outline)
         self.matrix_editor.tab.observe(self._redraw_edited_cells_outline, names="selected_index")
+        self._observe_history_dropdown()
 
         self._node_selections = {}
         self._node_checkboxes = {}
@@ -186,6 +187,17 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self._last_edited_matrix = None
         self._last_edited_rows, self._last_edited_cols = [], []
         self._update_space_time()
+        self._observe_history_dropdown()
+
+    def _observe_history_dropdown(self):
+        self.matrix_editor.header.children[-1].observe(self._on_history_connectivity_change, names="value")
+
+    def _on_history_connectivity_change(self, change):
+        editor = self.matrix_editor
+        self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
+        self._refresh_node_highlight()
+        self._update_space_time()
+        self._reset_node_selection()
 
     def _update_space_time(self):
         self.space_time_widget.update_connectivity(self.matrix_editor.new_connectivity)
@@ -633,6 +645,10 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self._highlighted_direction = None
         self._update_space_time()
 
+        self._update_space_time()
+        self._reset_node_selection()
+
+    def _reset_node_selection(self):
         self._active_node_mask = [True] * len(self.connectivity.region_labels)
         self._set_all_checkboxes(True)
         self.selection_name_input.value = ""
