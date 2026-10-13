@@ -154,3 +154,12 @@ def test_conduction_speed_limits(connectivity):
     longer.configure()
     widget.update_connectivity(longer)
     assert speed.max == MAX_CONDUCTION_SPEED
+
+def test_single_slice_when_from_equals_to(wid):
+    wid.option_from_time.value = 50.0
+    wid.option_to_time.value = 50.0
+    assert [texture.visible for texture in wid.plot.objects] == [True] + [False] * 6
+    assert [ax.get_visible() for ax in wid.ims] == [True] + [False] * 6
+
+    wid.option_to_time.value = 60.0
+    assert all(texture.visible for texture in wid.plot.objects)

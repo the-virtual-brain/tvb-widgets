@@ -53,6 +53,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
         self.plot_overview = Output()
         self._create_plots_overview()
+        self._update_slices_visibility()
         with self.plot_overview:
             display(self.fig)
 
@@ -149,9 +150,16 @@ class SpaceTimeVisualizerWidget(TVBWidget):
     def _show_all_slices(self):
         self.picked_slice_id = None
         self._change_camera_position()
-        for texture in self.plot.objects:
-            texture.visible = True
+        self._update_slices_visibility()
         self.selection.value = "None"
+
+    def _update_slices_visibility(self):
+        single_slice = self.from_time == self.to_time
+        if self.picked_slice_id is None:
+            for idx, texture in enumerate(self.plot.objects):
+                texture.visible = idx == 0 or not single_slice
+        for ax in self.ims[1:]:
+            ax.set_visible(not single_slice)
 
     def _prepare_plot(self):
         plot = k3d.Plot(grid_visible=False, camera_auto_fit=False, camera_no_rotate=True, camera_no_zoom=True,
@@ -245,6 +253,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             texture.color_range = self._get_color_range()
             self.ims[idx].imshow(self._custom_colormap(conn_slice))
 
+        self._update_slices_visibility()
         with self.plot_overview:
             display(self.fig)
 
