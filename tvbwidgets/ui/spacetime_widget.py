@@ -21,6 +21,8 @@ from tvbwidgets.ui.base_widget import TVBWidget
 
 MIN_CONDUCTION_SPEED = 0.1
 MAX_CONDUCTION_SPEED = 20.0
+NO_VALUE_COLOR = '#ffffff'
+NO_VALUE_BAND = 0.04
 
 
 class SpaceTimeVisualizerWidget(TVBWidget):
@@ -108,10 +110,17 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             max_weight = 1.0
         return [0, max_weight]
 
+    def _get_texture_color_range(self):
+        max_weight = self._get_color_range()[1]
+        return [-NO_VALUE_BAND * max_weight / (1 - NO_VALUE_BAND), max_weight]
+
+    def _get_texture_attribute(self, connectivity_slice):
+        return numpy.where(connectivity_slice == 0, -self._get_color_range()[1], connectivity_slice)
+
     def _get_texture(self, connectivity_slice, slice_id):
-        texture = k3d.texture(attribute=connectivity_slice,
+        texture = k3d.texture(attribute=self._get_texture_attribute(connectivity_slice),
                               color_map=self._custom_colormap(None),
-                              color_range=self._get_color_range(),
+                              color_range=self._get_texture_color_range(),
                               name='Slice',
                               interpolation=False,
                               model_matrix=self._get_transform_matrix(slice_id))
@@ -249,8 +258,8 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         for idx in range(len(self.plot.objects)):
             conn_slice = self._prepare_connectivity(idx)
             texture = self.plot.objects[idx]
-            texture.attribute = conn_slice
-            texture.color_range = self._get_color_range()
+            texture.attribute = self._get_texture_attribute(conn_slice)
+            texture.color_range = self._get_texture_color_range()
             self.ims[idx].imshow(self._custom_colormap(conn_slice))
 
         self._update_slices_visibility()
@@ -298,15 +307,17 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         color_scheme = mcolors.LinearSegmentedColormap.from_list('color_scheme', colors)
 
         if connectivity is None:
-            k3d_scheme = []
+            no_value = mcolors.to_rgb(NO_VALUE_COLOR)
+            k3d_scheme = [(0.0, *no_value), (NO_VALUE_BAND / 2, *no_value)]
             for x in numpy.linspace(0, 1, max(color_scheme.N, 256)):
                 r, g, b = color_scheme(x)[:3]
-                k3d_scheme.append((x, r, g, b))
+                k3d_scheme.append((NO_VALUE_BAND + x * (1 - NO_VALUE_BAND), r, g, b))
             return k3d_scheme
 
         min_weight, max_weight = self._get_color_range()
         norm = mcolors.Normalize(vmin=min_weight, vmax=max_weight)
         color_data = color_scheme(norm(connectivity))[:, :, :3]
+        color_data[connectivity == 0] = mcolors.to_rgb(NO_VALUE_COLOR)
         return color_data
 
     def _create_plots_overview(self):

@@ -5,6 +5,7 @@ import pytest
 import matplotlib
 from ipywidgets import Tab, Output, BoundedFloatText, Text, HBox, HTML
 from tvbwidgets.ui.spacetime_widget import SpaceTimeVisualizerWidget, MIN_CONDUCTION_SPEED, MAX_CONDUCTION_SPEED
+from tvbwidgets.ui.spacetime_widget import NO_VALUE_COLOR
 from tvb.datatypes.connectivity import Connectivity
 
 matplotlib.use('Agg')
@@ -121,7 +122,8 @@ def test_update_connectivity(connectivity):
     new_connectivity.configure()
     widget.update_connectivity(new_connectivity)
     assert widget.plot is plot
-    assert numpy.allclose(widget.plot.objects[0].attribute, new_connectivity.weights)
+    weights = new_connectivity.weights
+    assert numpy.allclose(widget.plot.objects[0].attribute[weights > 0], weights[weights > 0])
 
 def test_update_connectivity_keeps_time_interval(connectivity):
     widget = SpaceTimeVisualizerWidget(connectivity)
@@ -163,3 +165,11 @@ def test_single_slice_when_from_equals_to(wid):
 
     wid.option_to_time.value = 60.0
     assert all(texture.visible for texture in wid.plot.objects)
+
+def test_empty_cells_have_their_own_color(wid):
+    values = wid._prepare_connectivity(0)
+    texture = wid.plot.objects[0]
+    assert (texture.attribute[values == 0] < texture.color_range[0]).all()
+    assert (texture.attribute[values > 0] >= texture.color_range[0]).all()
+    colors = wid._custom_colormap(values)
+    assert numpy.allclose(colors[values == 0], matplotlib.colors.to_rgb(NO_VALUE_COLOR))
