@@ -19,6 +19,9 @@ from matplotlib.gridspec import GridSpec
 
 from tvbwidgets.ui.base_widget import TVBWidget
 
+MIN_CONDUCTION_SPEED = 0.1
+MAX_CONDUCTION_SPEED = 20.0
+
 
 class SpaceTimeVisualizerWidget(TVBWidget):
 
@@ -175,8 +178,8 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         min_time = self.connectivity.tract_lengths.min()
         self.option_conduction_speed = BoundedFloatText(
             value=1.0,
-            min=0.1,
-            max=max(round(max_time, 2), 1.0),
+            min=MIN_CONDUCTION_SPEED,
+            max=MAX_CONDUCTION_SPEED,
             step=0.1,
             layout=Layout(width='170px'),
             style={'description_width': 'initial'},
@@ -262,7 +265,6 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
         for option in (speed, from_time, to_time):
             option.unobserve(self.on_change, names="value")
-        speed.max = max(round(connectivity.tract_lengths.max(), 2), 1.0)
         new_min = connectivity.tract_lengths.min() / speed.value
         new_max = connectivity.tract_lengths.max() / speed.value
         self._set_bounds(from_time, new_min, new_max)
