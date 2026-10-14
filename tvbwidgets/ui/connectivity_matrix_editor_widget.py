@@ -22,6 +22,15 @@ from tvbwidgets.ui.base_widget import TVBWidget
 
 LOGGER = get_logger(__name__)
 
+POPUP_CLASS = "matrix-editor-popup"
+POPUP_ABOVE_CLASS = "matrix-editor-popup-above"
+POPUP_STYLE = f"""<style>
+.{POPUP_CLASS} {{ background-color: white; }}
+.{POPUP_ABOVE_CLASS} {{ transform: translateY(-100%); }}
+</style>"""
+INVALID_NUMBER_MESSAGE = "Not a valid number. Original value is kept."
+NOT_FINITE_MESSAGE = "Not a finite number. Original value is kept."
+
 
 class ConnectivityMatrixEditor(TVBWidget):
     def __init__(self, connectivity, size=None, **kwargs):
@@ -112,42 +121,45 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         self.popup = widgets.VBox(
         layout=widgets.Layout(
-            height='100px',  
-            width='200px',  
-            padding='5px',  
+            width='200px',
+            padding='8px 10px',
             min_width='200px',
             visibility='hidden',
             border='4px solid black',
-            background='white',
             z_index='10',
             position='absolute',
+            align_self='flex-start',
             justify_content='center',
             align_items='center'
          )
-        )       
+        )
         self.popup_value = widgets.Text(layout=widgets.Layout(width="50%", margin="10px 0"))
+        self.popup_error = widgets.HTML(value="", layout=widgets.Layout(width="100%", margin="0"))
 
         self.popup_change = widgets.Button(
-            description="Change", 
-            layout=widgets.Layout(width="90px", margin="3px"),
+            description="Change",
+            layout=widgets.Layout(width="48%", margin="3px 0"),
             style={ 'font_weight': 'bold'}
         )
 
         self.popup_cancel = widgets.Button(
-            description="Cancel", 
-            layout=widgets.Layout(width="90px", margin="3px"),
+            description="Cancel",
+            layout=widgets.Layout(width="48%", margin="3px 0"),
             style={'font_weight': 'bold'}
         )
 
         self.popup_buttons = widgets.HBox(
-            [self.popup_change, self.popup_cancel], 
+            [self.popup_change, self.popup_cancel],
             layout=widgets.Layout(
-                justify_content='space-between', 
-                width="100%"
+                justify_content='space-between',
+                width="100%",
+                margin="0"
             )
         )
 
-        self.popup.children = [self.popup_value, self.popup_buttons]
+        popup_style = widgets.HTML(POPUP_STYLE, layout=widgets.Layout(display="none"))
+        self.popup.add_class(POPUP_CLASS)
+        self.popup.children = [self.popup_value, self.popup_buttons, self.popup_error, popup_style]
 
         self.popup_change.on_click(self.on_apply_change)
         self.popup_cancel.on_click(self.on_click_cancel)
@@ -279,6 +291,7 @@ class ConnectivityMatrixEditor(TVBWidget):
             x = self.layout_offset + self.col * self.cell_size
             y = self.layout_offset + self.row * self.cell_size
             self.popup_value.value = f"{value}"
+            self.popup_error.value = ""
             self.popup.layout.visibility = 'visible'
 
             mid_col = self.num_rows // 2
@@ -301,10 +314,15 @@ class ConnectivityMatrixEditor(TVBWidget):
                 top = y + self.cell_size + 2
             elif quadrant == 3:
                 left = x - 1142
-                top = y - 100
-            else:  
+                top = y - 2
+            else:
                 left = x - 1342 + self.cell_size
-                top = y - 100
+                top = y - 2
+
+            if quadrant in (3, 4):
+                self.popup.add_class(POPUP_ABOVE_CLASS)
+            else:
+                self.popup.remove_class(POPUP_ABOVE_CLASS)
             self.popup.layout.left = f'{left}px'
             self.popup.layout.top = f'{top}px'
             self.current_matrix = matrix_name
@@ -317,18 +335,30 @@ class ConnectivityMatrixEditor(TVBWidget):
                 matrix_ui[5].stroke_style = "white"
                 matrix_ui[5].stroke_rect(x, y, self.cell_size, self.cell_size)
 
-    def on_apply_change(self, change):
-        self.is_connectivity_being_edited = True
+    def _show_popup_error(self, message):
+        self.popup_error.value = f'<div style="color:#d32f2f;font-size:11px;line-height:1.3;">{message}</div>'
+        LOGGER.warning(f"Matrix editor: '{self.popup_value.value}' is not a valid cell value.")
+        self.popup_value.focus()
 
-        matrix_name = self.clicked_matrix + "_matrix"
-        matrix_ui = getattr(self, matrix_name)
+    def _read_cell_value(self):
         try:
             value = float(self.popup_value.value)
         except (ValueError, TypeError):
-            LOGGER.error(f'An exception occurred when retrieving the cell value.')
-            value = None
+            self._show_popup_error(INVALID_NUMBER_MESSAGE)
+            return None
+        if not np.isfinite(value):
+            self._show_popup_error(NOT_FINITE_MESSAGE)
+            return None
+        return max(value, 0.0)
+
+    def on_apply_change(self, change):
+        matrix_name = self.clicked_matrix + "_matrix"
+        matrix_ui = getattr(self, matrix_name)
+        value = self._read_cell_value()
 
         if value is not None:
+            self.is_connectivity_being_edited = True
+            self.popup_error.value = ""
             matrix_name = self.clicked_matrix
             matrix = getattr(self.new_connectivity, matrix_name)
             max_val = matrix.max()
@@ -351,17 +381,20 @@ class ConnectivityMatrixEditor(TVBWidget):
 
     def on_click_cancel(self, change=None):
         self.popup.layout.visibility = "hidden"
+        self.popup_error.value = ""
 
         matrix_name = self.clicked_matrix + "_matrix"
         matrix_ui = getattr(self, matrix_name)
         x = self.layout_offset + self.col * self.cell_size
         y = self.layout_offset + self.row * self.cell_size
 
+        matrix = getattr(self.new_connectivity, self.clicked_matrix)
+        value = matrix[self.from_row + int(self.row)][self.from_col + int(self.col)]
+
         # Redraw the cell with original color to remove highlight
         with canvas.hold_canvas(matrix_ui[0]):
             matrix_ui[0].fill_style = self._generate_color(self.new_connectivity, self.row, self.col,
-                                                        self.clicked_matrix, 
-                                                        self.new_connectivity._getattribute_(self.clicked_matrix)[self.from_row + int(self.row)][self.from_col + int(self.col)])
+                                                           self.clicked_matrix, value)
             matrix_ui[0].fill_rect(x, y, self.cell_size, self.cell_size)
             matrix_ui[0].stroke_rect(x, y, self.cell_size, self.cell_size)
 

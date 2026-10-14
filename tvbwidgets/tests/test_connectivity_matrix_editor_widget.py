@@ -126,3 +126,21 @@ def test_prepare_new_connectivity(wid):
     assert wid.new_connectivity.areas.all() == wid.connectivity.areas.all()
     assert wid.new_connectivity.weights.all() == wid.connectivity.weights.all()
     assert wid.new_connectivity.tract_lengths.all() == wid.connectivity.tract_lengths.all()
+
+def test_edit_cell_value(wid):
+    wid.clicked_matrix = "weights"
+    wid.row, wid.col = 0, 1
+    original = wid.new_connectivity.weights[0][1]
+
+    for text in ("abc", "nan", "inf"):
+        wid.popup_value.value = text
+        wid.on_apply_change(None)
+        assert wid.new_connectivity.weights[0][1] == original
+        assert wid.popup_error.value != ""
+
+    wid.on_click_cancel()
+    assert wid.popup_error.value == ""
+
+    wid.popup_value.value = "-2"
+    wid.on_apply_change(None)
+    assert wid.new_connectivity.weights[0][1] == 0
