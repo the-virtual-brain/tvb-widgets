@@ -10,14 +10,19 @@
 """
 
 import math
+import os
 import numpy as np
 import ipycanvas as canvas
 import ipywidgets as widgets
 import matplotlib.colors as mcolors
 from IPython.display import display
+from tvb.basic.exceptions import TVBException
+from tvb.config.init.datatypes_registry import populate_datatypes_registry
+from tvb.core.neocom import h5
 from tvb.datatypes.connectivity import Connectivity
 
 from tvbwidgets import get_logger
+from tvbwidgets.core.simulator.model_exporters import is_valid_file_name
 from tvbwidgets.ui.base_widget import TVBWidget
 
 LOGGER = get_logger(__name__)
@@ -30,20 +35,36 @@ POPUP_STYLE = f"""<style>
 </style>"""
 INVALID_NUMBER_MESSAGE = "Not a valid number. Original value is kept."
 NOT_FINITE_MESSAGE = "Not a finite number. Original value is kept."
+ERROR_COLOR = "#d32f2f"
+SUCCESS_COLOR = "#2e7d32"
+H5_EXTENSION = ".h5"
+DEFAULT_EXPORT_NAME = "edited_connectivity"
+INVALID_FILE_NAME_MESSAGE = "Use only letters, digits and _ in the file name."
+FILE_EXISTS_MESSAGE = "{} already exists. Choose another name."
+EXPORT_FAILED_MESSAGE = "Could not write {}."
+EXPORT_SUCCESS_MESSAGE = "Exported {} to the notebook folder."
+
+
+def format_message(message, color):
+    return f'<div style="color:{color};font-size:11px;line-height:1.3;">{message}</div>'
+
+
+def load_connectivity_h5(file_path):
+    # h5.load needs the TVB datatypes registry, which is empty after a kernel restart and needs to be filled first
+    populate_datatypes_registry()
+    return h5.load(file_path)
 
 
 class ConnectivityMatrixEditor(TVBWidget):
     def __init__(self, connectivity, size=None, **kwargs):
         super().__init__(**kwargs)
         self.connectivity = connectivity
-        self.connectivity_history_list = [self.connectivity]
         self.num_rows = int(len(self.connectivity.weights[0]) / 2)  # num_cols will be equal to num_rows
         if size is None:
             size = self.num_rows * 20
         self.size = size
         self.layout_offset = self.size * 0.2
 
-        self.is_connectivity_being_edited = True
         self.new_connectivity = self._prepare_new_connectivity()
         self.header = widgets.HBox(layout=self.DEFAULT_BORDER)
         self._make_header()
@@ -58,21 +79,23 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         self.quadrants.observe(self._on_quadrant_select, names=["value"])
 
-        self.save_button = widgets.Button(description="Save",
-                                          layout=widgets.Layout(width="100px", margin='0 0 0 auto'))
-        self.save_button.on_click(self.on_click_save)
+        self.export_message = widgets.HTML(value="", layout=widgets.Layout(margin="0 10px 0 auto",
+                                                                             align_self="center"))
+        self.export_name = widgets.Text(value=self._get_next_free_name(), layout=widgets.Layout(width="200px"))
+        extension_label = widgets.Label(H5_EXTENSION)
+        self.export_button = widgets.Button(description="Export H5", layout=widgets.Layout(width="100px"))
+        self.export_button.on_click(self._on_click_export)
 
-        self.header.children = [self.quadrants,  self.save_button,self._get_history_dropdown()]
-
+        self.header.children = [self.quadrants, self.export_message, self.export_name, extension_label,
+                                self.export_button]
                                 
     def _on_quadrant_select(self, change):
         self.popup.layout.visibility = "hidden"
 
         selection = int(change["new"][-1])
-        connectivity = self.new_connectivity if self.is_connectivity_being_edited else self.connectivity
 
         self._get_quadrant_range(selection)
-        self._update_matrices_view(connectivity)
+        self._update_matrices_view(self.new_connectivity)
 
     def _get_quadrant_range(self, selection):
         middle_val = int(self.connectivity.weights.shape[0] / 2)
@@ -282,8 +305,7 @@ class ConnectivityMatrixEditor(TVBWidget):
         if -1 < row < self.num_rows and -1 < col < self.num_rows:
             self.row = row
             self.col = col
-            connectivity = self.new_connectivity if self.is_connectivity_being_edited else self.connectivity
-            matrix = getattr(connectivity, matrix_name)
+            matrix = getattr(self.new_connectivity, matrix_name)
             value = matrix[int(self.from_row + self.row)][int(self.from_col + self.col)]
             matrix_ = self.clicked_matrix + "_matrix"
             matrix_ui = getattr(self, matrix_)
@@ -336,7 +358,7 @@ class ConnectivityMatrixEditor(TVBWidget):
                 matrix_ui[5].stroke_rect(x, y, self.cell_size, self.cell_size)
 
     def _show_popup_error(self, message):
-        self.popup_error.value = f'<div style="color:#d32f2f;font-size:11px;line-height:1.3;">{message}</div>'
+        self.popup_error.value = format_message(message, ERROR_COLOR)
         LOGGER.warning(f"Matrix editor: '{self.popup_value.value}' is not a valid cell value.")
         self.popup_value.focus()
 
@@ -357,7 +379,6 @@ class ConnectivityMatrixEditor(TVBWidget):
         value = self._read_cell_value()
 
         if value is not None:
-            self.is_connectivity_being_edited = True
             self.popup_error.value = ""
             matrix_name = self.clicked_matrix
             matrix = getattr(self.new_connectivity, matrix_name)
@@ -400,66 +421,65 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         matrix_ui[5].clear()
 
-    def saved_connectivities(self):
-        conn_list = []
-        for conn in self.connectivity_history_list:
-            conn_list.append(conn.gid.hex)
-        return conn_list
+    @property
+    def conn_edited(self):
+        return self._prepare_new_connectivity(source=self.new_connectivity)
 
-    def get_connectivity(self, gid=None):
-        if gid is None:
-            return self.connectivity
-        for conn in self.connectivity_history_list:
-            if conn.gid.hex == gid:
-                return conn
+    def _get_export_path(self, file_name):
+        return os.path.join(os.getcwd(), file_name + H5_EXTENSION)
 
-    def on_click_save(self, change):
-        self.popup.layout.visibility = "hidden"
-        
-        conn = self.new_connectivity
-        self.connectivity_history_list.insert(0, conn)
-        self.connectivity = conn
-        self.header.children = list(self.header.children)[:-1] + [self._get_history_dropdown()]
+    def _get_next_free_name(self):
+        index = 1
+        while os.path.exists(self._get_export_path(f"{DEFAULT_EXPORT_NAME}_{index}")):
+            index += 1
+        return f"{DEFAULT_EXPORT_NAME}_{index}"
 
-        self.new_connectivity = self._prepare_new_connectivity()
-        self.is_connectivity_being_edited = False
-        self._update_matrices_view(self.connectivity)
+    def _show_export_message(self, message, color):
+        self.export_message.value = format_message(message, color)
 
-    def _prepare_new_connectivity(self):
+    def export_h5(self, connectivity):
+        file_name = self.export_name.value.strip()
+        if not is_valid_file_name(file_name):
+            self._show_export_message(INVALID_FILE_NAME_MESSAGE, ERROR_COLOR)
+            return None
+
+        path = self._get_export_path(file_name)
+        shown_name = file_name + H5_EXTENSION
+        if os.path.exists(path):
+            self._show_export_message(FILE_EXISTS_MESSAGE.format(shown_name), ERROR_COLOR)
+            return None
+
+        try:
+            populate_datatypes_registry()
+            h5.store(connectivity, path)
+        except (OSError, TVBException):
+            LOGGER.exception(f"Matrix editor: could not export the connectivity to {path}.")
+            self._show_export_message(EXPORT_FAILED_MESSAGE.format(shown_name), ERROR_COLOR)
+            return None
+
+        self._show_export_message(EXPORT_SUCCESS_MESSAGE.format(shown_name), SUCCESS_COLOR)
+        self.export_name.value = self._get_next_free_name()
+        return path
+
+    def _on_click_export(self, button):
+        self.export_h5(self.conn_edited)
+
+    def _prepare_new_connectivity(self, source=None):
+        if source is None:
+            source = self.connectivity
         new_connectivity = Connectivity()
         new_connectivity.parent_connectivity = self.connectivity.gid.hex
-        new_connectivity.centres = self.connectivity.centres
-        new_connectivity.region_labels = self.connectivity.region_labels
-        new_connectivity.orientations = self.connectivity.orientations
-        new_connectivity.cortical = self.connectivity.cortical
-        new_connectivity.hemispheres = self.connectivity.hemispheres
-        new_connectivity.areas = self.connectivity.areas
-        new_connectivity.weights = self.connectivity.weights
-        new_connectivity.tract_lengths = self.connectivity.tract_lengths
+        new_connectivity.centres = source.centres
+        new_connectivity.region_labels = source.region_labels
+        new_connectivity.orientations = source.orientations
+        new_connectivity.cortical = source.cortical
+        new_connectivity.hemispheres = source.hemispheres
+        new_connectivity.areas = source.areas
+        new_connectivity.weights = source.weights
+        new_connectivity.tract_lengths = source.tract_lengths
         new_connectivity.configure()
 
         return new_connectivity
-
-    def _get_history_dropdown(self):
-        values = [(conn.gid.hex, conn) for conn in self.connectivity_history_list]
-        default = values[values.index((self.connectivity.gid.hex, self.connectivity))][1]
-
-        dropdown = widgets.Dropdown(options=values,
-                                    description='View history',
-                                    disabled=False,
-                                    value=default,
-                                    )
-
-        def on_connectivity_change(change):
-            self.popup.layout.visibility = "hidden"
-            
-            self.is_connectivity_being_edited = False
-            self.connectivity = change["new"]
-            self.new_connectivity = self._prepare_new_connectivity()
-            self._update_matrices_view(self.connectivity)
-
-        dropdown.observe(on_connectivity_change, 'value')
-        return dropdown
 
     def _update_matrices_view(self, connectivity):
         matrices = ["weights", "tract_lengths"]

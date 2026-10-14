@@ -11,7 +11,7 @@ import numpy as np
 import ipycanvas as canvas
 import ipywidgets as widgets
 from tvb.datatypes.connectivity import Connectivity
-from tvbwidgets.ui.connectivity_matrix_editor_widget import ConnectivityMatrixEditor
+from tvbwidgets.ui.connectivity_matrix_editor_widget import ConnectivityMatrixEditor, load_connectivity_h5
 
 @pytest.fixture
 def connectivity():
@@ -29,10 +29,10 @@ def test_display(wid):
     assert isinstance(wid, ConnectivityMatrixEditor)
 
 def test_make_header(wid):
-    assert len(wid.header.children) == 3
+    assert len(wid.header.children) == 5
     assert isinstance(wid.header.children[0], widgets.Dropdown)
-    assert isinstance(wid.header.children[1], widgets.Button)
-    assert isinstance(wid.header.children[2], widgets.Dropdown)
+    assert isinstance(wid.header.children[2], widgets.Text)
+    assert isinstance(wid.header.children[4], widgets.Button)
 
 def test_get_quadrant_range(wid):
     wid._get_quadrant_range(selection = 1)
@@ -100,21 +100,6 @@ def test_generate_color_with_array_value(wid, connectivity):
                                   [[ 99.03529412, 109.14117647, 114.27058824],
                                   [ 97.05882353, 101.23529412, 108.45098039]]])
 
-def test_saved_connectivities(wid):
-    conn_list = wid.saved_connectivities()
-    assert conn_list is not None
-    assert isinstance(conn_list, list)
-    assert isinstance(conn_list[0], str)
-
-def test_get_connectivity(wid):
-    conn = wid.get_connectivity()
-    assert isinstance(conn, Connectivity)
-    assert conn == wid.connectivity
-
-def test_on_click_save(wid):
-    wid.save_button.click()
-    assert len(wid.connectivity_history_list) == 2
-
 def test_prepare_new_connectivity(wid):
     conn = wid._prepare_new_connectivity()
     assert isinstance(conn, Connectivity)
@@ -144,3 +129,27 @@ def test_edit_cell_value(wid):
     wid.popup_value.value = "-2"
     wid.on_apply_change(None)
     assert wid.new_connectivity.weights[0][1] == 0
+
+def test_conn_edited(wid):
+    conn = wid.conn_edited
+    conn.weights[0][1] = 100
+    assert wid.new_connectivity.weights[0][1] != 100
+    assert conn.parent_connectivity == wid.connectivity.gid.hex
+
+def test_export_h5(wid, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    wid.new_connectivity.weights[0][1] = 5
+    wid.export_name.value = "my_conn"
+
+    path = wid.export_h5(wid.conn_edited)
+    assert load_connectivity_h5(path).weights[0][1] == 5
+    assert wid.export_name.value == "edited_connectivity_1"
+
+    wid.new_connectivity.weights[0][1] = 9
+    wid.export_name.value = "my_conn"
+    assert wid.export_h5(wid.conn_edited) is None
+    assert load_connectivity_h5(path).weights[0][1] == 5
+
+    wid.export_name.value = "my-conn"
+    assert wid.export_h5(wid.conn_edited) is None
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["my_conn.h5"]
