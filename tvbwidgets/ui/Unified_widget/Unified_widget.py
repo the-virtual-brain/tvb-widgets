@@ -20,6 +20,7 @@ ERROR_MESSAGE_COLOR = "#d32f2f"
 WARNING_MESSAGE_COLOR = "#e65100"
 VIEW_TAB_INDEX = 0
 SPACE_TIME_TAB_INDEX = 1
+EXPORT_TOOLTIP = "Connections of nodes not selected in Select Nodes are exported as 0"
 
 
 class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
@@ -44,7 +45,9 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
         self.matrix_editor = ConnectivityMatrixEditor(connectivity, **matrix_editor_kwargs)
         self._unclip_matrix_scroll_containers()
-        self.matrix_editor.save_button.on_click(self._on_matrix_editor_saved)
+        self.matrix_editor.export_button.on_click(self.matrix_editor._on_click_export, remove=True)
+        self.matrix_editor.export_button.on_click(self._on_click_export)
+        self.matrix_editor.export_button.tooltip = EXPORT_TOOLTIP
         self.matrix_editor.popup_change.on_click(self._on_matrix_cell_changed)
         self.matrix_editor.quadrants.observe(self._redraw_edited_cells_outline, names="value")
         self.matrix_editor.weights_matrix.on_mouse_down(self._redraw_edited_cells_outline)
@@ -52,7 +55,6 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.matrix_editor.popup_change.on_click(self._redraw_edited_cells_outline)
         self.matrix_editor.popup_cancel.on_click(self._redraw_edited_cells_outline)
         self.matrix_editor.tab.observe(self._redraw_edited_cells_outline, names="selected_index")
-        self._observe_history_dropdown()
 
         self._node_selections = {}
         self._node_checkboxes = {}
@@ -183,21 +185,18 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.space_time_widget.plot.mode = 'view'
         self.space_time_widget.plot.mode = 'callback'
 
-    def _on_matrix_editor_saved(self, change):
-        self._last_edited_matrix = None
-        self._last_edited_rows, self._last_edited_cols = [], []
-        self._update_space_time()
-        self._observe_history_dropdown()
+    @property
+    def conn_edited(self):
+        conn = self.matrix_editor.conn_edited
+        unselected = [i for i, is_in in enumerate(self._active_node_mask) if not is_in]
+        conn.weights[unselected, :] = 0
+        conn.weights[:, unselected] = 0
+        conn.saved_selection = [i for i, is_in in enumerate(self._active_node_mask) if is_in]
+        conn.configure()
+        return conn
 
-    def _observe_history_dropdown(self):
-        self.matrix_editor.header.children[-1].observe(self._on_history_connectivity_change, names="value")
-
-    def _on_history_connectivity_change(self, change):
-        editor = self.matrix_editor
-        self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
-        self._refresh_node_highlight()
-        self._update_space_time()
-        self._reset_node_selection()
+    def _on_click_export(self, button):
+        self.matrix_editor.export_h5(self.conn_edited)
 
     def _update_space_time(self):
         self.space_time_widget.update_connectivity(self.matrix_editor.new_connectivity)
@@ -391,7 +390,6 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
         matrix[idx] = numpy.clip(new_values, 0, None)
 
-        self.matrix_editor.is_connectivity_being_edited = True
         self.matrix_editor._update_matrices_view(self.matrix_editor.new_connectivity)
 
         self._last_edited_matrix = matrix_name
@@ -430,10 +428,6 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
                     matrix_canvas[5].stroke_rect(x, y, cell_size, cell_size)
 
     def _redraw_edited_cells_outline(self, *args):
-        if not self.matrix_editor.is_connectivity_being_edited:
-            self._last_edited_matrix = None
-            self._last_edited_rows, self._last_edited_cols = [], []
-            return
         if self._last_edited_matrix and self._last_edited_rows and self._last_edited_cols:
             self._highlight_edited_cells(self._last_edited_matrix, self._last_edited_rows, self._last_edited_cols)
 
@@ -632,7 +626,6 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
     def _on_reset_edits_click(self, change):
         editor = self.matrix_editor
         editor.new_connectivity = editor._prepare_new_connectivity()
-        editor.is_connectivity_being_edited = False
 
         editor._update_matrices_view(editor.new_connectivity)
         editor.weights_matrix[5].clear()
