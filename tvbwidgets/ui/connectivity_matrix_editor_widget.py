@@ -50,6 +50,8 @@ def format_message(message, color):
 
 
 def load_connectivity_h5(file_path):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} does not exist.")
     # h5.load needs the TVB datatypes registry, which is empty after a kernel restart and needs to be filled first
     populate_datatypes_registry()
     return h5.load(file_path)

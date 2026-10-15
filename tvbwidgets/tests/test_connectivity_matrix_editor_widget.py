@@ -153,3 +153,7 @@ def test_export_h5(wid, tmp_path, monkeypatch):
     wid.export_name.value = "my-conn"
     assert wid.export_h5(wid.conn_edited) is None
     assert sorted(p.name for p in tmp_path.iterdir()) == ["my_conn.h5"]
+
+def test_load_missing_file(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        load_connectivity_h5(str(tmp_path / "missing.h5"))
