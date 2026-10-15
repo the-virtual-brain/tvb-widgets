@@ -247,7 +247,18 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             self.options.children[2].min = self.connectivity.tract_lengths.min() / self.conduction_speed
             self.options.children[1].value = self.options.children[1].min
             self.options.children[2].value = self.options.children[2].max
+        self._swap_reversed_interval()
         self._refresh_plots()
+
+    def _swap_reversed_interval(self):
+        from_time, to_time = self.options.children[1:3]
+        if from_time.value <= to_time.value:
+            return
+        for option in (from_time, to_time):
+            option.unobserve(self.on_change, names="value")
+        from_time.value, to_time.value = to_time.value, from_time.value
+        for option in (from_time, to_time):
+            option.observe(self.on_change, names="value")
 
     def _refresh_plots(self):
         self.conduction_speed = self.options.children[0].value

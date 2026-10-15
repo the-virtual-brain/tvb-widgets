@@ -173,3 +173,10 @@ def test_empty_cells_have_their_own_color(wid):
     assert (texture.attribute[values > 0] >= texture.color_range[0]).all()
     colors = wid._custom_colormap(values)
     assert numpy.allclose(colors[values == 0], matplotlib.colors.to_rgb(NO_VALUE_COLOR))
+
+def test_from_greater_than_to_is_swapped(wid):
+    wid.option_to_time.value = 20.0
+    wid.option_from_time.value = 60.0
+    assert (wid.option_from_time.value, wid.option_to_time.value) == (20, 60)
+    assert (wid.from_time, wid.to_time) == (20, 60)
+    assert numpy.count_nonzero(wid._prepare_connectivity(0)) > 0
