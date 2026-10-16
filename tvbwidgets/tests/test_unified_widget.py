@@ -1,0 +1,251 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2025, TVB Widgets Team
+#
+
+import matplotlib
+import numpy as np
+import pytest
+from tvb.datatypes.connectivity import Connectivity
+from tvbwidgets.ui.connectivity_matrix_editor_widget import load_connectivity_h5
+from tvbwidgets.ui.Unified_widget.Unified_widget import (
+    LargeScaleConnectivityWidget,
+    EXPORT_TOOLTIP,
+    NEW_SELECTION_OPTION,
+)
+from tvbwidgets.ui.Unified_widget.helper_widget import (
+    NODE_OUTGOING_COLOR,
+    NODE_INCOMING_COLOR,
+    UNSELECTED_NODE_COLOR,
+)
+
+matplotlib.use('Agg')
+
+@pytest.fixture
+def connectivity():
+    conn = Connectivity.from_file()
+    conn.configure()
+    return conn
+
+@pytest.fixture
+def wid(connectivity):
+    return LargeScaleConnectivityWidget(connectivity)
+
+def unselect(wid, node):
+    mask = [True] * len(wid.connectivity.region_labels)
+    mask[node] = False
+    wid._active_node_mask = mask
+
+def edge_operation(wid, operation, edge_type, value):
+    wid.operation_dropdown.value = operation
+    wid.edge_type_dropdown.value = edge_type
+    wid.weight_change_input.value = value
+    wid._on_apply_edge_operation(None)
+
+def edit_cell(wid, row, col, value):
+    editor = wid.matrix_editor
+    editor.clicked_matrix = "weights"
+    editor.row, editor.col = row, col
+    editor.popup.layout.visibility = "visible"
+    editor.popup_value.value = value
+    editor.popup_change.click()
+
+def highlight(wid):
+    return wid.head_widget._find_node_highlight_object(wid.matrix_editor.new_connectivity)
+
+def save_selection(wid, name, unchecked):
+    wid._set_all_checkboxes(True)
+    for node in unchecked:
+        wid._node_checkboxes[node].value = False
+    wid.selection_name_input.value = name
+    wid._on_save_selection(None)
+
+def test_layout(wid):
+    assert [wid.tabs.get_title(i) for i in range(2)] == ["VIEW", "CONTROL"]
+    assert [wid.view_subtabs.get_title(i) for i in range(2)] == ["Head View", "Space Time"]
+    assert wid.matrix_editor.export_button.tooltip == EXPORT_TOOLTIP
+
+def test_conn_edited(wid):
+    wid.matrix_editor.new_connectivity.weights[0][2] = 5
+    assert np.array_equal(wid.conn_edited.weights, wid.matrix_editor.new_connectivity.weights)
+    assert len(wid.conn_edited.saved_selection) == len(wid.connectivity.region_labels)
+
+    unselect(wid, 1)
+    branch = wid.conn_edited
+    assert branch.weights[0][2] == 5
+    assert branch.weights[1].sum() == 0
+    assert branch.weights[:, 1].sum() == 0
+    assert 1 not in branch.saved_selection
+    assert wid.matrix_editor.new_connectivity.weights[1].sum() > 0
+
+def test_export_button(wid, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    wid.matrix_editor.new_connectivity.weights[0][2] = 5
+    unselect(wid, 1)
+
+    wid.matrix_editor.export_button.click()
+    loaded = load_connectivity_h5(str(tmp_path / "edited_connectivity_1.h5"))
+    assert loaded.weights[0][2] == 5
+    assert loaded.weights[0][3] == wid.connectivity.weights[0][3]
+    assert loaded.weights[1].sum() == 0
+    assert loaded.weights[:, 1].sum() == 0
+    assert 1 not in loaded.saved_selection
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["edited_connectivity_1.h5"]
+
+def test_cell_change_updates_views(wid):
+    edit_cell(wid, 0, 2, "5")
+    connectivity = wid.matrix_editor.new_connectivity
+    assert connectivity.weights[0][2] == 5
+    edges = wid.head_widget._find_lines_object(connectivity)
+    assert [0, 2] in edges.indices.tolist()
+    assert wid.space_time_widget.connectivity.weights[0][2] == 5
+
+def test_invalid_cell_value_changes_nothing(wid, monkeypatch):
+    calls = []
+    monkeypatch.setattr(wid, "_update_space_time", lambda: calls.append(1))
+    original = wid.matrix_editor.new_connectivity.weights[0][1]
+    edit_cell(wid, 0, 1, "abc")
+    assert wid.matrix_editor.new_connectivity.weights[0][1] == original
+    assert calls == []
+
+@pytest.mark.parametrize("operation, value, expected", [
+    ("Set", "7", 7),
+    ("Add", "1", 3),
+    ("Subtract", "5", 0),
+    ("Multiply", "2", 4),
+    ("Divide", "2", 1),
+])
+def test_edge_operations(wid, operation, value, expected):
+    edge_operation(wid, operation, "In -> In", value)
+    assert wid.matrix_editor.new_connectivity.weights[0][1] == expected
+    assert wid.space_time_widget.connectivity.weights[0][1] == expected
+
+def test_edge_types(wid):
+    unselect(wid, 1)
+    edge_operation(wid, "Set", "In -> Out", "7")
+    weights = wid.matrix_editor.new_connectivity.weights
+    assert weights[0][1] == 7
+    assert weights[1][0] == 3
+    assert weights[0][3] == 2
+
+    edge_operation(wid, "Set", "Out -> In", "8")
+    assert weights[1][0] == 8
+    assert weights[0][1] == 7
+
+    edge_operation(wid, "Set", "Out -> Out", "9")
+    assert weights[1][1] == 9
+    assert weights[0][1] == 7
+
+@pytest.mark.parametrize("value, operation, edge_type, message", [
+    ("abc", "Set", "In -> In", "must be a number"),
+    ("nan", "Set", "In -> In", "must be a finite number"),
+    ("0", "Divide", "In -> In", "Division by zero"),
+    ("1", "Set", "Out -> Out", "No edges of this type"),
+])
+def test_edge_operation_errors(wid, value, operation, edge_type, message):
+    original = wid.matrix_editor.new_connectivity.weights.copy()
+    edge_operation(wid, operation, edge_type, value)
+    assert message in wid.edge_operation_error_label.value
+    assert np.array_equal(wid.matrix_editor.new_connectivity.weights, original)
+    assert wid._last_edited_matrix is None
+
+def test_edge_operation_on_tract_lengths(wid):
+    weights = wid.matrix_editor.new_connectivity.weights.copy()
+    wid.matrix_editor.tab.selected_index = 1
+    edge_operation(wid, "Set", "In -> In", "7")
+    assert wid.matrix_editor.new_connectivity.tract_lengths[0][1] == 7
+    assert wid.space_time_widget.connectivity.tract_lengths[0][1] == 7
+    assert np.array_equal(wid.matrix_editor.new_connectivity.weights, weights)
+    assert wid._last_edited_matrix == "tract_lengths"
+
+def test_edited_cells_outline(wid, monkeypatch):
+    unselect(wid, 1)
+    edge_operation(wid, "Set", "In -> Out", "7")
+    assert wid._last_edited_matrix == "weights"
+    assert wid._last_edited_cols == [1]
+    assert 1 not in wid._last_edited_rows
+
+    drawn = []
+    monkeypatch.setattr(wid, "_highlight_edited_cells", lambda *args: drawn.append(args))
+    wid.matrix_editor.quadrants.value = "Quadrant 2"
+    assert drawn[-1] == ("weights", wid._last_edited_rows, [1])
+
+def test_node_highlight(wid):
+    wid.node_dropdown.value = 0
+    wid._on_node_direction_click("outgoing")
+    assert highlight(wid).color == NODE_OUTGOING_COLOR
+
+    wid._on_node_direction_click("incoming")
+    assert highlight(wid).color == NODE_INCOMING_COLOR
+
+    wid._on_node_direction_click(None)
+    assert highlight(wid) is None
+
+def test_node_highlight_follows_edits(wid):
+    wid.node_dropdown.value = 0
+    wid._on_node_direction_click("outgoing")
+    edge_operation(wid, "Set", "In -> In", "0")
+    assert highlight(wid) is None
+
+def test_save_selection(wid):
+    save_selection(wid, "sel", unchecked=[1])
+    assert wid._node_selections["sel"][1] is False
+    assert wid._active_node_mask[1] is False
+    assert wid.selection_dropdown.value == "sel"
+
+    points = wid.head_widget._find_points_object(wid.connectivity)
+    assert points.colors[1] == UNSELECTED_NODE_COLOR
+    assert points.colors[0] != UNSELECTED_NODE_COLOR
+
+@pytest.mark.parametrize("name", ["", "   ", NEW_SELECTION_OPTION])
+def test_invalid_selection_name(wid, name):
+    save_selection(wid, name, unchecked=[1])
+    assert wid.selection_error_label.value != ""
+    assert wid._node_selections == {}
+    assert all(wid._active_node_mask)
+
+def test_choose_selection_from_dropdown(wid):
+    save_selection(wid, "sel", unchecked=[1])
+    wid.selection_dropdown.value = NEW_SELECTION_OPTION
+    assert not any(checkbox.value for checkbox in wid._node_checkboxes.values())
+    assert wid.selection_name_input.value == ""
+
+    wid.selection_dropdown.value = "sel"
+    assert wid._node_checkboxes[1].value is False
+    assert wid._node_checkboxes[0].value is True
+    assert wid.selection_name_input.value == "sel"
+
+def test_select_and_clear_all(wid):
+    wid._set_all_checkboxes(False)
+    assert not any(wid._current_mask())
+    wid._set_all_checkboxes(True)
+    assert all(wid._current_mask())
+
+def test_popups_toggle(wid):
+    wid._on_edge_operations_click(None)
+    assert wid.edge_operations_popup.layout.visibility == "visible"
+
+    wid._on_select_nodes_click(None)
+    assert wid.select_nodes_popup.layout.visibility == "visible"
+    assert wid.edge_operations_popup.layout.visibility == "hidden"
+
+    wid._on_select_nodes_click(None)
+    assert wid.select_nodes_popup.layout.visibility == "hidden"
+
+def test_reset(wid):
+    original = wid.connectivity.weights[0][1]
+    wid.node_dropdown.value = 0
+    wid._on_node_direction_click("outgoing")
+    save_selection(wid, "sel", unchecked=[5])
+    edge_operation(wid, "Set", "In -> In", "7")
+    assert wid.matrix_editor.new_connectivity.weights[0][1] == 7
+
+    wid._on_reset_edits_click(None)
+    assert wid.matrix_editor.new_connectivity.weights[0][1] == original
+    assert wid.space_time_widget.connectivity.weights[0][1] == original
+    assert wid._last_edited_matrix is None
+    assert all(wid._active_node_mask)
+    assert wid.selection_dropdown.value == NEW_SELECTION_OPTION
+    assert highlight(wid) is None
