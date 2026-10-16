@@ -5,7 +5,6 @@ import pytest
 import matplotlib
 from ipywidgets import Tab, Output, BoundedFloatText, Text, HBox, HTML
 from tvbwidgets.ui.spacetime_widget import SpaceTimeVisualizerWidget, MIN_CONDUCTION_SPEED, MAX_CONDUCTION_SPEED
-from tvbwidgets.ui.spacetime_widget import NO_VALUE_COLOR
 from tvb.datatypes.connectivity import Connectivity
 
 matplotlib.use('Agg')
@@ -172,7 +171,7 @@ def test_empty_cells_have_their_own_color(wid):
     assert (texture.attribute[values == 0] < texture.color_range[0]).all()
     assert (texture.attribute[values > 0] >= texture.color_range[0]).all()
     colors = wid._custom_colormap(values)
-    assert numpy.allclose(colors[values == 0], matplotlib.colors.to_rgb(NO_VALUE_COLOR))
+    assert numpy.allclose(colors[values == 0], matplotlib.colors.to_rgb(wid.empty_cell_color))
 
 def test_from_greater_than_to_is_swapped(wid):
     wid.option_to_time.value = 20.0

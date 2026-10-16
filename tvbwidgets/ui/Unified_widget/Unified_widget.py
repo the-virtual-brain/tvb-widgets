@@ -4,6 +4,7 @@ import ipywidgets as widgets
 
 from tvbwidgets.core.logger.builder import get_logger
 from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.color_schemes import DEFAULT_COLOR_SCHEME
 from tvbwidgets.ui.connectivity_matrix_editor_widget import ConnectivityMatrixEditor
 from tvbwidgets.ui.spacetime_widget import SpaceTimeVisualizerWidget
 from .helper_widget import _SelectableHeadWidget
@@ -26,10 +27,11 @@ EXPORT_TOOLTIP = "Connections of nodes not selected in Select Nodes are exported
 class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
     def __init__(self, connectivity, view_width=None, view_height=None,
-                 matrix_size=None, **kwargs):
+                 matrix_size=None, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
         super().__init__(**kwargs)
 
         self.connectivity = connectivity
+        self.color_scheme = color_scheme
 
         head_widget_kwargs = {}
         if view_width is not None:
@@ -43,7 +45,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         if matrix_size is not None:
             matrix_editor_kwargs["size"] = matrix_size
 
-        self.matrix_editor = ConnectivityMatrixEditor(connectivity, **matrix_editor_kwargs)
+        self.matrix_editor = ConnectivityMatrixEditor(connectivity, color_scheme=color_scheme, **matrix_editor_kwargs)
         self._unclip_matrix_scroll_containers()
         self.matrix_editor.export_button.on_click(self.matrix_editor._on_click_export, remove=True)
         self.matrix_editor.export_button.on_click(self._on_click_export)
@@ -173,11 +175,9 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         return panel
 
     def _rebuild_space_time_widget(self, connectivity):
-        space_time_widget = SpaceTimeVisualizerWidget(connectivity)
-        space_time_widget.plot.mode = 'callback'
-
-        self.space_time_widget = space_time_widget
-        self.space_time_container.children = [space_time_widget.options, space_time_widget.hbox]
+        self.space_time_widget = SpaceTimeVisualizerWidget(connectivity, color_scheme=self.color_scheme)
+        self.space_time_widget.plot.mode = 'callback'
+        self.space_time_container.children = [self.space_time_widget.options, self.space_time_widget.hbox]
 
     def _enable_space_time_click(self, change):
         if self.tabs.selected_index != VIEW_TAB_INDEX or self.view_subtabs.selected_index != SPACE_TIME_TAB_INDEX:
@@ -636,8 +636,6 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
         self.head_widget.highlight_node_edges(editor.new_connectivity, self.node_dropdown.value, None)
         self._highlighted_direction = None
-        self._update_space_time()
-
         self._update_space_time()
         self._reset_node_selection()
 

@@ -249,3 +249,12 @@ def test_reset(wid):
     assert all(wid._active_node_mask)
     assert wid.selection_dropdown.value == NEW_SELECTION_OPTION
     assert highlight(wid) is None
+
+def test_same_colors_in_matrix_and_space_time(connectivity):
+    widget = LargeScaleConnectivityWidget(connectivity, color_scheme="viridis")
+    editor, space_time = widget.matrix_editor, widget.space_time_widget
+    assert editor.color_scheme.name == space_time.color_scheme.name == "viridis"
+
+    values = np.array([[0.0, 1.0, 3.0]])
+    editor_colors = editor._generate_color(connectivity, value=values, matrix_name="weights") / 255
+    assert np.allclose(editor_colors, space_time._custom_colormap(values))

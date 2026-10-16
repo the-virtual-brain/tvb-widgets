@@ -18,18 +18,20 @@ import matplotlib.colors as mcolors
 from matplotlib.gridspec import GridSpec
 
 from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.color_schemes import DEFAULT_COLOR_SCHEME, get_color_scheme, get_empty_cell_color
 
 MIN_CONDUCTION_SPEED = 0.1
 MAX_CONDUCTION_SPEED = 20.0
-NO_VALUE_COLOR = '#ffffff'
 NO_VALUE_BAND = 0.04
 
 
 class SpaceTimeVisualizerWidget(TVBWidget):
 
-    def __init__(self, connectivity, width=900, height=600, **kwargs):
+    def __init__(self, connectivity, width=900, height=600, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
         super().__init__(**kwargs)
         self.connectivity = connectivity
+        self.color_scheme = get_color_scheme(color_scheme)
+        self.empty_cell_color = get_empty_cell_color(self.color_scheme)
         self.width = width
         self.height = height
 
@@ -310,25 +312,19 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self._refresh_plots()
 
     def _custom_colormap(self, connectivity):
-        colors = [
-            '#000033', '#4d1c34', '#7a3282', '#8ea674', '#27913c', '#1c464a',
-            '#247663', '#38bcaa', '#a9e9ff', '#5fcdfc', '#36a0c1', '#f99e2c',
-            '#fc5326', '#df0537'
-        ]
-        color_scheme = mcolors.LinearSegmentedColormap.from_list('color_scheme', colors)
+        empty_color = mcolors.to_rgb(self.empty_cell_color)
 
         if connectivity is None:
-            no_value = mcolors.to_rgb(NO_VALUE_COLOR)
-            k3d_scheme = [(0.0, *no_value), (NO_VALUE_BAND / 2, *no_value)]
-            for x in numpy.linspace(0, 1, max(color_scheme.N, 256)):
-                r, g, b = color_scheme(x)[:3]
+            k3d_scheme = [(0.0, *empty_color), (NO_VALUE_BAND / 2, *empty_color)]
+            for x in numpy.linspace(0, 1, max(self.color_scheme.N, 256)):
+                r, g, b = self.color_scheme(x)[:3]
                 k3d_scheme.append((NO_VALUE_BAND + x * (1 - NO_VALUE_BAND), r, g, b))
             return k3d_scheme
 
         min_weight, max_weight = self._get_color_range()
         norm = mcolors.Normalize(vmin=min_weight, vmax=max_weight)
-        color_data = color_scheme(norm(connectivity))[:, :, :3]
-        color_data[connectivity == 0] = mcolors.to_rgb(NO_VALUE_COLOR)
+        color_data = self.color_scheme(norm(connectivity))[:, :, :3]
+        color_data[connectivity == 0] = empty_color
         return color_data
 
     def _create_plots_overview(self):

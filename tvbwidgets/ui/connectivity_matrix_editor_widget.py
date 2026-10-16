@@ -24,6 +24,7 @@ from tvb.datatypes.connectivity import Connectivity
 from tvbwidgets import get_logger
 from tvbwidgets.core.simulator.model_exporters import is_valid_file_name
 from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.color_schemes import DEFAULT_COLOR_SCHEME, get_color_scheme, get_empty_cell_color
 
 LOGGER = get_logger(__name__)
 
@@ -58,9 +59,11 @@ def load_connectivity_h5(file_path):
 
 
 class ConnectivityMatrixEditor(TVBWidget):
-    def __init__(self, connectivity, size=None, **kwargs):
+    def __init__(self, connectivity, size=None, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
         super().__init__(**kwargs)
         self.connectivity = connectivity
+        self.color_scheme = get_color_scheme(color_scheme)
+        self.empty_cell_color = get_empty_cell_color(self.color_scheme)
         self.num_rows = int(len(self.connectivity.weights[0]) / 2)  # num_cols will be equal to num_rows
         if size is None:
             size = self.num_rows * 20
@@ -260,8 +263,7 @@ class ConnectivityMatrixEditor(TVBWidget):
 
             self.colorbar_x = self.size * 1.1
             gradient = grid.create_linear_gradient(self.colorbar_x, self.layout_offset, self.size * 1.2, self.size,
-                                                   [(i / len(self.colors), self.colors[-i - 1]) for i in
-                                                    range(len(self.colors))])  # color gradient for color-bar
+                                                   self._colorbar_stops())
             grid.fill_style = gradient
             grid.fill_rect(self.colorbar_x, self.layout_offset, 20, self.size - self.layout_offset)
             grid.fill_style = "black"
@@ -273,24 +275,25 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         return matrix_full
 
-    def _generate_color(self, connectivity, i=0, j=0, matrix_name=None, value=None):
-        self.colors = ["#66797b", "#543146", "#5a1c5d", "#b468ab", "#6ade42", "#27913c", "#1c464a",
-                       "#247663", "#38bcaa", "#a9e9ff", "#61cfff", "#37a5c1", "#e4e4e2", "#ff9f25",
-                       "#fb5226"]
+    def _colorbar_stops(self):
+        positions = np.linspace(0, 1, max(self.color_scheme.N, 256))
+        return [(position, mcolors.to_hex(self.color_scheme(1 - position))) for position in positions]
 
-        color_scheme = mcolors.LinearSegmentedColormap.from_list('color_scheme', self.colors)
+    def _generate_color(self, connectivity, i=0, j=0, matrix_name=None, value=None):
         matrix = getattr(connectivity, matrix_name)
         norm = mcolors.Normalize(vmin=0, vmax=matrix.max())
+        empty_color = mcolors.to_rgba(self.empty_cell_color)
 
         if not isinstance(value, np.ndarray):
             if not value:
                 value = matrix[int(self.from_row + i)][int(self.from_col + j)]
 
-            color = color_scheme(norm(value))
+            color = self.color_scheme(norm(value)) if value != 0 else empty_color
             color = f"rgba({color[0] * 255:.0f}, {color[1] * 255:.0f}, {color[2] * 255:.0f}, {color[3]:.2f})"
             return color
 
-        colors = color_scheme(norm(value))
+        colors = self.color_scheme(norm(value))
+        colors[value == 0] = empty_color
         colors = colors[:, :, :3] * 255
         return colors
 

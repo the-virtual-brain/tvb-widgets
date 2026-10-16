@@ -16,15 +16,18 @@ from tvbwidgets.ui.bct.bct_helper_widgets import (
     ColoredConnectivityHeadWidget,
 )
 from tvbwidgets.ui.bct.bct_compat import apply_bct_patches
+from tvbwidgets.ui.color_schemes import DEFAULT_COLOR_SCHEME
+
 apply_bct_patches()
 
 LOGGER = get_logger(__name__)
 
 class BCTMetricsProjectionWidget(TVBWidget):
 
-    def __init__(self, connectivity=None, **kwargs):
+    def __init__(self, connectivity=None, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
         super().__init__(**kwargs)
         self.connectivity = connectivity if connectivity is not None else Connectivity.from_file()
+        self.color_scheme = color_scheme
         self._editor_instance = None
         self._build_ui()
         self._register_callbacks()
@@ -587,10 +590,10 @@ class BCTMetricsProjectionWidget(TVBWidget):
         return f"<i style='color:gray'><b>{BCT_METRICS[analyzer_name]['description']}</b></i>"
 
     def _show_editor(self, connectivity):
+        ed = BCTConnectivityMatrixEditor(connectivity, color_scheme=self.color_scheme)
+        self._editor_instance = ed
         with self._editor_output:
             clear_output(wait=True)
-            ed = BCTConnectivityMatrixEditor(connectivity)
-            self._editor_instance = ed
             ed.display()
 
         self._refresh_run_state()

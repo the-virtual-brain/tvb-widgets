@@ -177,3 +177,13 @@ def test_colored_head_widget(connectivity):
 
     same = ColoredConnectivityHeadWidget([connectivity], node_values=np.full(76, 2.0))
     assert list(same._points_obj.color_range) == [1.5, 2.5]
+
+def test_color_scheme(connectivity):
+    widget = BCTMetricsProjectionWidget(connectivity, color_scheme="viridis")
+    assert widget._editor_instance.color_scheme.name == "viridis"
+
+    widget.add_datatype(connectivity)
+    assert widget._editor_instance.color_scheme.name == "viridis"
+
+    with pytest.raises(ValueError):
+        BCTMetricsProjectionWidget(connectivity, color_scheme="not a colormap")
