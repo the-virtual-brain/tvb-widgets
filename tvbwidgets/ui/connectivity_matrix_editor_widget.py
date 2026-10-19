@@ -30,8 +30,9 @@ LOGGER = get_logger(__name__)
 
 POPUP_CLASS = "matrix-editor-popup"
 POPUP_ABOVE_CLASS = "matrix-editor-popup-above"
+POPUP_WIDTH = 200
 POPUP_STYLE = f"""<style>
-.{POPUP_CLASS} {{ background-color: white; }}
+.widget-box.{POPUP_CLASS} {{ background-color: white; position: absolute; }}
 .{POPUP_ABOVE_CLASS} {{ transform: translateY(-100%); }}
 </style>"""
 INVALID_NUMBER_MESSAGE = "Not a valid number. Original value is kept."
@@ -39,6 +40,7 @@ NOT_FINITE_MESSAGE = "Not a finite number. Original value is kept."
 ERROR_COLOR = "#d32f2f"
 SUCCESS_COLOR = "#2e7d32"
 H5_EXTENSION = ".h5"
+COLORBAR_LABELS_WIDTH = 90
 DEFAULT_EXPORT_NAME = "edited_connectivity"
 INVALID_FILE_NAME_MESSAGE = "Use only letters, digits and _ in the file name."
 FILE_EXISTS_MESSAGE = "{} already exists. Choose another name."
@@ -149,9 +151,9 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         self.popup = widgets.VBox(
         layout=widgets.Layout(
-            width='200px',
+            width=f'{POPUP_WIDTH}px',
             padding='8px 10px',
-            min_width='200px',
+            min_width=f'{POPUP_WIDTH}px',
             visibility='hidden',
             border='4px solid black',
             z_index='10',
@@ -220,7 +222,7 @@ class ConnectivityMatrixEditor(TVBWidget):
 
     def _prepare_matrix(self, matrix_name):
         matrix = getattr(self.connectivity, matrix_name)
-        matrix_full = canvas.MultiCanvas(6, width=self.size * 1.5, height=self.size * 1.2)
+        matrix_full = canvas.MultiCanvas(6, width=self.size * 1.1 + COLORBAR_LABELS_WIDTH, height=self.size * 1.2)
 
         matrix_view = matrix_full[0]
         row_header = matrix_full[1]
@@ -333,18 +335,11 @@ class ConnectivityMatrixEditor(TVBWidget):
             else:
                 quadrant = 4
 
-            if quadrant == 1:
-                left = x - 1142
-                top = y + self.cell_size + 2
-            elif quadrant == 2:
-                left = x - 1342 + self.cell_size
-                top = y + self.cell_size + 2
-            elif quadrant == 3:
-                left = x - 1142
-                top = y - 2
+            if quadrant in (1, 3):
+                left = x - 2
             else:
-                left = x - 1342 + self.cell_size
-                top = y - 2
+                left = x + self.cell_size + 2 - POPUP_WIDTH
+            top = y + self.cell_size + 2 if quadrant in (1, 2) else y - 2
 
             if quadrant in (3, 4):
                 self.popup.add_class(POPUP_ABOVE_CLASS)

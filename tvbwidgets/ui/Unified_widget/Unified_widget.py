@@ -13,39 +13,36 @@ from .style import _STYLE
 LOGGER = get_logger(__name__)
 
 NEW_SELECTION_OPTION = "New selection"
-NODE_CHECKBOX_COLUMNS = 4
+NODE_CHECKBOX_COLUMNS = 2
 EDITED_CELL_OUTLINE_COLOR = "#ff8800"
 EDITED_CELL_OUTLINE_WIDTH = 2
 EDITABLE_MATRICES = ("weights", "tract_lengths")
 ERROR_MESSAGE_COLOR = "#d32f2f"
 WARNING_MESSAGE_COLOR = "#e65100"
-VIEW_TAB_INDEX = 0
 SPACE_TIME_TAB_INDEX = 1
+DEFAULT_VIEW_WIDTH = 750
+DEFAULT_VIEW_HEIGHT = 512
+DEFAULT_MATRIX_SIZE = 620
+VIEW_PANEL_PADDING = 60
+SPACE_TIME_DETAILS_WIDTH = 250
 EXPORT_TOOLTIP = "Connections of nodes not selected in Select Nodes are exported as 0"
 
 
 class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
-    def __init__(self, connectivity, view_width=None, view_height=None,
-                 matrix_size=None, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
+    def __init__(self, connectivity, view_width=DEFAULT_VIEW_WIDTH, view_height=DEFAULT_VIEW_HEIGHT,
+                 matrix_size=DEFAULT_MATRIX_SIZE, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
         super().__init__(**kwargs)
 
         self.connectivity = connectivity
         self.color_scheme = color_scheme
+        self.view_width = view_width
+        self.view_height = view_height
 
-        head_widget_kwargs = {}
-        if view_width is not None:
-            head_widget_kwargs["width"] = view_width
-        if view_height is not None:
-            head_widget_kwargs["height"] = view_height
-
-        self.head_widget = _SelectableHeadWidget([connectivity], **head_widget_kwargs)
+        self.head_widget = _SelectableHeadWidget([connectivity], width=view_width, height=view_height)
         self.head_widget.children = self.head_widget.children[1:]
-        matrix_editor_kwargs = {}
-        if matrix_size is not None:
-            matrix_editor_kwargs["size"] = matrix_size
 
-        self.matrix_editor = ConnectivityMatrixEditor(connectivity, color_scheme=color_scheme, **matrix_editor_kwargs)
+        self.matrix_editor = ConnectivityMatrixEditor(connectivity, size=matrix_size, color_scheme=color_scheme)
         self._unclip_matrix_scroll_containers()
         self.matrix_editor.export_button.on_click(self.matrix_editor._on_click_export, remove=True)
         self.matrix_editor.export_button.on_click(self._on_click_export)
@@ -77,23 +74,32 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.view_subtabs.set_title(0, "Head View")
         self.view_subtabs.set_title(1, "Space Time")
 
-        self.tabs = widgets.Tab(children=[self.view_subtabs, control_tab])
-        self.tabs.set_title(0, "VIEW")
-        self.tabs.set_title(1, "CONTROL")
-
-        self.tabs.observe(self._enable_space_time_click, names="selected_index")
         self.view_subtabs.observe(self._enable_space_time_click, names="selected_index")
 
-        for tab_widget in (self.tabs, self.view_subtabs, self.matrix_editor.tab):
+        for tab_widget in (self.view_subtabs, self.matrix_editor.tab):
             tab_widget.layout.overflow = "visible"
             tab_widget.layout.height = "auto"
 
+        self.view_subtabs.layout.width = "{}px".format(view_width + VIEW_PANEL_PADDING)
+        view_panel = self._build_side_panel("VIEW", self.view_subtabs)
+        control_panel = self._build_side_panel("CONTROL", control_tab)
+        control_panel.layout.flex = "1 1 0%"
+        control_panel.layout.min_width = "0"
+        side_by_side = widgets.HBox([view_panel, control_panel], layout=widgets.Layout(
+            flex_flow="row wrap", align_items="flex-start", width="100%"))
+        side_by_side.add_class("lsc-side-by-side")
+
         self.children = [
             widgets.HTML(_STYLE),
-            self.tabs,
+            side_by_side,
         ]
 
         self.add_class("lsc-wrapper")
+
+    @staticmethod
+    def _build_side_panel(title, content):
+        title_label = widgets.HTML('<span class="lsc-panel-title">{}</span>'.format(title))
+        return widgets.VBox([title_label, content])
 
     def _build_head_view_tab(self):
         node_control_bar = self._build_node_control_bar()
@@ -119,6 +125,8 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         try:
             for tab_child in self.matrix_editor.tab.children:
                 inner_container = tab_child.children[0]
+                inner_container.layout.width = "100%"
+                inner_container.layout.overflow_x = "auto"
                 inner_container.layout.height = "auto"
                 inner_container.layout.max_height = "none"
                 inner_container.layout.overflow_y = "visible"
@@ -175,12 +183,19 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         return panel
 
     def _rebuild_space_time_widget(self, connectivity):
-        self.space_time_widget = SpaceTimeVisualizerWidget(connectivity, color_scheme=self.color_scheme)
+        width = self.view_width - SPACE_TIME_DETAILS_WIDTH
+        height = width * 4 // 7
+        self.space_time_widget = SpaceTimeVisualizerWidget(connectivity, width=width, height=height,
+                                                           color_scheme=self.color_scheme)
+        self.space_time_widget.plot.height = height
         self.space_time_widget.plot.mode = 'callback'
+        self.space_time_widget.options.layout.flex_flow = "row wrap"
+        self.space_time_widget.hbox.layout.flex_flow = "row wrap"
+        self.space_time_widget.plot_details.add_class("lsc-plot-details")
         self.space_time_container.children = [self.space_time_widget.options, self.space_time_widget.hbox]
 
     def _enable_space_time_click(self, change):
-        if self.tabs.selected_index != VIEW_TAB_INDEX or self.view_subtabs.selected_index != SPACE_TIME_TAB_INDEX:
+        if self.view_subtabs.selected_index != SPACE_TIME_TAB_INDEX:
             return
         self.space_time_widget.plot.mode = 'view'
         self.space_time_widget.plot.mode = 'callback'

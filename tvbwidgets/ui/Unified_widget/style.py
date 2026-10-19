@@ -1,5 +1,24 @@
 _STYLE = """
 <style>
+.lsc-wrapper {
+    zoom: 0.8;
+}
+.lsc-wrapper .lsc-side-by-side {
+    gap: 10px;
+}
+.lsc-wrapper .lsc-panel-title {
+    font-weight: 700;
+    font-size: 13px;
+}
+.lsc-wrapper .lsc-plot-details h3 {
+    font-size: 12px;
+}
+.lsc-wrapper .lsc-plot-details h4 {
+    font-size: 11px;
+}
+.lsc-wrapper .lsc-plot-details p {
+    font-size: 11px;
+}
 .lsc-wrapper .lsc-tab-body {
     padding: 8px;
 }

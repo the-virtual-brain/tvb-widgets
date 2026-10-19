@@ -332,6 +332,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.ims = []
         gs = GridSpec(3, 4, figure=self.fig)
         n = self.connectivity.weights.shape[0]
+        tick_step = 5 if self.width >= 900 else 25
 
         for i in range(self.num_slices + 1):
             position = gs[int(i / 3), int(i % 3)]
@@ -339,12 +340,12 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             connectivity = self._prepare_connectivity(i)
             colors = self._custom_colormap(connectivity)
             ax.imshow(colors)
-            ax.set_xticks(numpy.arange(0, n, 5))
-            ax.set_yticks(numpy.arange(0, n, 5))
+            ax.set_xticks(numpy.arange(0, n, tick_step))
+            ax.set_yticks(numpy.arange(0, n, tick_step))
             ax.tick_params(axis="both", labelsize=6)
             self.ims.append(ax)
 
-        self.fig.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.1, hspace=0.1)
+        self.fig.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.1, hspace=0.25)
         plt.close(self.fig)
 
     def _prepare_plot_details(self):

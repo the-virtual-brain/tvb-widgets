@@ -58,9 +58,9 @@ def test_prepare_matrices_tab(wid):
 
 def test_prepare_matrix(wid):
     assert math.isclose(wid.cell_size, 16.43, abs_tol=0.1)
-    assert math.isclose(wid.weights_matrix.width, 1140, abs_tol=1)
+    assert math.isclose(wid.weights_matrix.width, 926, abs_tol=1)
     assert math.isclose(wid.weights_matrix.height, 912, abs_tol=1)
-    assert math.isclose(wid.tract_lengths_matrix.width, 1140, abs_tol=1)
+    assert math.isclose(wid.tract_lengths_matrix.width, 926, abs_tol=1)
     assert math.isclose(wid.tract_lengths_matrix.height, 912, abs_tol=1)
     assert isinstance(wid.weights_matrix[0], canvas.canvas.Canvas)
     assert isinstance(wid.weights_matrix[1], canvas.canvas.Canvas)
