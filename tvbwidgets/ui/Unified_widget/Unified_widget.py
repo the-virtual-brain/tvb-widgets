@@ -22,7 +22,7 @@ WARNING_MESSAGE_COLOR = "#e65100"
 SPACE_TIME_TAB_INDEX = 1
 DEFAULT_VIEW_WIDTH = 750
 DEFAULT_VIEW_HEIGHT = 512
-DEFAULT_MATRIX_SIZE = 620
+MATRIX_ROW_SIZE = 16
 VIEW_PANEL_PADDING = 60
 SPACE_TIME_DETAILS_WIDTH = 250
 EXPORT_TOOLTIP = "Connections of nodes not selected in Select Nodes are exported as 0"
@@ -31,13 +31,16 @@ EXPORT_TOOLTIP = "Connections of nodes not selected in Select Nodes are exported
 class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
     def __init__(self, connectivity, view_width=DEFAULT_VIEW_WIDTH, view_height=DEFAULT_VIEW_HEIGHT,
-                 matrix_size=DEFAULT_MATRIX_SIZE, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
+                 matrix_size=None, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
         super().__init__(**kwargs)
 
         self.connectivity = connectivity
         self.color_scheme = color_scheme
         self.view_width = view_width
         self.view_height = view_height
+
+        if matrix_size is None:
+            matrix_size = MATRIX_ROW_SIZE * (len(connectivity.region_labels) // 2)
 
         self.head_widget = _SelectableHeadWidget([connectivity], width=view_width, height=view_height)
         self.head_widget.children = self.head_widget.children[1:]
@@ -111,6 +114,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
                 display="flex",
                 flex_flow="column",
                 align_items="center",
+                overflow="visible",
             ),
         )
 
@@ -322,6 +326,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
                 width="300px",
                 z_index="20",
                 visibility="hidden",
+                overflow="visible",
             ),
         )
         popup.add_class("lsc-edge-operations-popup")
@@ -502,17 +507,17 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         left_section = widgets.VBox(
             [widgets.HTML('<div class="lsc-select-nodes-column-title">left</div>'),
              self._grid_box(left_checkboxes)],
-            layout=widgets.Layout(width="48%"),
+            layout=widgets.Layout(width="48%", overflow="visible"),
         )
         right_section = widgets.VBox(
             [widgets.HTML('<div class="lsc-select-nodes-column-title">right</div>'),
              self._grid_box(right_checkboxes)],
-            layout=widgets.Layout(width="48%"),
+            layout=widgets.Layout(width="48%", overflow="visible"),
         )
 
         columns_row = widgets.HBox(
             [left_section, right_section],
-            layout=widgets.Layout(justify_content="space-between", width="100%"),
+            layout=widgets.Layout(justify_content="space-between", width="100%", overflow="visible"),
         )
 
         scrollable = widgets.Box(
@@ -551,6 +556,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
             layout=widgets.Layout(
                 grid_template_columns="repeat({}, 150px)".format(NODE_CHECKBOX_COLUMNS),
                 grid_gap="2px 10px",
+                overflow="visible",
             ),
         )
 

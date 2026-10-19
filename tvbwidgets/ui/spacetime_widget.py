@@ -17,7 +17,7 @@ from matplotlib import pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.gridspec import GridSpec
 
-from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.base_widget import TVBWidget, K3D_CANVAS_STYLE
 from tvbwidgets.ui.color_schemes import DEFAULT_COLOR_SCHEME, get_color_scheme, get_empty_cell_color
 
 MIN_CONDUCTION_SPEED = 0.1
@@ -53,6 +53,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
         self.interactive_plot = Output(layout=Layout(width=str(self.width) + 'px', height=str(self.height) + 'px'))
         with self.interactive_plot:
+            display(HTML(K3D_CANVAS_STYLE))
             self.plot.display()
 
         self.plot_overview = Output()

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 import ipywidgets
 import k3d
+from IPython.display import display
 import numpy
 from tvb.basic.neotraits.api import HasTraits
 from tvb.datatypes.connectivity import Connectivity
@@ -16,7 +17,7 @@ from tvb.datatypes.sensors import Sensors
 from tvb.datatypes.surfaces import Surface
 
 from tvbwidgets.core.logger.builder import get_logger
-from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.base_widget import TVBWidget, K3D_CANVAS_STYLE
 from tvbwidgets.ui.widget_with_browser import TVBWidgetWithBrowser
 
 LOGGER = get_logger(__name__)
@@ -60,6 +61,8 @@ class HeadWidget(ipywidgets.VBox, TVBWidget):
         super(HeadWidget, self).__init__([ipywidgets.HTML(value=f'<h1>{HeadWidget.__name__}</h1>'), self.output],
                                          layout=self.DEFAULT_BORDER, **kwargs)
         self.plot = None
+        with self.output:
+            display(ipywidgets.HTML(K3D_CANVAS_STYLE))
         self.refresh_plot(datatypes)
 
     def __draw_datatypes(self, datatypes):
