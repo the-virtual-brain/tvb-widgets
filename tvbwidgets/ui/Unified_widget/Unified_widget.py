@@ -246,9 +246,12 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         edge_button.on_click(self._on_edge_operations_click)
         select_button.on_click(self._on_select_nodes_click)
         reset_button.on_click(self._on_reset_edits_click)
+        self.selection_counter = widgets.HTML(layout=widgets.Layout(margin="0 0 0 auto"))
+        self.selection_counter.add_class("lsc-selection-label")
+        self._update_selection_counter()
 
         selection_bar = widgets.HBox(
-            [selection_label, edge_button, select_button, reset_button],
+            [selection_label, edge_button, select_button, reset_button, self.selection_counter],
             layout=widgets.Layout(
                 align_items="center",
                 gap="8px",
@@ -614,6 +617,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
         self._active_node_mask = mask
         self.head_widget.set_node_selection(self.connectivity, mask)
+        self._update_selection_counter()
 
     def _on_save_selection(self, change):
         self._set_selection_error("")
@@ -640,6 +644,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.selection_dropdown.observe(self._on_selection_dropdown_change, names="value")
 
         self.head_widget.set_node_selection(self.connectivity, mask)
+        self._update_selection_counter()
 
     def _on_edge_operations_click(self, change):
         self._set_edge_operation_error("")
@@ -675,6 +680,11 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self.selection_dropdown.observe(self._on_selection_dropdown_change, names="value")
 
         self.head_widget.set_node_selection(self.connectivity, self._active_node_mask)
+        self._update_selection_counter()
+
+    def _update_selection_counter(self):
+        self.selection_counter.value = "Selected {} of {} nodes".format(sum(self._active_node_mask),
+                                                                        len(self._active_node_mask))
 
     def display(self):
         from IPython.display import display

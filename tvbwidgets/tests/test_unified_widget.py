@@ -219,6 +219,17 @@ def test_choose_selection_from_dropdown(wid):
     assert wid._node_checkboxes[0].value is True
     assert wid.selection_name_input.value == "sel"
 
+def test_selection_counter(wid):
+    assert wid.selection_counter.value == "Selected 76 of 76 nodes"
+    save_selection(wid, "sel", unchecked=[1, 2])
+    assert wid.selection_counter.value == "Selected 74 of 76 nodes"
+
+    wid.selection_dropdown.value = NEW_SELECTION_OPTION
+    assert wid.selection_counter.value == "Selected 74 of 76 nodes"
+
+    wid._on_reset_edits_click(None)
+    assert wid.selection_counter.value == "Selected 76 of 76 nodes"
+
 def test_select_and_clear_all(wid):
     wid._set_all_checkboxes(False)
     assert not any(wid._current_mask())
