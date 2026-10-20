@@ -513,13 +513,11 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         right_checkboxes = self._build_checkbox_column(right_indices)
 
         left_section = widgets.VBox(
-            [widgets.HTML('<div class="lsc-select-nodes-column-title">left</div>'),
-             self._grid_box(left_checkboxes)],
+            [self._build_hemisphere_button("left", left_indices), self._grid_box(left_checkboxes)],
             layout=widgets.Layout(width="48%", overflow="visible"),
         )
         right_section = widgets.VBox(
-            [widgets.HTML('<div class="lsc-select-nodes-column-title">right</div>'),
-             self._grid_box(right_checkboxes)],
+            [self._build_hemisphere_button("right", right_indices), self._grid_box(right_checkboxes)],
             layout=widgets.Layout(width="48%", overflow="visible"),
         )
 
@@ -547,6 +545,17 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         )
         popup.add_class("lsc-select-nodes-popup")
         return popup
+
+    def _build_hemisphere_button(self, hemisphere, indices):
+        button = widgets.Button(description=hemisphere, tooltip="Select or clear all {} nodes".format(hemisphere),
+                                layout=widgets.Layout(width="80px", margin="0 0 6px 0", flex="none"))
+        button.on_click(lambda _: self._toggle_checkboxes(indices))
+        return button
+
+    def _toggle_checkboxes(self, indices):
+        value = not all(self._node_checkboxes[idx].value for idx in indices)
+        for idx in indices:
+            self._node_checkboxes[idx].value = value
 
     def _build_checkbox_column(self, indices):
         checkboxes = []

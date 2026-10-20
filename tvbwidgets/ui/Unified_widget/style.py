@@ -58,10 +58,6 @@ _STYLE = """
     font-weight: 700;
     font-size: 14px;
 }
-.lsc-wrapper .lsc-select-nodes-column-title {
-    font-weight: 600;
-    margin-bottom: 6px;
-}
 .lsc-wrapper .lsc-select-nodes-close button {
     background: transparent !important;
     color: inherit !important;

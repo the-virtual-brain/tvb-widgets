@@ -236,6 +236,17 @@ def test_select_and_clear_all(wid):
     wid._set_all_checkboxes(True)
     assert all(wid._current_mask())
 
+def test_hemisphere_toggle(wid):
+    left, right = wid._split_hemispheres()
+    wid._node_checkboxes[left[0]].value = False
+
+    wid._toggle_checkboxes(left)
+    assert all(wid._node_checkboxes[idx].value for idx in left)
+
+    wid._toggle_checkboxes(left)
+    assert not any(wid._node_checkboxes[idx].value for idx in left)
+    assert all(wid._node_checkboxes[idx].value for idx in right)
+
 def test_popups_toggle(wid):
     wid._on_edge_operations_click(None)
     assert wid.edge_operations_popup.layout.visibility == "visible"
