@@ -201,8 +201,13 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
     def _enable_space_time_click(self, change):
         if self.view_subtabs.selected_index != SPACE_TIME_TAB_INDEX:
             return
-        self.space_time_widget.plot.mode = 'view'
-        self.space_time_widget.plot.mode = 'callback'
+        plot = self.space_time_widget.plot
+        plot.mode = 'view'
+        plot.mode = 'callback'
+        # k3d places the colorbar labels while the tab is hidden, so the colorbar is redrawn when the tab is shown
+        colorbar_id = plot.colorbar_object_id
+        plot.colorbar_object_id = -1
+        plot.colorbar_object_id = colorbar_id
 
     @property
     def conn_edited(self):

@@ -42,7 +42,10 @@ class _SelectableHeadWidget(HeadWidget):
 
         colors = numpy.where(mask, numpy.uint32(ConnectivityConfig.points_color),
                              numpy.uint32(UNSELECTED_NODE_COLOR))
-        points.colors = colors.astype(numpy.uint32)
+        with points.hold_sync():
+            # k3d multiplies each node color by color, so color is white to keep the node colors unchanged
+            points.color = UNSELECTED_NODE_COLOR
+            points.colors = colors.astype(numpy.uint32)
 
     def refresh_edges(self, connectivity, weights):
         old_lines = self._find_lines_object(connectivity)
