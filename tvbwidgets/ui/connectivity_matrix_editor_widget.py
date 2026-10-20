@@ -41,6 +41,9 @@ ERROR_COLOR = "#d32f2f"
 SUCCESS_COLOR = "#2e7d32"
 H5_EXTENSION = ".h5"
 COLORBAR_LABELS_WIDTH = 90
+LABEL_CHAR_WIDTH = 0.75
+LABEL_MARGIN = 15
+CANVAS_BOTTOM_MARGIN = 5
 DEFAULT_EXPORT_NAME = "edited_connectivity"
 INVALID_FILE_NAME_MESSAGE = "Use only letters, digits and _ in the file name."
 FILE_EXISTS_MESSAGE = "{} already exists. Choose another name."
@@ -70,7 +73,7 @@ class ConnectivityMatrixEditor(TVBWidget):
         if size is None:
             size = self.num_rows * 20
         self.size = size
-        self.layout_offset = self.size * 0.2
+        self.layout_offset = self._get_label_area_size()
 
         self.new_connectivity = self._prepare_new_connectivity()
         self.header = widgets.HBox(layout=self.DEFAULT_BORDER)
@@ -78,6 +81,12 @@ class ConnectivityMatrixEditor(TVBWidget):
         self.tab = widgets.Tab(layout=self.DEFAULT_BORDER)
         self._get_quadrant_range(selection=1)
         self._prepare_matrices_tab()
+
+    def _get_label_area_size(self):
+        chars = max(len(str(label)) for label in self.connectivity.region_labels) * LABEL_CHAR_WIDTH
+        intervals = self.num_rows - 1
+        needed = (chars * self.size + LABEL_MARGIN * intervals) / (intervals + chars)
+        return min(needed, self.size * 0.2)
 
     def _make_header(self):
         options = ["Quadrant 1", "Quadrant 2", "Quadrant 3", "Quadrant 4"]
@@ -222,7 +231,9 @@ class ConnectivityMatrixEditor(TVBWidget):
 
     def _prepare_matrix(self, matrix_name):
         matrix = getattr(self.connectivity, matrix_name)
-        matrix_full = canvas.MultiCanvas(6, width=self.size * 1.1 + COLORBAR_LABELS_WIDTH, height=self.size * 1.2)
+        cell_size = (self.size - self.layout_offset) / (self.num_rows - 1)
+        matrix_full = canvas.MultiCanvas(6, width=self.size * 1.1 + COLORBAR_LABELS_WIDTH,
+                                         height=self.size + cell_size + CANVAS_BOTTOM_MARGIN)
 
         matrix_view = matrix_full[0]
         row_header = matrix_full[1]
@@ -254,11 +265,11 @@ class ConnectivityMatrixEditor(TVBWidget):
             grid.stroke_rects(x, y, height=self.cell_size, width=self.layout_offset)  # grid for column headers
 
             for i in range(self.num_rows):
-                row_header.font = f"bold {self.cell_size}px px sans serif"
+                row_header.font = f"bold {self.cell_size}px serif"
                 row_header_text = f"{self.connectivity.region_labels[self.from_row + i]}"
                 row_header.fill_text(row_header_text, x + 10, y[i] + self.cell_size, max_width=self.layout_offset * 0.9)
 
-                column_header.font = f"bold {self.cell_size}px px sans serif"
+                column_header.font = f"bold {self.cell_size}px serif"
                 column_header_text = f"{self.connectivity.region_labels[self.from_col + i]}"
                 column_header.fill_text(column_header_text, x + 10, y[i] + self.cell_size,
                                         max_width=self.layout_offset * 0.9)
@@ -273,7 +284,7 @@ class ConnectivityMatrixEditor(TVBWidget):
             for i in range(7):
                 label_text = f"--{round(matrix.max() * (6 - i) / 6, 2)}"
                 color_bar.fill_text(label_text, self.colorbar_x + 20,
-                                    self.size * 0.8 / 6.1 * i + self.layout_offset + 5)  # labels for colorbar
+                                    (self.size - self.layout_offset) / 6.1 * i + self.layout_offset + 5)  # labels for colorbar
 
         return matrix_full
 
