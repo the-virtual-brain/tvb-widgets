@@ -48,6 +48,7 @@ class _SelectableHeadWidget(HeadWidget):
             points.colors = colors.astype(numpy.uint32)
 
     def refresh_edges(self, connectivity, weights):
+        self._keep_camera()
         old_lines = self._find_lines_object(connectivity)
         if old_lines is None:
             self.logger.warning(
@@ -76,6 +77,7 @@ class _SelectableHeadWidget(HeadWidget):
         return None
 
     def highlight_node_edges(self, connectivity, node_index, direction):
+        self._keep_camera()
         existing = self._find_node_highlight_object(connectivity)
         if existing is not None:
             self.plot -= existing
@@ -115,3 +117,6 @@ class _SelectableHeadWidget(HeadWidget):
                                     width=ConnectivityConfig.edge_size * NODE_HIGHLIGHT_EDGE_WIDTH_MULTIPLIER,
                                     name=connectivity.__class__.__name__ + ConnectivityConfig.edges + "Highlight")
         self.plot += highlight_lines
+
+    def _keep_camera(self):
+        self.plot.camera_auto_fit = False
