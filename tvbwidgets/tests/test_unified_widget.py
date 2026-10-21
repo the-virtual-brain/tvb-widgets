@@ -15,11 +15,7 @@ from tvbwidgets.ui.Unified_widget.Unified_widget import (
     EXPORT_TOOLTIP,
     NEW_SELECTION_OPTION,
 )
-from tvbwidgets.ui.Unified_widget.helper_widget import (
-    NODE_OUTGOING_COLOR,
-    NODE_INCOMING_COLOR,
-    UNSELECTED_NODE_COLOR,
-)
+from tvbwidgets.ui.Unified_widget.helper_widget import NODE_EDGE_COLORS, UNSELECTED_NODE_COLOR
 
 matplotlib.use('Agg')
 
@@ -52,8 +48,13 @@ def edit_cell(wid, row, col, value):
     editor.popup_value.value = value
     editor.popup_change.click()
 
-def highlight(wid):
-    return wid.head_widget._find_node_highlight_object(wid.matrix_editor.new_connectivity)
+def click(wid, node, direction):
+    wid.node_dropdown.value = node
+    wid._on_node_direction_click(direction)
+
+def node_edges(wid, node):
+    lines = wid.head_widget._node_edge_objects.get(node)
+    return None if lines is None else lines.indices.tolist()
 
 def save_selection(wid, name, unchecked):
     wid._set_all_checkboxes(True)
@@ -174,22 +175,43 @@ def test_edited_cells_outline(wid, monkeypatch):
     wid.matrix_editor.quadrants.value = "Quadrant 2"
     assert drawn[-1] == ("weights", wid._last_edited_rows, [1])
 
-def test_node_highlight(wid):
-    wid.node_dropdown.value = 0
-    wid._on_node_direction_click("outgoing")
-    assert highlight(wid).color == NODE_OUTGOING_COLOR
+def test_base_edges_hidden(wid):
+    assert not wid.head_widget._find_lines_object(wid.connectivity).visible
+
+def test_node_edges_toggle(wid):
+    targets = np.nonzero(wid.connectivity.weights[0])[0]
+    click(wid, 0, "outgoing")
+    assert node_edges(wid, 0) == [[0, j] for j in targets if j != 0]
+    assert wid.outgoing_button.description == "Hide outgoing"
+
+    click(wid, 2, "incoming")
+    assert wid.head_widget._node_edge_objects[0].color == NODE_EDGE_COLORS[0]
+    assert wid.head_widget._node_edge_objects[2].color == NODE_EDGE_COLORS[1]
+
+    click(wid, 0, "outgoing")
+    assert node_edges(wid, 0) is None
+    assert wid.outgoing_button.description == "Show outgoing"
+
+    wid._clear_node_edges()
+    assert wid.head_widget._node_edge_objects == {}
+
+def test_hide_incoming_hides_shared_edge(wid):
+    target = [j for j in np.nonzero(wid.connectivity.weights[0])[0] if j != 0][0]
+    click(wid, 0, "outgoing")
+    wid.node_dropdown.value = target
+    assert wid.incoming_button.description == "Hide incoming"
 
     wid._on_node_direction_click("incoming")
-    assert highlight(wid).color == NODE_INCOMING_COLOR
+    assert [0, target] not in node_edges(wid, 0)
 
-    wid._on_node_direction_click(None)
-    assert highlight(wid) is None
+def test_node_edges_follow_edits(wid):
+    new_target = [j for j in range(1, 38) if wid.connectivity.weights[0][j] == 0][0]
+    click(wid, 0, "outgoing")
+    edit_cell(wid, 0, new_target, "5")
+    assert [0, new_target] in node_edges(wid, 0)
 
-def test_node_highlight_follows_edits(wid):
-    wid.node_dropdown.value = 0
-    wid._on_node_direction_click("outgoing")
     edge_operation(wid, "Set", "In -> In", "0")
-    assert highlight(wid) is None
+    assert node_edges(wid, 0) is None
 
 def test_save_selection(wid):
     save_selection(wid, "sel", unchecked=[1])
@@ -272,7 +294,7 @@ def test_reset(wid):
     assert wid._last_edited_matrix is None
     assert all(wid._active_node_mask)
     assert wid.selection_dropdown.value == NEW_SELECTION_OPTION
-    assert highlight(wid) is None
+    assert wid.head_widget._node_edge_objects == {}
 
 def test_same_colors_in_matrix_and_space_time(connectivity):
     widget = LargeScaleConnectivityWidget(connectivity, color_scheme="viridis")

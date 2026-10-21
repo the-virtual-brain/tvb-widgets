@@ -4,12 +4,15 @@ import numpy
 from tvbwidgets.ui.head_widget import HeadWidget, ConnectivityConfig
 
 UNSELECTED_NODE_COLOR = 0xffffff
-NODE_OUTGOING_COLOR = 0xff8800
-NODE_INCOMING_COLOR = 0x2196f3
+NODE_EDGE_COLORS = (0xff8800, 0x2196f3, 0xe53935, 0x8e24aa, 0xfdd835, 0x00bcd4, 0xec407a, 0x8d6e63)
 NODE_HIGHLIGHT_EDGE_WIDTH_MULTIPLIER = 1.8
 
 
 class _SelectableHeadWidget(HeadWidget):
+
+    def __init__(self, *args, **kwargs):
+        self._node_edge_objects = {}
+        super().__init__(*args, **kwargs)
 
     def _find_points_object(self, connectivity):
         target_name = connectivity.__class__.__name__ + ConnectivityConfig.points
@@ -49,74 +52,39 @@ class _SelectableHeadWidget(HeadWidget):
 
     def refresh_edges(self, connectivity, weights):
         self._keep_camera()
-        old_lines = self._find_lines_object(connectivity)
-        if old_lines is None:
+        lines = self._find_lines_object(connectivity)
+        if lines is None:
             self.logger.warning(
                 "No connectivity edges found for gid %s - draw it before refreshing edges."
                 % connectivity.gid.hex)
             return
 
         edge_indices = numpy.nonzero(weights)
-        edges = list(zip(edge_indices[0], edge_indices[1]))
+        lines.indices = numpy.array(list(zip(edge_indices[0], edge_indices[1])), dtype=numpy.uint32).reshape(-1, 2)
 
-        new_lines = k3d.lines(connectivity.centres, indices=edges,
-                              indices_type=ConnectivityConfig.edge_type,
-                              shader=ConnectivityConfig.edge_shader,
-                              color=ConnectivityConfig.edge_color,
-                              width=ConnectivityConfig.edge_size,
-                              name=old_lines.name)
-
-        self.plot -= old_lines
-        self.plot += new_lines
-
-    def _find_node_highlight_object(self, connectivity):
-        target_name = connectivity.__class__.__name__ + ConnectivityConfig.edges + "Highlight"
-        for obj in self.plot.objects:
-            if getattr(obj, "name", None) == target_name:
-                return obj
-        return None
-
-    def highlight_node_edges(self, connectivity, node_index, direction):
+    def show_node_edges(self, connectivity, edges_by_node):
         self._keep_camera()
-        existing = self._find_node_highlight_object(connectivity)
-        if existing is not None:
-            self.plot -= existing
+        for node in list(self._node_edge_objects):
+            if node not in edges_by_node:
+                self.plot -= self._node_edge_objects.pop(node)
 
-        if direction is None:
-            return
+        for node, edges in edges_by_node.items():
+            indices = numpy.array(edges, dtype=numpy.uint32)
+            lines = self._node_edge_objects.get(node)
+            if lines is not None:
+                lines.indices = indices
+                continue
 
-        weights = connectivity.weights
-        if direction == "outgoing":
-            others = numpy.nonzero(weights[node_index, :])[0]
-            pairs = [(node_index, j) for j in others if j != node_index]
-            color = NODE_OUTGOING_COLOR
-        elif direction == "incoming":
-            others = numpy.nonzero(weights[:, node_index])[0]
-            pairs = [(i, node_index) for i in others if i != node_index]
-            color = NODE_INCOMING_COLOR
-        else:
-            self.logger.warning("highlight_node_edges: unknown direction '%s'." % direction)
-            return
-
-        if not pairs:
-            self.logger.info(
-                "highlight_node_edges: node %d has no %s connections." % (node_index, direction))
-            return
-
-        vertices = []
-        indices = []
-        for a, b in pairs:
-            vertices.append(connectivity.centres[a])
-            vertices.append(connectivity.centres[b])
-            start = len(vertices) - 2
-            indices.append((start, start + 1))
-
-        highlight_lines = k3d.lines(numpy.array(vertices), indices=indices,
-                                    indices_type=ConnectivityConfig.edge_type,
-                                    shader=ConnectivityConfig.edge_shader, color=color,
-                                    width=ConnectivityConfig.edge_size * NODE_HIGHLIGHT_EDGE_WIDTH_MULTIPLIER,
-                                    name=connectivity.__class__.__name__ + ConnectivityConfig.edges + "Highlight")
-        self.plot += highlight_lines
+            used = [obj.color for obj in self._node_edge_objects.values()]
+            free = [color for color in NODE_EDGE_COLORS if color not in used]
+            color = free[0] if free else NODE_EDGE_COLORS[len(used) % len(NODE_EDGE_COLORS)]
+            lines = k3d.lines(connectivity.centres, indices=indices,
+                              indices_type=ConnectivityConfig.edge_type,
+                              shader=ConnectivityConfig.edge_shader, color=color,
+                              width=ConnectivityConfig.edge_size * NODE_HIGHLIGHT_EDGE_WIDTH_MULTIPLIER,
+                              name="{} edges".format(connectivity.region_labels[node]))
+            self._node_edge_objects[node] = lines
+            self.plot += lines
 
     def _keep_camera(self):
         self.plot.camera_auto_fit = False

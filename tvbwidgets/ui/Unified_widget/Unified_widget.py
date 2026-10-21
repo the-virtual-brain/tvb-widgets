@@ -44,6 +44,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
         self.head_widget = _SelectableHeadWidget([connectivity], width=view_width, height=view_height)
         self.head_widget.children = self.head_widget.children[1:]
+        self.head_widget._find_lines_object(connectivity).visible = False
 
         self.matrix_editor = ConnectivityMatrixEditor(connectivity, size=matrix_size, color_scheme=color_scheme)
         self._unclip_matrix_scroll_containers()
@@ -66,8 +67,10 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self._last_edited_rows = []
         self._last_edited_cols = []
 
-        self._highlighted_node = None
-        self._highlighted_direction = None
+        nodes = len(connectivity.region_labels)
+        self._outgoing_shown = numpy.zeros(nodes, dtype=bool)
+        self._incoming_shown = numpy.zeros(nodes, dtype=bool)
+        self._hidden_edges = numpy.zeros((nodes, nodes), dtype=bool)
 
         head_view_tab = self._build_head_view_tab()
         space_time_tab = self._build_space_time_tab()
@@ -144,30 +147,63 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
             layout=widgets.Layout(width="260px"),
         )
 
-        incoming_button = widgets.Button(description="Incoming", layout=widgets.Layout(width="100px"))
-        outgoing_button = widgets.Button(description="Outgoing", layout=widgets.Layout(width="100px"))
+        self.node_dropdown.observe(lambda _: self._update_direction_buttons(), names="value")
+
+        self.incoming_button = widgets.Button(description="Show incoming", layout=widgets.Layout(width="120px"))
+        self.outgoing_button = widgets.Button(description="Show outgoing", layout=widgets.Layout(width="120px"))
         clear_button = widgets.Button(description="Clear", layout=widgets.Layout(width="90px"))
-        incoming_button.on_click(lambda _: self._on_node_direction_click("incoming"))
-        outgoing_button.on_click(lambda _: self._on_node_direction_click("outgoing"))
-        clear_button.on_click(lambda _: self._on_node_direction_click(None))
+        self.incoming_button.on_click(lambda _: self._on_node_direction_click("incoming"))
+        self.outgoing_button.on_click(lambda _: self._on_node_direction_click("outgoing"))
+        clear_button.on_click(lambda _: self._clear_node_edges())
 
         bar = widgets.HBox(
-            [self.node_dropdown, incoming_button, outgoing_button, clear_button],
+            [self.node_dropdown, self.incoming_button, self.outgoing_button, clear_button],
             layout=widgets.Layout(align_items="center", gap="8px", width="100%"),
         )
         bar.add_class("lsc-selection-bar")
         return bar
 
+    def _shown_edges(self):
+        weights = self.matrix_editor.new_connectivity.weights
+        shown = (self._outgoing_shown[:, None] | self._incoming_shown[None, :]) & (weights != 0) & ~self._hidden_edges
+        numpy.fill_diagonal(shown, False)
+        return shown
+
     def _on_node_direction_click(self, direction):
-        self._highlighted_node = self.node_dropdown.value
-        self._highlighted_direction = direction
-        self.head_widget.highlight_node_edges(self.matrix_editor.new_connectivity, self._highlighted_node, direction)
+        node = self.node_dropdown.value
+        shown = self._shown_edges()
+        if direction == "outgoing":
+            hide = shown[node, :].any()
+            self._outgoing_shown[node] = not hide
+            self._hidden_edges[node, :] = hide
+        else:
+            hide = shown[:, node].any()
+            self._incoming_shown[node] = not hide
+            self._hidden_edges[:, node] = hide
+        self._refresh_node_highlight()
 
     def _refresh_node_highlight(self):
-        if self._highlighted_direction is None:
-            return
-        self.head_widget.highlight_node_edges(self.matrix_editor.new_connectivity, self._highlighted_node,
-                                              self._highlighted_direction)
+        shown = self._shown_edges()
+        edges_by_node = {}
+        for source, target in zip(*numpy.nonzero(shown)):
+            # an edge shown by both nodes is drawn only once, in the object of the node it leaves from
+            node = source if self._outgoing_shown[source] else target
+            edges_by_node.setdefault(node, []).append((source, target))
+        self.head_widget.show_node_edges(self.matrix_editor.new_connectivity, edges_by_node)
+        self._update_direction_buttons(shown)
+
+    def _update_direction_buttons(self, shown=None):
+        if shown is None:
+            shown = self._shown_edges()
+        node = self.node_dropdown.value
+        self.outgoing_button.description = ("Hide" if shown[node, :].any() else "Show") + " outgoing"
+        self.incoming_button.description = ("Hide" if shown[:, node].any() else "Show") + " incoming"
+
+    def _clear_node_edges(self):
+        self._outgoing_shown[:] = False
+        self._incoming_shown[:] = False
+        self._hidden_edges[:] = False
+        self._refresh_node_highlight()
 
     def _build_space_time_tab(self):
         self.space_time_container = widgets.VBox(layout=widgets.Layout(width="100%"))
@@ -674,8 +710,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         self._last_edited_matrix = None
         self._last_edited_rows, self._last_edited_cols = [], []
         self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
-        self.head_widget.highlight_node_edges(editor.new_connectivity, self.node_dropdown.value, None)
-        self._highlighted_direction = None
+        self._clear_node_edges()
         self._update_space_time()
         self._reset_node_selection()
 
