@@ -26,6 +26,8 @@ MATRIX_ROW_SIZE = 16
 VIEW_PANEL_PADDING = 60
 SPACE_TIME_DETAILS_WIDTH = 250
 EXPORT_TOOLTIP = "Connections of nodes not selected in Select Nodes are exported as 0"
+FLEX_ROW_WRAP = "row wrap"
+EDGE_TYPES = ("In -> In", "In -> Out", "Out -> In", "Out -> Out")
 
 
 class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
@@ -92,7 +94,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         control_panel.layout.flex = "1 1 0%"
         control_panel.layout.min_width = "0"
         side_by_side = widgets.HBox([view_panel, control_panel], layout=widgets.Layout(
-            flex_flow="row wrap", align_items="flex-start", width="100%"))
+            flex_flow=FLEX_ROW_WRAP, align_items="flex-start", width="100%"))
         side_by_side.add_class("lsc-side-by-side")
 
         self.children = [
@@ -229,8 +231,8 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
                                                            color_scheme=self.color_scheme)
         self.space_time_widget.plot.height = height
         self.space_time_widget.plot.mode = 'callback'
-        self.space_time_widget.options.layout.flex_flow = "row wrap"
-        self.space_time_widget.hbox.layout.flex_flow = "row wrap"
+        self.space_time_widget.options.layout.flex_flow = FLEX_ROW_WRAP
+        self.space_time_widget.hbox.layout.flex_flow = FLEX_ROW_WRAP
         self.space_time_widget.plot_details.add_class("lsc-plot-details")
         self.space_time_container.children = [self.space_time_widget.options, self.space_time_widget.hbox]
 
@@ -339,8 +341,8 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
         edge_type_label = widgets.HTML('<div class="lsc-edge-op-label">Edges type</div>')
         self.edge_type_dropdown = widgets.Dropdown(
-            options=["In -> In", "In -> Out", "Out -> In", "Out -> Out"],
-            value="In -> In",
+            options=EDGE_TYPES,
+            value=EDGE_TYPES[0],
             layout=widgets.Layout(width="100%"),
         )
 
@@ -416,14 +418,9 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         selected = [i for i, is_in in enumerate(self._active_node_mask) if is_in]
         unselected = [i for i, is_in in enumerate(self._active_node_mask) if not is_in]
 
-        if edge_type == "In -> In":
-            rows, cols = selected, selected
-        elif edge_type == "In -> Out":
-            rows, cols = selected, unselected
-        elif edge_type == "Out -> In":
-            rows, cols = unselected, selected
-        else:
-            rows, cols = unselected, unselected
+        nodes = {"In": selected, "Out": unselected}
+        source, target = edge_type.split(" -> ")
+        rows, cols = nodes[source], nodes[target]
 
         if not rows or not cols:
             self._set_edge_operation_warning("No edges of this type for the current selection.")

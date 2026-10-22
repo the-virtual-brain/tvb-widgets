@@ -64,9 +64,9 @@ class _SelectableHeadWidget(HeadWidget):
 
     def show_node_edges(self, connectivity, edges_by_node):
         self._keep_camera()
-        for node in list(self._node_edge_objects):
-            if node not in edges_by_node:
-                self.plot -= self._node_edge_objects.pop(node)
+        removed = [node for node in self._node_edge_objects if node not in edges_by_node]
+        for node in removed:
+            self.plot -= self._node_edge_objects.pop(node)
 
         for node, edges in edges_by_node.items():
             indices = numpy.array(edges, dtype=numpy.uint32)

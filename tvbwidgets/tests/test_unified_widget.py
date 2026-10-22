@@ -65,7 +65,8 @@ def save_selection(wid, name, unchecked):
 
 def test_layout(wid):
     view_panel, control_panel = wid.children[1].children
-    assert "VIEW" in view_panel.children[0].value and "CONTROL" in control_panel.children[0].value
+    assert "VIEW" in view_panel.children[0].value
+    assert "CONTROL" in control_panel.children[0].value
     assert view_panel.children[1] is wid.view_subtabs
     assert [wid.view_subtabs.get_title(i) for i in range(2)] == ["Head View", "Space Time"]
     assert wid.matrix_editor.export_button.tooltip == EXPORT_TOOLTIP
