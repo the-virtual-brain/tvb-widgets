@@ -10,14 +10,45 @@ _STYLE = """
     font-weight: 700;
     font-size: 13px;
 }
+.lsc-wrapper .lsc-plot-details br {
+    display: none;
+}
+.lsc-wrapper .lsc-plot-details .widget-html-content > div {
+    display: grid;
+    grid-template-columns: 1fr repeat(3, max-content max-content 1fr);
+    gap: 4px 8px;
+    align-items: baseline;
+}
 .lsc-wrapper .lsc-plot-details h3 {
     font-size: 12px;
+    grid-column: 1 / -1;
+    justify-self: center;
 }
 .lsc-wrapper .lsc-plot-details h4 {
     font-size: 11px;
+    margin: 0;
 }
 .lsc-wrapper .lsc-plot-details p {
     font-size: 11px;
+    margin: 0;
+}
+.lsc-wrapper .lsc-plot-details h4:nth-of-type(even) {
+    grid-column: 5;
+}
+.lsc-wrapper .lsc-plot-details p:nth-of-type(even) {
+    grid-column: 6;
+}
+.lsc-wrapper .lsc-plot-details h4:nth-of-type(odd) {
+    grid-column: 8;
+}
+.lsc-wrapper .lsc-plot-details p:nth-of-type(odd) {
+    grid-column: 9;
+}
+.lsc-wrapper .lsc-plot-details h4:first-of-type {
+    grid-column: 2;
+}
+.lsc-wrapper .lsc-plot-details p:first-of-type {
+    grid-column: 3;
 }
 .lsc-wrapper .lsc-tab-body {
     padding: 8px;
