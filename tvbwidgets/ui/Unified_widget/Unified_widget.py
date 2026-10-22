@@ -13,7 +13,7 @@ from .style import _STYLE
 LOGGER = get_logger(__name__)
 
 NEW_SELECTION_OPTION = "New selection"
-NODE_CHECKBOX_COLUMNS = 2
+NODE_CHECKBOX_MIN_WIDTH = 110
 EDITED_CELL_OUTLINE_COLOR = "#ff8800"
 EDITED_CELL_OUTLINE_WIDTH = 2
 EDITABLE_MATRICES = ("weights", "tract_lengths")
@@ -561,7 +561,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
 
         scrollable = widgets.Box(
             [columns_row],
-            layout=widgets.Layout(max_height="420px", overflow="auto", width="100%", padding="4px 0 0 0"),
+            layout=widgets.Layout(max_height="420px", overflow="auto", width="100%", padding="4px 2px 0 2px"),
         )
 
         popup = widgets.VBox(
@@ -595,7 +595,7 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         for idx in indices:
             label = str(self.connectivity.region_labels[idx])
             checkbox = widgets.Checkbox(value=True, description=label, indent=False,
-                                        layout=widgets.Layout(width="150px"))
+                                        layout=widgets.Layout(width="auto"))
             self._node_checkboxes[idx] = checkbox
             checkboxes.append(checkbox)
         return checkboxes
@@ -604,8 +604,9 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         return widgets.GridBox(
             children=checkboxes,
             layout=widgets.Layout(
-                grid_template_columns="repeat({}, 150px)".format(NODE_CHECKBOX_COLUMNS),
+                grid_template_columns="repeat(auto-fill, minmax({}px, 1fr))".format(NODE_CHECKBOX_MIN_WIDTH),
                 grid_gap="2px 10px",
+                width="100%",
                 overflow="visible",
             ),
         )
