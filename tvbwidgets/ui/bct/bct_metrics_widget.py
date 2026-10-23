@@ -16,15 +16,18 @@ from tvbwidgets.ui.bct.bct_helper_widgets import (
     ColoredConnectivityHeadWidget,
 )
 from tvbwidgets.ui.bct.bct_compat import apply_bct_patches
+from tvbwidgets.ui.color_schemes import DEFAULT_COLOR_SCHEME
+
 apply_bct_patches()
 
 LOGGER = get_logger(__name__)
 
 class BCTMetricsProjectionWidget(TVBWidget):
 
-    def __init__(self, connectivity=None, **kwargs):
+    def __init__(self, connectivity=None, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
         super().__init__(**kwargs)
         self.connectivity = connectivity if connectivity is not None else Connectivity.from_file()
+        self.color_scheme = color_scheme
         self._editor_instance = None
         self._build_ui()
         self._register_callbacks()
@@ -51,7 +54,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
             "<div style='font-size:13px; padding:8px 12px; margin:4px 0 8px 0; "
             "border-left:4px solid var(--jp-brand-color1, #2196f3); "
             "background:rgba(33, 150, 243, 0.08); border-radius:2px;'>"
-            "Review or modify the weights matrix below, hit 'Save', then pick an analyzer to run on it."
+            "Review or modify the weights matrix below, then pick an analyzer to run on it."
             "</div>"
         )
 
@@ -181,7 +184,7 @@ class BCTMetricsProjectionWidget(TVBWidget):
         return (
             f"This matrix contains negative weights, which <b>{analyzer_name}</b> does not support. "
             "If you continue, they will be set to 0 for this analysis.<br><br>"
-            "<span style='color:#ff6b6b'>* Your default or saved matrix will not change.</span>"
+            "<span style='color:#ff6b6b'>* The matrix in the editor will not change.</span>"
         )
 
     def _show_validation_dialog(self, issues, connectivity, analyzer_name):
@@ -235,9 +238,13 @@ class BCTMetricsProjectionWidget(TVBWidget):
     def _is_undirected(self, weights):
         return np.allclose(weights, weights.T)
 
+    @property
+    def conn_edited(self):
+        return self._editor_instance.conn_edited
+
     def _current_connectivity(self):
         ed = self._editor_instance
-        return ed.get_connectivity() if ed is not None else self.connectivity
+        return ed.conn_edited if ed is not None else self.connectivity
 
     def _has_undirected_mismatch(self):
         analyzer_name = self._analyzer_dropdown.value
@@ -583,16 +590,13 @@ class BCTMetricsProjectionWidget(TVBWidget):
         return f"<i style='color:gray'><b>{BCT_METRICS[analyzer_name]['description']}</b></i>"
 
     def _show_editor(self, connectivity):
+        ed = BCTConnectivityMatrixEditor(connectivity, color_scheme=self.color_scheme)
+        self._editor_instance = ed
         with self._editor_output:
             clear_output(wait=True)
-            ed = BCTConnectivityMatrixEditor(connectivity)
-            self._editor_instance = ed
             ed.display()
 
         self._refresh_run_state()
-
-    def _has_unsaved_edits(self, ed):
-        return not np.array_equal(ed.new_connectivity.weights, ed.get_connectivity().weights)
 
     def _applied_fixes_text(self, issues):
         parts = []
@@ -603,10 +607,10 @@ class BCTMetricsProjectionWidget(TVBWidget):
         return " and ".join(parts)
 
     def _source_text(self, source_conn):
-        if source_conn is self.connectivity:
-            return "default weights"
         changed = np.argwhere(source_conn.weights != self.connectivity.weights)
-        return f"saved weights ({len(changed)} cell(s) changed from default)"
+        if len(changed) == 0:
+            return "default weights"
+        return f"edited weights ({len(changed)} cell(s) changed from default)"
 
     def _self_loops_notice_lines(self, analyzer_name):
         return [
@@ -615,29 +619,22 @@ class BCTMetricsProjectionWidget(TVBWidget):
             f"<b>{analyzer_name}</b>."
         ]
 
-    def _analysis_source_lines(self, source_conn, applied_fixes, had_unsaved):
+    def _analysis_source_lines(self, source_conn, applied_fixes):
         source = self._source_text(source_conn)
 
         if applied_fixes:
             lines = [f"<b>Analysis used the {source}, with {self._applied_fixes_text(applied_fixes)}.</b>"]
         else:
             lines = [f"<b>Analysis used the {source}.</b>"]
-
-        if had_unsaved:
-            lines.append(
-                "<span style='color:#ff9800'>* Your unsaved cell changes in the editor were not used in this analysis. "
-                "Press 'Save' and run again to include them.</span>")
         return lines
 
     def _log_analysis_source(self, source_conn, analyzer_name, applied_fixes):
-        had_unsaved = self._has_unsaved_edits(self._editor_instance)
-
         html_lines = []
 
         if applied_fixes and "self_loops" in applied_fixes:
             html_lines.extend(self._self_loops_notice_lines(analyzer_name))
 
-        html_lines.extend(self._analysis_source_lines(source_conn, applied_fixes, had_unsaved))
+        html_lines.extend(self._analysis_source_lines(source_conn, applied_fixes))
 
         display(widgets.HTML("<br>".join(html_lines)))
         display(widgets.HTML("<hr style='margin: 12px 0; border-color: #555'>"))

@@ -9,6 +9,8 @@ from ipywidgets import DOMWidget
 from tvb.basic.neotraits.api import HasTraits
 from tvbwidgets.core.logger.builder import get_logger
 
+K3D_CANVAS_STYLE = "<style>.k3d-target canvas { display: block; }</style>"
+
 
 class TVBWidget(object):
     DEFAULT_BORDER = {'border': '2px solid lightgray',
