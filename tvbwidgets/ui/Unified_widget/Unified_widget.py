@@ -25,6 +25,7 @@ DEFAULT_VIEW_HEIGHT = 512
 MATRIX_ROW_SIZE = 16
 VIEW_PANEL_PADDING = 60
 SPACE_TIME_PADDING = 80
+VIEW_ZOOM = 0.8
 EXPORT_TOOLTIP = "Connections of nodes not selected in Select Nodes are exported as 0"
 FLEX_ROW_WRAP = "row wrap"
 EDGE_TYPES = ("In -> In", "In -> Out", "Out -> In", "Out -> Out")
@@ -229,7 +230,11 @@ class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
         height = width * 4 // 7
         self.space_time_widget = SpaceTimeVisualizerWidget(connectivity, width=width, height=height,
                                                            color_scheme=self.color_scheme)
-        self.space_time_widget.plot.height = height
+        plot_width, plot_height = int(width * VIEW_ZOOM), int(height * VIEW_ZOOM)
+        self.space_time_widget.plot.height = plot_height
+        self.space_time_widget.interactive_plot.layout.width = "{}px".format(plot_width)
+        self.space_time_widget.interactive_plot.layout.height = "{}px".format(plot_height)
+        self.space_time_widget.interactive_plot.add_class("lsc-no-zoom")
         self.space_time_widget.plot.mode = 'callback'
         self.space_time_widget.options.layout.flex_flow = FLEX_ROW_WRAP
         self.space_time_widget.hbox.layout.flex_flow = "column"

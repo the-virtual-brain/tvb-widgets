@@ -3,6 +3,9 @@ _STYLE = """
 .lsc-wrapper {
     zoom: 0.8;
 }
+.lsc-wrapper .lsc-no-zoom {
+    zoom: 1.25;
+}
 .lsc-wrapper .lsc-side-by-side {
     gap: 10px;
 }
