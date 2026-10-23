@@ -206,8 +206,8 @@ class ConnectivityMatrixEditor(TVBWidget):
         scrollable_container_weights = widgets.Box(
             [widgets.Box([out1, self.popup], layout=widgets.Layout(position='relative'))],
             layout=widgets.Layout(
-                width='1200px',
-                height='600px',
+                width='100%',
+                height='auto',
                 overflow_x='auto',
                 overflow_y='auto',
             )
@@ -216,8 +216,8 @@ class ConnectivityMatrixEditor(TVBWidget):
         scrollable_container_tract = widgets.Box(
             [widgets.Box([out2, self.popup], layout=widgets.Layout(position='relative'))],
             layout=widgets.Layout(
-                width='1200px',
-                height='600px',
+                width='100%',
+                height='auto',
                 overflow_x='auto',
                 overflow_y='auto',
             )
