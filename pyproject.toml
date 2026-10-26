@@ -33,7 +33,7 @@ dependencies = [
     "mne>=1.0",
     "numpy",
     "plotly==5.14.0",
-    "k3d==3.2.0",
+    "k3d",
     "ipyreact>=0.4.1",
     "requests",
     "tvb-library",
