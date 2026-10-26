@@ -12,7 +12,7 @@ build-backend = "hatchling.build"
 [project]
 name = "tvb-widgets"
 readme = "README.md"
-version = "2.3.2"
+version = "2.4.0"
 description = "TheVirtualBrain - Widgets is a package with somehow generic GUI components, but developed for EBRAINS Showcases in particular."
 license = { file = "LICENSE" }
 requires-python = ">=3.9"
@@ -33,7 +33,7 @@ dependencies = [
     "mne>=1.0",
     "numpy",
     "plotly==5.14.0",
-    "k3d",
+    "k3d>=2.18",
     "ipyreact>=0.4.1",
     "requests",
     "tvb-library",
