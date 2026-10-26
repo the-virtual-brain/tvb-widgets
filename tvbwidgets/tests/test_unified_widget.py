@@ -10,12 +10,12 @@ import numpy as np
 import pytest
 from tvb.datatypes.connectivity import Connectivity
 from tvbwidgets.ui.connectivity_matrix_editor_widget import load_connectivity_h5
-from tvbwidgets.ui.Unified_widget.Unified_widget import (
+from tvbwidgets.ui.unified_widget.unified_widget import (
     LargeScaleConnectivityWidget,
     EXPORT_TOOLTIP,
     NEW_SELECTION_OPTION,
 )
-from tvbwidgets.ui.Unified_widget.helper_widget import NODE_EDGE_COLORS, UNSELECTED_NODE_COLOR
+from tvbwidgets.ui.unified_widget.helper_widget import NODE_EDGE_COLORS, UNSELECTED_NODE_COLOR
 
 matplotlib.use('Agg')
 
