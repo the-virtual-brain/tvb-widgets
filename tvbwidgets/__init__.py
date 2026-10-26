@@ -2,7 +2,7 @@
 #
 # "TheVirtualBrain - Widgets" package
 #
-# (c) 2022-2025, TVB Widgets Team
+# (c) 2022-2026, TVB Widgets Team
 #
 
 from .core.logger.builder import get_logger
