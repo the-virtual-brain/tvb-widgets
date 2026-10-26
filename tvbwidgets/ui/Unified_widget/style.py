@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2026, TVB Widgets Team
+#
+
 _STYLE = """
 <style>
 .lsc-wrapper {

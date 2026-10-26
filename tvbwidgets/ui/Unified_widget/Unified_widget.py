@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2026, TVB Widgets Team
+#
+
 import numpy
 import ipycanvas as canvas
 import ipywidgets as widgets

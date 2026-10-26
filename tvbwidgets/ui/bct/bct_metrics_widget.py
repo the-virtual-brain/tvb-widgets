@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2026, TVB Widgets Team
+#
+
 import numpy as np
 import plotly.graph_objects as go
 import k3d

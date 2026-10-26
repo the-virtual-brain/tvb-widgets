@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2026, TVB Widgets Team
+#
+
 from traitlets import HasTraits, Bool, List, Integer, Unicode, Float
 
 
