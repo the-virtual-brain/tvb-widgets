@@ -2,7 +2,7 @@
 #
 # "TheVirtualBrain - Widgets" package
 #
-# (c) 2022-2025, TVB Widgets Team
+# (c) 2022-2026, TVB Widgets Team
 #
 
 from .ui.connectivity_ipy.connectivity_widget import ConnectivityWidget
@@ -19,6 +19,7 @@ from .ui.ts.ts_widget_browser import TimeSeriesBrowser
 from .ui.pse_widget import PSEWidget
 from .ui.pse_launcher_widget import PSELauncher
 from .ui.bct.bct_metrics_widget import BCTMetricsProjectionWidget
+from .ui.unified_widget.unified_widget import LargeScaleConnectivityWidget
 from tvbwidgets.core.hpc.config import HPCConfig
 from IPython.core.display_functions import display
 from tvb.datatypes.time_series import TimeSeries

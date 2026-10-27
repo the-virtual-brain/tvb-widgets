@@ -3,7 +3,7 @@
     "type": "SoftwareSourceCode",
     "name": "tvb-widgets",
     "license": "https://spdx.org/licenses/GPL-3.0-or-later.html",
-    "copyrightYear": "2025",
+    "copyrightYear": "2026",
     "codeRepository": "https://github.com/the-virtual-brain/tvb-widgets.git",
     "documentation": "https://wiki.ebrains.eu/bin/view/Collabs/tvb-widgets/",
     "downloadUrl": "https://files.pythonhosted.org/packages/53/15/27a91fa72e127be8acf9ee2c3bfe6f5f83acb8eaedef458be34b7307c166/tvb_widgets-2.3.2.tar.gz",

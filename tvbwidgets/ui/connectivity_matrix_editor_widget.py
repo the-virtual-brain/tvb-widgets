@@ -2,7 +2,7 @@
 #
 # "TheVirtualBrain - Widgets" package
 #
-# (c) 2022-2025, TVB Widgets Team
+# (c) 2022-2026, TVB Widgets Team
 #
 """
 ..moduleauthor:: Priya Yadav 
@@ -10,37 +10,83 @@
 """
 
 import math
+import os
 import numpy as np
 import ipycanvas as canvas
 import ipywidgets as widgets
 import matplotlib.colors as mcolors
 from IPython.display import display
+from tvb.basic.exceptions import TVBException
+from tvb.config.init.datatypes_registry import populate_datatypes_registry
+from tvb.core.neocom import h5
 from tvb.datatypes.connectivity import Connectivity
 
 from tvbwidgets import get_logger
+from tvbwidgets.core.simulator.model_exporters import is_valid_file_name
 from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.color_schemes import DEFAULT_COLOR_SCHEME, get_color_scheme, get_empty_cell_color
 
 LOGGER = get_logger(__name__)
 
+POPUP_CLASS = "matrix-editor-popup"
+POPUP_ABOVE_CLASS = "matrix-editor-popup-above"
+POPUP_WIDTH = 200
+POPUP_STYLE = f"""<style>
+.widget-box.{POPUP_CLASS} {{ background-color: white; position: absolute; }}
+.{POPUP_ABOVE_CLASS} {{ transform: translateY(-100%); }}
+</style>"""
+INVALID_NUMBER_MESSAGE = "Not a valid number. Original value is kept."
+NOT_FINITE_MESSAGE = "Not a finite number. Original value is kept."
+ERROR_COLOR = "#d32f2f"
+SUCCESS_COLOR = "#2e7d32"
+H5_EXTENSION = ".h5"
+COLORBAR_LABELS_WIDTH = 90
+LABEL_CHAR_WIDTH = 0.75
+LABEL_MARGIN = 15
+CANVAS_BOTTOM_MARGIN = 5
+DEFAULT_EXPORT_NAME = "edited_connectivity"
+INVALID_FILE_NAME_MESSAGE = "Use only letters, digits and _ in the file name."
+FILE_EXISTS_MESSAGE = "{} already exists. Choose another name."
+EXPORT_FAILED_MESSAGE = "Could not write {}."
+EXPORT_SUCCESS_MESSAGE = "Exported {} to the notebook folder."
+
+
+def format_message(message, color):
+    return f'<div style="color:{color};font-size:11px;line-height:1.3;">{message}</div>'
+
+
+def load_connectivity_h5(file_path):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} does not exist.")
+    # h5.load needs the TVB datatypes registry, which is empty after a kernel restart and needs to be filled first
+    populate_datatypes_registry()
+    return h5.load(file_path)
+
 
 class ConnectivityMatrixEditor(TVBWidget):
-    def __init__(self, connectivity, size=None, **kwargs):
+    def __init__(self, connectivity, size=None, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
         super().__init__(**kwargs)
         self.connectivity = connectivity
-        self.connectivity_history_list = [self.connectivity]
+        self.color_scheme = get_color_scheme(color_scheme)
+        self.empty_cell_color = get_empty_cell_color(self.color_scheme)
         self.num_rows = int(len(self.connectivity.weights[0]) / 2)  # num_cols will be equal to num_rows
         if size is None:
             size = self.num_rows * 20
         self.size = size
-        self.layout_offset = self.size * 0.2
+        self.layout_offset = self._get_label_area_size()
 
-        self.is_connectivity_being_edited = True
         self.new_connectivity = self._prepare_new_connectivity()
         self.header = widgets.HBox(layout=self.DEFAULT_BORDER)
         self._make_header()
         self.tab = widgets.Tab(layout=self.DEFAULT_BORDER)
         self._get_quadrant_range(selection=1)
         self._prepare_matrices_tab()
+
+    def _get_label_area_size(self):
+        chars = max(len(str(label)) for label in self.connectivity.region_labels) * LABEL_CHAR_WIDTH
+        intervals = self.num_rows - 1
+        needed = (chars * self.size + LABEL_MARGIN * intervals) / (intervals + chars)
+        return min(needed, self.size * 0.2)
 
     def _make_header(self):
         options = ["Quadrant 1", "Quadrant 2", "Quadrant 3", "Quadrant 4"]
@@ -49,21 +95,23 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         self.quadrants.observe(self._on_quadrant_select, names=["value"])
 
-        self.save_button = widgets.Button(description="Save",
-                                          layout=widgets.Layout(width="100px", margin='0 0 0 auto'))
-        self.save_button.on_click(self.on_click_save)
+        self.export_message = widgets.HTML(value="", layout=widgets.Layout(margin="0 10px 0 auto",
+                                                                             align_self="center"))
+        self.export_name = widgets.Text(value=self._get_next_free_name(), layout=widgets.Layout(width="200px"))
+        extension_label = widgets.Label(H5_EXTENSION)
+        self.export_button = widgets.Button(description="Export H5", layout=widgets.Layout(width="100px"))
+        self.export_button.on_click(self._on_click_export)
 
-        self.header.children = [self.quadrants,  self.save_button,self._get_history_dropdown()]
-
+        self.header.children = [self.quadrants, self.export_message, self.export_name, extension_label,
+                                self.export_button]
                                 
     def _on_quadrant_select(self, change):
         self.popup.layout.visibility = "hidden"
 
         selection = int(change["new"][-1])
-        connectivity = self.new_connectivity if self.is_connectivity_being_edited else self.connectivity
 
         self._get_quadrant_range(selection)
-        self._update_matrices_view(connectivity)
+        self._update_matrices_view(self.new_connectivity)
 
     def _get_quadrant_range(self, selection):
         middle_val = int(self.connectivity.weights.shape[0] / 2)
@@ -112,42 +160,45 @@ class ConnectivityMatrixEditor(TVBWidget):
 
         self.popup = widgets.VBox(
         layout=widgets.Layout(
-            height='100px',  
-            width='200px',  
-            padding='5px',  
-            min_width='200px',
+            width=f'{POPUP_WIDTH}px',
+            padding='8px 10px',
+            min_width=f'{POPUP_WIDTH}px',
             visibility='hidden',
             border='4px solid black',
-            background='white',
             z_index='10',
             position='absolute',
+            align_self='flex-start',
             justify_content='center',
             align_items='center'
          )
-        )       
+        )
         self.popup_value = widgets.Text(layout=widgets.Layout(width="50%", margin="10px 0"))
+        self.popup_error = widgets.HTML(value="", layout=widgets.Layout(width="100%", margin="0"))
 
         self.popup_change = widgets.Button(
-            description="Change", 
-            layout=widgets.Layout(width="90px", margin="3px"),
+            description="Change",
+            layout=widgets.Layout(width="48%", margin="3px 0"),
             style={ 'font_weight': 'bold'}
         )
 
         self.popup_cancel = widgets.Button(
-            description="Cancel", 
-            layout=widgets.Layout(width="90px", margin="3px"),
+            description="Cancel",
+            layout=widgets.Layout(width="48%", margin="3px 0"),
             style={'font_weight': 'bold'}
         )
 
         self.popup_buttons = widgets.HBox(
-            [self.popup_change, self.popup_cancel], 
+            [self.popup_change, self.popup_cancel],
             layout=widgets.Layout(
-                justify_content='space-between', 
-                width="100%"
+                justify_content='space-between',
+                width="100%",
+                margin="0"
             )
         )
 
-        self.popup.children = [self.popup_value, self.popup_buttons]
+        popup_style = widgets.HTML(POPUP_STYLE, layout=widgets.Layout(display="none"))
+        self.popup.add_class(POPUP_CLASS)
+        self.popup.children = [self.popup_value, self.popup_buttons, self.popup_error, popup_style]
 
         self.popup_change.on_click(self.on_apply_change)
         self.popup_cancel.on_click(self.on_click_cancel)
@@ -155,8 +206,8 @@ class ConnectivityMatrixEditor(TVBWidget):
         scrollable_container_weights = widgets.Box(
             [widgets.Box([out1, self.popup], layout=widgets.Layout(position='relative'))],
             layout=widgets.Layout(
-                width='1200px',
-                height='600px',
+                width='100%',
+                height='auto',
                 overflow_x='auto',
                 overflow_y='auto',
             )
@@ -165,8 +216,8 @@ class ConnectivityMatrixEditor(TVBWidget):
         scrollable_container_tract = widgets.Box(
             [widgets.Box([out2, self.popup], layout=widgets.Layout(position='relative'))],
             layout=widgets.Layout(
-                width='1200px',
-                height='600px',
+                width='100%',
+                height='auto',
                 overflow_x='auto',
                 overflow_y='auto',
             )
@@ -180,7 +231,9 @@ class ConnectivityMatrixEditor(TVBWidget):
 
     def _prepare_matrix(self, matrix_name):
         matrix = getattr(self.connectivity, matrix_name)
-        matrix_full = canvas.MultiCanvas(6, width=self.size * 1.5, height=self.size * 1.2)
+        cell_size = (self.size - self.layout_offset) / (self.num_rows - 1)
+        matrix_full = canvas.MultiCanvas(6, width=self.size * 1.1 + COLORBAR_LABELS_WIDTH,
+                                         height=self.size + cell_size + CANVAS_BOTTOM_MARGIN)
 
         matrix_view = matrix_full[0]
         row_header = matrix_full[1]
@@ -212,19 +265,18 @@ class ConnectivityMatrixEditor(TVBWidget):
             grid.stroke_rects(x, y, height=self.cell_size, width=self.layout_offset)  # grid for column headers
 
             for i in range(self.num_rows):
-                row_header.font = f"bold {self.cell_size}px px sans serif"
+                row_header.font = f"bold {self.cell_size}px serif"
                 row_header_text = f"{self.connectivity.region_labels[self.from_row + i]}"
                 row_header.fill_text(row_header_text, x + 10, y[i] + self.cell_size, max_width=self.layout_offset * 0.9)
 
-                column_header.font = f"bold {self.cell_size}px px sans serif"
+                column_header.font = f"bold {self.cell_size}px serif"
                 column_header_text = f"{self.connectivity.region_labels[self.from_col + i]}"
                 column_header.fill_text(column_header_text, x + 10, y[i] + self.cell_size,
                                         max_width=self.layout_offset * 0.9)
 
             self.colorbar_x = self.size * 1.1
             gradient = grid.create_linear_gradient(self.colorbar_x, self.layout_offset, self.size * 1.2, self.size,
-                                                   [(i / len(self.colors), self.colors[-i - 1]) for i in
-                                                    range(len(self.colors))])  # color gradient for color-bar
+                                                   self._colorbar_stops())
             grid.fill_style = gradient
             grid.fill_rect(self.colorbar_x, self.layout_offset, 20, self.size - self.layout_offset)
             grid.fill_style = "black"
@@ -232,28 +284,29 @@ class ConnectivityMatrixEditor(TVBWidget):
             for i in range(7):
                 label_text = f"--{round(matrix.max() * (6 - i) / 6, 2)}"
                 color_bar.fill_text(label_text, self.colorbar_x + 20,
-                                    self.size * 0.8 / 6.1 * i + self.layout_offset + 5)  # labels for colorbar
+                                    (self.size - self.layout_offset) / 6.1 * i + self.layout_offset + 5)  # labels for colorbar
 
         return matrix_full
 
-    def _generate_color(self, connectivity, i=0, j=0, matrix_name=None, value=None):
-        self.colors = ["#66797b", "#543146", "#5a1c5d", "#b468ab", "#6ade42", "#27913c", "#1c464a",
-                       "#247663", "#38bcaa", "#a9e9ff", "#61cfff", "#37a5c1", "#e4e4e2", "#ff9f25",
-                       "#fb5226"]
+    def _colorbar_stops(self):
+        positions = np.linspace(0, 1, max(self.color_scheme.N, 256))
+        return [(position, mcolors.to_hex(self.color_scheme(1 - position))) for position in positions]
 
-        color_scheme = mcolors.LinearSegmentedColormap.from_list('color_scheme', self.colors)
+    def _generate_color(self, connectivity, i=0, j=0, matrix_name=None, value=None):
         matrix = getattr(connectivity, matrix_name)
         norm = mcolors.Normalize(vmin=0, vmax=matrix.max())
+        empty_color = mcolors.to_rgba(self.empty_cell_color)
 
         if not isinstance(value, np.ndarray):
             if not value:
                 value = matrix[int(self.from_row + i)][int(self.from_col + j)]
 
-            color = color_scheme(norm(value))
+            color = self.color_scheme(norm(value)) if value != 0 else empty_color
             color = f"rgba({color[0] * 255:.0f}, {color[1] * 255:.0f}, {color[2] * 255:.0f}, {color[3]:.2f})"
             return color
 
-        colors = color_scheme(norm(value))
+        colors = self.color_scheme(norm(value))
+        colors[value == 0] = empty_color
         colors = colors[:, :, :3] * 255
         return colors
 
@@ -270,8 +323,7 @@ class ConnectivityMatrixEditor(TVBWidget):
         if -1 < row < self.num_rows and -1 < col < self.num_rows:
             self.row = row
             self.col = col
-            connectivity = self.new_connectivity if self.is_connectivity_being_edited else self.connectivity
-            matrix = getattr(connectivity, matrix_name)
+            matrix = getattr(self.new_connectivity, matrix_name)
             value = matrix[int(self.from_row + self.row)][int(self.from_col + self.col)]
             matrix_ = self.clicked_matrix + "_matrix"
             matrix_ui = getattr(self, matrix_)
@@ -279,6 +331,7 @@ class ConnectivityMatrixEditor(TVBWidget):
             x = self.layout_offset + self.col * self.cell_size
             y = self.layout_offset + self.row * self.cell_size
             self.popup_value.value = f"{value}"
+            self.popup_error.value = ""
             self.popup.layout.visibility = 'visible'
 
             mid_col = self.num_rows // 2
@@ -293,18 +346,16 @@ class ConnectivityMatrixEditor(TVBWidget):
             else:
                 quadrant = 4
 
-            if quadrant == 1:
-                left = x - 1142
-                top = y + self.cell_size + 2
-            elif quadrant == 2:
-                left = x - 1342 + self.cell_size
-                top = y + self.cell_size + 2
-            elif quadrant == 3:
-                left = x - 1142
-                top = y - 100
-            else:  
-                left = x - 1342 + self.cell_size
-                top = y - 100
+            if quadrant in (1, 3):
+                left = x - 2
+            else:
+                left = x + self.cell_size + 2 - POPUP_WIDTH
+            top = y + self.cell_size + 2 if quadrant in (1, 2) else y - 2
+
+            if quadrant in (3, 4):
+                self.popup.add_class(POPUP_ABOVE_CLASS)
+            else:
+                self.popup.remove_class(POPUP_ABOVE_CLASS)
             self.popup.layout.left = f'{left}px'
             self.popup.layout.top = f'{top}px'
             self.current_matrix = matrix_name
@@ -317,18 +368,29 @@ class ConnectivityMatrixEditor(TVBWidget):
                 matrix_ui[5].stroke_style = "white"
                 matrix_ui[5].stroke_rect(x, y, self.cell_size, self.cell_size)
 
-    def on_apply_change(self, change):
-        self.is_connectivity_being_edited = True
+    def _show_popup_error(self, message):
+        self.popup_error.value = format_message(message, ERROR_COLOR)
+        LOGGER.warning(f"Matrix editor: '{self.popup_value.value}' is not a valid cell value.")
+        self.popup_value.focus()
 
-        matrix_name = self.clicked_matrix + "_matrix"
-        matrix_ui = getattr(self, matrix_name)
+    def _read_cell_value(self):
         try:
             value = float(self.popup_value.value)
         except (ValueError, TypeError):
-            LOGGER.error(f'An exception occurred when retrieving the cell value.')
-            value = None
+            self._show_popup_error(INVALID_NUMBER_MESSAGE)
+            return None
+        if not np.isfinite(value):
+            self._show_popup_error(NOT_FINITE_MESSAGE)
+            return None
+        return max(value, 0.0)
+
+    def on_apply_change(self, change):
+        matrix_name = self.clicked_matrix + "_matrix"
+        matrix_ui = getattr(self, matrix_name)
+        value = self._read_cell_value()
 
         if value is not None:
+            self.popup_error.value = ""
             matrix_name = self.clicked_matrix
             matrix = getattr(self.new_connectivity, matrix_name)
             max_val = matrix.max()
@@ -351,82 +413,84 @@ class ConnectivityMatrixEditor(TVBWidget):
 
     def on_click_cancel(self, change=None):
         self.popup.layout.visibility = "hidden"
+        self.popup_error.value = ""
 
         matrix_name = self.clicked_matrix + "_matrix"
         matrix_ui = getattr(self, matrix_name)
         x = self.layout_offset + self.col * self.cell_size
         y = self.layout_offset + self.row * self.cell_size
 
+        matrix = getattr(self.new_connectivity, self.clicked_matrix)
+        value = matrix[self.from_row + int(self.row)][self.from_col + int(self.col)]
+
         # Redraw the cell with original color to remove highlight
         with canvas.hold_canvas(matrix_ui[0]):
             matrix_ui[0].fill_style = self._generate_color(self.new_connectivity, self.row, self.col,
-                                                        self.clicked_matrix, 
-                                                        self.new_connectivity._getattribute_(self.clicked_matrix)[self.from_row + int(self.row)][self.from_col + int(self.col)])
+                                                           self.clicked_matrix, value)
             matrix_ui[0].fill_rect(x, y, self.cell_size, self.cell_size)
             matrix_ui[0].stroke_rect(x, y, self.cell_size, self.cell_size)
 
         matrix_ui[5].clear()
 
-    def saved_connectivities(self):
-        conn_list = []
-        for conn in self.connectivity_history_list:
-            conn_list.append(conn.gid.hex)
-        return conn_list
+    @property
+    def conn_edited(self):
+        return self._prepare_new_connectivity(source=self.new_connectivity)
 
-    def get_connectivity(self, gid=None):
-        if gid is None:
-            return self.connectivity
-        for conn in self.connectivity_history_list:
-            if conn.gid.hex == gid:
-                return conn
+    def _get_export_path(self, file_name):
+        return os.path.join(os.getcwd(), file_name + H5_EXTENSION)
 
-    def on_click_save(self, change):
-        self.popup.layout.visibility = "hidden"
-        
-        conn = self.new_connectivity
-        self.connectivity_history_list.insert(0, conn)
-        self.connectivity = conn
-        self.header.children = list(self.header.children)[:-1] + [self._get_history_dropdown()]
+    def _get_next_free_name(self):
+        index = 1
+        while os.path.exists(self._get_export_path(f"{DEFAULT_EXPORT_NAME}_{index}")):
+            index += 1
+        return f"{DEFAULT_EXPORT_NAME}_{index}"
 
-        self.new_connectivity = self._prepare_new_connectivity()
-        self.is_connectivity_being_edited = False
-        self._update_matrices_view(self.connectivity)
+    def _show_export_message(self, message, color):
+        self.export_message.value = format_message(message, color)
 
-    def _prepare_new_connectivity(self):
+    def export_h5(self, connectivity):
+        file_name = self.export_name.value.strip()
+        if not is_valid_file_name(file_name):
+            self._show_export_message(INVALID_FILE_NAME_MESSAGE, ERROR_COLOR)
+            return None
+
+        path = self._get_export_path(file_name)
+        shown_name = file_name + H5_EXTENSION
+        if os.path.exists(path):
+            self._show_export_message(FILE_EXISTS_MESSAGE.format(shown_name), ERROR_COLOR)
+            return None
+
+        try:
+            populate_datatypes_registry()
+            h5.store(connectivity, path)
+        except (OSError, TVBException):
+            LOGGER.exception(f"Matrix editor: could not export the connectivity to {path}.")
+            self._show_export_message(EXPORT_FAILED_MESSAGE.format(shown_name), ERROR_COLOR)
+            return None
+
+        self._show_export_message(EXPORT_SUCCESS_MESSAGE.format(shown_name), SUCCESS_COLOR)
+        self.export_name.value = self._get_next_free_name()
+        return path
+
+    def _on_click_export(self, button):
+        self.export_h5(self.conn_edited)
+
+    def _prepare_new_connectivity(self, source=None):
+        if source is None:
+            source = self.connectivity
         new_connectivity = Connectivity()
         new_connectivity.parent_connectivity = self.connectivity.gid.hex
-        new_connectivity.centres = self.connectivity.centres
-        new_connectivity.region_labels = self.connectivity.region_labels
-        new_connectivity.orientations = self.connectivity.orientations
-        new_connectivity.cortical = self.connectivity.cortical
-        new_connectivity.hemispheres = self.connectivity.hemispheres
-        new_connectivity.areas = self.connectivity.areas
-        new_connectivity.weights = self.connectivity.weights
-        new_connectivity.tract_lengths = self.connectivity.tract_lengths
+        new_connectivity.centres = source.centres
+        new_connectivity.region_labels = source.region_labels
+        new_connectivity.orientations = source.orientations
+        new_connectivity.cortical = source.cortical
+        new_connectivity.hemispheres = source.hemispheres
+        new_connectivity.areas = source.areas
+        new_connectivity.weights = source.weights
+        new_connectivity.tract_lengths = source.tract_lengths
         new_connectivity.configure()
 
         return new_connectivity
-
-    def _get_history_dropdown(self):
-        values = [(conn.gid.hex, conn) for conn in self.connectivity_history_list]
-        default = values[values.index((self.connectivity.gid.hex, self.connectivity))][1]
-
-        dropdown = widgets.Dropdown(options=values,
-                                    description='View history',
-                                    disabled=False,
-                                    value=default,
-                                    )
-
-        def on_connectivity_change(change):
-            self.popup.layout.visibility = "hidden"
-            
-            self.is_connectivity_being_edited = False
-            self.connectivity = change["new"]
-            self.new_connectivity = self._prepare_new_connectivity()
-            self._update_matrices_view(self.connectivity)
-
-        dropdown.observe(on_connectivity_change, 'value')
-        return dropdown
 
     def _update_matrices_view(self, connectivity):
         matrices = ["weights", "tract_lengths"]

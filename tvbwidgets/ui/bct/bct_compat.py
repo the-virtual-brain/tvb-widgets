@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2026, TVB Widgets Team
+#
 
 import numpy as np
 import bct.algorithms.modularity as _bct_modularity

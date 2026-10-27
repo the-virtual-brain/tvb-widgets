@@ -2,7 +2,7 @@
 #
 # "TheVirtualBrain - Widgets" package
 #
-# (c) 2022-2025, TVB Widgets Team
+# (c) 2022-2026, TVB Widgets Team
 #
 """
 ..moduleauthor:: Priya Yadav <priyayadav012004@gmail.com>
@@ -17,14 +17,21 @@ from matplotlib import pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.gridspec import GridSpec
 
-from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.base_widget import TVBWidget, K3D_CANVAS_STYLE
+from tvbwidgets.ui.color_schemes import DEFAULT_COLOR_SCHEME, get_color_scheme, get_empty_cell_color
+
+MIN_CONDUCTION_SPEED = 0.1
+MAX_CONDUCTION_SPEED = 20.0
+NO_VALUE_BAND = 0.04
 
 
 class SpaceTimeVisualizerWidget(TVBWidget):
 
-    def __init__(self, connectivity, width=900, height=600, **kwargs):
+    def __init__(self, connectivity, width=900, height=600, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
         super().__init__(**kwargs)
         self.connectivity = connectivity
+        self.color_scheme = get_color_scheme(color_scheme)
+        self.empty_cell_color = get_empty_cell_color(self.color_scheme)
         self.width = width
         self.height = height
 
@@ -46,10 +53,12 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
         self.interactive_plot = Output(layout=Layout(width=str(self.width) + 'px', height=str(self.height) + 'px'))
         with self.interactive_plot:
+            display(HTML(K3D_CANVAS_STYLE))
             self.plot.display()
 
         self.plot_overview = Output()
         self._create_plots_overview()
+        self._update_slices_visibility()
         with self.plot_overview:
             display(self.fig)
 
@@ -98,10 +107,23 @@ class SpaceTimeVisualizerWidget(TVBWidget):
 
         return translate
 
+    def _get_color_range(self):
+        max_weight = float(numpy.max(self.connectivity.weights))
+        if max_weight <= 0:
+            max_weight = 1.0
+        return [0, max_weight]
+
+    def _get_texture_color_range(self):
+        max_weight = self._get_color_range()[1]
+        return [-NO_VALUE_BAND * max_weight / (1 - NO_VALUE_BAND), max_weight]
+
+    def _get_texture_attribute(self, connectivity_slice):
+        return numpy.where(connectivity_slice == 0, -self._get_color_range()[1], connectivity_slice)
+
     def _get_texture(self, connectivity_slice, slice_id):
-        texture = k3d.texture(attribute=connectivity_slice,
+        texture = k3d.texture(attribute=self._get_texture_attribute(connectivity_slice),
                               color_map=self._custom_colormap(None),
-                              color_range=[connectivity_slice.min(), connectivity_slice.max()],
+                              color_range=self._get_texture_color_range(),
                               name='Slice',
                               interpolation=False,
                               model_matrix=self._get_transform_matrix(slice_id))
@@ -135,11 +157,21 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                         self.selection.value = f"{intervals[i - 1]:.2f} .. {intervals[i]:.2f}"
             self.picked_slice_id = clicked_id
         else:
-            self.picked_slice_id = None
-            self._change_camera_position()
-            for texture in self.plot.objects:
-                texture.visible = True
-            self.selection.value = "None"
+            self._show_all_slices()
+
+    def _show_all_slices(self):
+        self.picked_slice_id = None
+        self._change_camera_position()
+        self._update_slices_visibility()
+        self.selection.value = "None"
+
+    def _update_slices_visibility(self):
+        single_slice = self.from_time == self.to_time
+        if self.picked_slice_id is None:
+            for idx, texture in enumerate(self.plot.objects):
+                texture.visible = idx == 0 or not single_slice
+        for ax in self.ims[1:]:
+            ax.set_visible(not single_slice)
 
     def _prepare_plot(self):
         plot = k3d.Plot(grid_visible=False, camera_auto_fit=False, camera_no_rotate=True, camera_no_zoom=True,
@@ -166,8 +198,8 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         min_time = self.connectivity.tract_lengths.min()
         self.option_conduction_speed = BoundedFloatText(
             value=1.0,
-            min=0.1,
-            max=round(max_time, 2),
+            min=MIN_CONDUCTION_SPEED,
+            max=MAX_CONDUCTION_SPEED,
             step=0.1,
             layout=Layout(width='170px'),
             style={'description_width': 'initial'},
@@ -218,6 +250,21 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             self.options.children[2].min = self.connectivity.tract_lengths.min() / self.conduction_speed
             self.options.children[1].value = self.options.children[1].min
             self.options.children[2].value = self.options.children[2].max
+        self._swap_reversed_interval()
+        self._refresh_plots()
+
+    def _swap_reversed_interval(self):
+        from_time, to_time = self.options.children[1:3]
+        if from_time.value <= to_time.value:
+            return
+        for option in (from_time, to_time):
+            option.unobserve(self.on_change, names="value")
+        from_time.value, to_time.value = to_time.value, from_time.value
+        for option in (from_time, to_time):
+            option.observe(self.on_change, names="value")
+
+    def _refresh_plots(self):
+        self.conduction_speed = self.options.children[0].value
         self.from_time = self.options.children[1].value
         self.to_time = self.options.children[2].value
         self.plot_details.value = self._generate_details()
@@ -225,30 +272,60 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         for idx in range(len(self.plot.objects)):
             conn_slice = self._prepare_connectivity(idx)
             texture = self.plot.objects[idx]
-            texture.attribute = conn_slice
-            texture.color_range = [conn_slice.min(), conn_slice.max()]
+            texture.attribute = self._get_texture_attribute(conn_slice)
+            texture.color_range = self._get_texture_color_range()
             self.ims[idx].imshow(self._custom_colormap(conn_slice))
 
+        self._update_slices_visibility()
         with self.plot_overview:
             display(self.fig)
 
+    @staticmethod
+    def _set_bounds(option, new_min, new_max):
+        if new_max >= option.min:
+            option.max = new_max
+            option.min = new_min
+        else:
+            option.min = new_min
+            option.max = new_max
+
+    def update_connectivity(self, connectivity):
+        self.connectivity = connectivity
+        speed, from_time, to_time = self.options.children[:3]
+        from_at_min = from_time.value == from_time.min
+        to_at_max = to_time.value == to_time.max
+
+        for option in (speed, from_time, to_time):
+            option.unobserve(self.on_change, names="value")
+        new_min = connectivity.tract_lengths.min() / speed.value
+        new_max = connectivity.tract_lengths.max() / speed.value
+        self._set_bounds(from_time, new_min, new_max)
+        self._set_bounds(to_time, new_min, new_max)
+        if from_at_min:
+            from_time.value = new_min
+        if to_at_max:
+            to_time.value = new_max
+        for option in (speed, from_time, to_time):
+            option.observe(self.on_change, names="value")
+
+        self._show_all_slices()
+        self.plot_overview.clear_output()
+        self._refresh_plots()
+
     def _custom_colormap(self, connectivity):
-        colors = [
-            '#000033', '#4d1c34', '#7a3282', '#8ea674', '#27913c', '#1c464a',
-            '#247663', '#38bcaa', '#a9e9ff', '#5fcdfc', '#36a0c1', '#f99e2c',
-            '#fc5326', '#df0537'
-        ]
-        color_scheme = mcolors.LinearSegmentedColormap.from_list('color_scheme', colors)
+        empty_color = mcolors.to_rgb(self.empty_cell_color)
 
         if connectivity is None:
-            k3d_scheme = []
-            for x in numpy.linspace(0, 1, max(color_scheme.N, 256)):
-                r, g, b = color_scheme(x)[:3]
-                k3d_scheme.append((x, r, g, b))
+            k3d_scheme = [(0.0, *empty_color), (NO_VALUE_BAND / 2, *empty_color)]
+            for x in numpy.linspace(0, 1, max(self.color_scheme.N, 256)):
+                r, g, b = self.color_scheme(x)[:3]
+                k3d_scheme.append((NO_VALUE_BAND + x * (1 - NO_VALUE_BAND), r, g, b))
             return k3d_scheme
 
-        norm = mcolors.Normalize(vmin=0, vmax=3)
-        color_data = color_scheme(norm(connectivity))[:, :, :3]
+        min_weight, max_weight = self._get_color_range()
+        norm = mcolors.Normalize(vmin=min_weight, vmax=max_weight)
+        color_data = self.color_scheme(norm(connectivity))[:, :, :3]
+        color_data[connectivity == 0] = empty_color
         return color_data
 
     def _create_plots_overview(self):
@@ -256,6 +333,7 @@ class SpaceTimeVisualizerWidget(TVBWidget):
         self.ims = []
         gs = GridSpec(3, 4, figure=self.fig)
         n = self.connectivity.weights.shape[0]
+        tick_step = 5 if self.width >= 900 else 25
 
         for i in range(self.num_slices + 1):
             position = gs[int(i / 3), int(i % 3)]
@@ -263,12 +341,12 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             connectivity = self._prepare_connectivity(i)
             colors = self._custom_colormap(connectivity)
             ax.imshow(colors)
-            ax.set_xticks(numpy.arange(0, n, 5))
-            ax.set_yticks(numpy.arange(0, n, 5))
+            ax.set_xticks(numpy.arange(0, n, tick_step))
+            ax.set_yticks(numpy.arange(0, n, tick_step))
             ax.tick_params(axis="both", labelsize=6)
             self.ims.append(ax)
 
-        self.fig.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.1, hspace=0.1)
+        self.fig.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.1, hspace=0.25)
         plt.close(self.fig)
 
     def _prepare_plot_details(self):
@@ -279,6 +357,13 @@ class SpaceTimeVisualizerWidget(TVBWidget):
             layout=layout
         )
 
+    @staticmethod
+    def _min_non_zero(values):
+        non_zero = values[numpy.nonzero(values)]
+        if non_zero.size == 0:
+            return 0
+        return numpy.min(non_zero)
+
     def _generate_details(self):
         return f"""<br>
                     <div style="line-height:1;">
@@ -286,15 +371,15 @@ class SpaceTimeVisualizerWidget(TVBWidget):
                     <h4>conduction speed:</h4> 
                     <p>{self.conduction_speed} mm/ms</p>
                     <h4>min(non-zero) delay:</h4>
-                    <p>{numpy.min(self.connectivity.tract_lengths[numpy.nonzero(self.connectivity.tract_lengths)]) / self.conduction_speed} ms</p>
+                    <p>{self._min_non_zero(self.connectivity.tract_lengths) / self.conduction_speed} ms</p>
                     <h4>max delay:</h4>
                     <p>{numpy.max(self.connectivity.tract_lengths) / self.conduction_speed} ms</p>
                     <h4>min(non-zero) tract length:</h4>
-                    <p>{numpy.min(self.connectivity.tract_lengths[numpy.nonzero(self.connectivity.tract_lengths)])} mm</p>
+                    <p>{self._min_non_zero(self.connectivity.tract_lengths)} mm</p>
                     <h4>max tract length:</h4>
                     <p>{numpy.max(self.connectivity.tract_lengths, )} mm</p>
                     <h4>min(non-zero) weight:</h4>
-                    <p>{numpy.min(self.connectivity.weights[numpy.nonzero(self.connectivity.weights)])}</p>
+                    <p>{self._min_non_zero(self.connectivity.weights)}</p>
                     <h4>max weight:</h4>
                     <p>{numpy.max(self.connectivity.weights)}</p>
                     </div>"""

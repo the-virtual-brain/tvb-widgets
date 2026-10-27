@@ -2,12 +2,14 @@
 #
 # "TheVirtualBrain - Widgets" package
 #
-# (c) 2022-2025, TVB Widgets Team
+# (c) 2022-2026, TVB Widgets Team
 #
 
 from ipywidgets import DOMWidget
 from tvb.basic.neotraits.api import HasTraits
 from tvbwidgets.core.logger.builder import get_logger
+
+K3D_CANVAS_STYLE = "<style>.k3d-target canvas { display: block; }</style>"
 
 
 class TVBWidget(object):

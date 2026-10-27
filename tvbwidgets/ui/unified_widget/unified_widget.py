@@ -1,0 +1,746 @@
+# -*- coding: utf-8 -*-
+#
+# "TheVirtualBrain - Widgets" package
+#
+# (c) 2022-2026, TVB Widgets Team
+#
+
+import numpy
+import ipycanvas as canvas
+import ipywidgets as widgets
+
+from tvbwidgets.core.logger.builder import get_logger
+from tvbwidgets.ui.base_widget import TVBWidget
+from tvbwidgets.ui.color_schemes import DEFAULT_COLOR_SCHEME
+from tvbwidgets.ui.connectivity_matrix_editor_widget import ConnectivityMatrixEditor
+from tvbwidgets.ui.spacetime_widget import SpaceTimeVisualizerWidget
+from .helper_widget import _SelectableHeadWidget
+from .style import _STYLE
+
+LOGGER = get_logger(__name__)
+
+NEW_SELECTION_OPTION = "New selection"
+NODE_CHECKBOX_MIN_WIDTH = 110
+EDITED_CELL_OUTLINE_COLOR = "#ff8800"
+EDITED_CELL_OUTLINE_WIDTH = 2
+EDITABLE_MATRICES = ("weights", "tract_lengths")
+ERROR_MESSAGE_COLOR = "#d32f2f"
+WARNING_MESSAGE_COLOR = "#e65100"
+SPACE_TIME_TAB_INDEX = 1
+DEFAULT_VIEW_WIDTH = 750
+DEFAULT_VIEW_HEIGHT = 512
+MATRIX_ROW_SIZE = 16
+VIEW_PANEL_PADDING = 60
+SPACE_TIME_PADDING = 80
+VIEW_ZOOM = 0.8
+EXPORT_TOOLTIP = "Connections of nodes not selected in Select Nodes are exported as 0"
+FLEX_ROW_WRAP = "row wrap"
+EDGE_TYPES = ("In -> In", "In -> Out", "Out -> In", "Out -> Out")
+
+
+class LargeScaleConnectivityWidget(widgets.VBox, TVBWidget):
+
+    def __init__(self, connectivity, view_width=DEFAULT_VIEW_WIDTH, view_height=DEFAULT_VIEW_HEIGHT,
+                 matrix_size=None, color_scheme=DEFAULT_COLOR_SCHEME, **kwargs):
+        super().__init__(**kwargs)
+
+        self.connectivity = connectivity
+        self.color_scheme = color_scheme
+        self.view_width = view_width
+        self.view_height = view_height
+
+        if matrix_size is None:
+            matrix_size = MATRIX_ROW_SIZE * (len(connectivity.region_labels) // 2)
+
+        self.head_widget = _SelectableHeadWidget([connectivity], width=view_width, height=view_height)
+        self.head_widget.children = self.head_widget.children[1:]
+        self.head_widget._find_lines_object(connectivity).visible = False
+
+        self.matrix_editor = ConnectivityMatrixEditor(connectivity, size=matrix_size, color_scheme=color_scheme)
+        self._unclip_matrix_scroll_containers()
+        self.matrix_editor.export_button.on_click(self.matrix_editor._on_click_export, remove=True)
+        self.matrix_editor.export_button.on_click(self._on_click_export)
+        self.matrix_editor.export_button.tooltip = EXPORT_TOOLTIP
+        self.matrix_editor.popup_change.on_click(self._on_matrix_cell_changed)
+        self.matrix_editor.quadrants.observe(self._redraw_edited_cells_outline, names="value")
+        self.matrix_editor.weights_matrix.on_mouse_down(self._redraw_edited_cells_outline)
+        self.matrix_editor.tract_lengths_matrix.on_mouse_down(self._redraw_edited_cells_outline)
+        self.matrix_editor.popup_change.on_click(self._redraw_edited_cells_outline)
+        self.matrix_editor.popup_cancel.on_click(self._redraw_edited_cells_outline)
+        self.matrix_editor.tab.observe(self._redraw_edited_cells_outline, names="selected_index")
+
+        self._node_selections = {}
+        self._node_checkboxes = {}
+        self._active_node_mask = [True] * len(connectivity.region_labels)
+
+        self._last_edited_matrix = None
+        self._last_edited_rows = []
+        self._last_edited_cols = []
+
+        nodes = len(connectivity.region_labels)
+        self._outgoing_shown = numpy.zeros(nodes, dtype=bool)
+        self._incoming_shown = numpy.zeros(nodes, dtype=bool)
+        self._hidden_edges = numpy.zeros((nodes, nodes), dtype=bool)
+
+        head_view_tab = self._build_head_view_tab()
+        space_time_tab = self._build_space_time_tab()
+        control_tab = self._build_matrix_tab()
+
+        self.view_subtabs = widgets.Tab(children=[head_view_tab, space_time_tab])
+        self.view_subtabs.set_title(0, "Head View")
+        self.view_subtabs.set_title(1, "Space Time")
+
+        self.view_subtabs.observe(self._enable_space_time_click, names="selected_index")
+
+        for tab_widget in (self.view_subtabs, self.matrix_editor.tab):
+            tab_widget.layout.overflow = "visible"
+            tab_widget.layout.height = "auto"
+
+        self.view_subtabs.layout.width = "{}px".format(view_width + VIEW_PANEL_PADDING)
+        view_panel = self._build_side_panel("VIEW", self.view_subtabs)
+        control_panel = self._build_side_panel("CONTROL", control_tab)
+        control_panel.layout.flex = "1 1 0%"
+        control_panel.layout.min_width = "0"
+        side_by_side = widgets.HBox([view_panel, control_panel], layout=widgets.Layout(
+            flex_flow=FLEX_ROW_WRAP, align_items="flex-start", width="100%"))
+        side_by_side.add_class("lsc-side-by-side")
+
+        self.children = [
+            widgets.HTML(_STYLE),
+            side_by_side,
+        ]
+
+        self.add_class("lsc-wrapper")
+
+    @staticmethod
+    def _build_side_panel(title, content):
+        title_label = widgets.HTML('<span class="lsc-panel-title">{}</span>'.format(title))
+        return widgets.VBox([title_label, content])
+
+    def _build_head_view_tab(self):
+        node_control_bar = self._build_node_control_bar()
+
+        head_container = widgets.Box(
+            [self.head_widget],
+            layout=widgets.Layout(
+                width="100%",
+                display="flex",
+                flex_flow="column",
+                align_items="center",
+                overflow="visible",
+            ),
+        )
+
+        panel = widgets.VBox(
+            [node_control_bar, head_container],
+            layout=widgets.Layout(width="100%", align_items="center"),
+        )
+        panel.add_class("lsc-panel")
+        return panel
+
+    def _unclip_matrix_scroll_containers(self):
+        try:
+            for tab_child in self.matrix_editor.tab.children:
+                inner_container = tab_child.children[0]
+                inner_container.layout.width = "100%"
+                inner_container.layout.overflow_x = "auto"
+                inner_container.layout.height = "auto"
+                inner_container.layout.max_height = "none"
+                inner_container.layout.overflow_y = "visible"
+        except (AttributeError, IndexError) as exc:
+            LOGGER.warning("Could not unclip matrix editor scroll containers: %s" % exc)
+
+    def _build_node_control_bar(self):
+        self.node_dropdown = widgets.Dropdown(
+            options=[(str(label), idx) for idx, label in enumerate(self.connectivity.region_labels)],
+            description="Node:",
+            layout=widgets.Layout(width="260px"),
+        )
+
+        self.node_dropdown.observe(lambda _: self._update_direction_buttons(), names="value")
+
+        self.incoming_button = widgets.Button(description="Show incoming", layout=widgets.Layout(width="120px"))
+        self.outgoing_button = widgets.Button(description="Show outgoing", layout=widgets.Layout(width="120px"))
+        clear_button = widgets.Button(description="Clear", layout=widgets.Layout(width="90px"))
+        self.incoming_button.on_click(lambda _: self._on_node_direction_click("incoming"))
+        self.outgoing_button.on_click(lambda _: self._on_node_direction_click("outgoing"))
+        clear_button.on_click(lambda _: self._clear_node_edges())
+
+        bar = widgets.HBox(
+            [self.node_dropdown, self.incoming_button, self.outgoing_button, clear_button],
+            layout=widgets.Layout(align_items="center", gap="8px", width="100%"),
+        )
+        bar.add_class("lsc-selection-bar")
+        return bar
+
+    def _shown_edges(self):
+        weights = self.matrix_editor.new_connectivity.weights
+        shown = (self._outgoing_shown[:, None] | self._incoming_shown[None, :]) & (weights != 0) & ~self._hidden_edges
+        numpy.fill_diagonal(shown, False)
+        return shown
+
+    def _on_node_direction_click(self, direction):
+        node = self.node_dropdown.value
+        shown = self._shown_edges()
+        if direction == "outgoing":
+            hide = shown[node, :].any()
+            self._outgoing_shown[node] = not hide
+            self._hidden_edges[node, :] = hide
+        else:
+            hide = shown[:, node].any()
+            self._incoming_shown[node] = not hide
+            self._hidden_edges[:, node] = hide
+        self._refresh_node_highlight()
+
+    def _refresh_node_highlight(self):
+        shown = self._shown_edges()
+        edges_by_node = {}
+        for source, target in zip(*numpy.nonzero(shown)):
+            # an edge shown by both nodes is drawn only once, in the object of the node it leaves from
+            node = source if self._outgoing_shown[source] else target
+            edges_by_node.setdefault(node, []).append((source, target))
+        self.head_widget.show_node_edges(self.matrix_editor.new_connectivity, edges_by_node)
+        self._update_direction_buttons(shown)
+
+    def _update_direction_buttons(self, shown=None):
+        if shown is None:
+            shown = self._shown_edges()
+        node = self.node_dropdown.value
+        self.outgoing_button.description = ("Hide" if shown[node, :].any() else "Show") + " outgoing"
+        self.incoming_button.description = ("Hide" if shown[:, node].any() else "Show") + " incoming"
+
+    def _clear_node_edges(self):
+        self._outgoing_shown[:] = False
+        self._incoming_shown[:] = False
+        self._hidden_edges[:] = False
+        self._refresh_node_highlight()
+
+    def _build_space_time_tab(self):
+        self.space_time_container = widgets.VBox(layout=widgets.Layout(width="100%"))
+        self._rebuild_space_time_widget(self.connectivity)
+
+        body = widgets.Box(
+            [self.space_time_container],
+            layout=widgets.Layout(width="100%"),
+        )
+        body.add_class("lsc-tab-body")
+
+        panel = widgets.Box(
+            [body],
+            layout=widgets.Layout(width="100%"),
+        )
+        panel.add_class("lsc-panel")
+        return panel
+
+    def _rebuild_space_time_widget(self, connectivity):
+        width = self.view_width - SPACE_TIME_PADDING
+        height = width * 4 // 7
+        self.space_time_widget = SpaceTimeVisualizerWidget(connectivity, width=width, height=height,
+                                                           color_scheme=self.color_scheme)
+        plot_width, plot_height = int(width * VIEW_ZOOM), int(height * VIEW_ZOOM)
+        self.space_time_widget.plot.height = plot_height
+        self.space_time_widget.interactive_plot.layout.width = "{}px".format(plot_width)
+        self.space_time_widget.interactive_plot.layout.height = "{}px".format(plot_height)
+        self.space_time_widget.interactive_plot.add_class("lsc-no-zoom")
+        self.space_time_widget.plot.mode = 'callback'
+        self.space_time_widget.options.layout.flex_flow = FLEX_ROW_WRAP
+        self.space_time_widget.hbox.layout.flex_flow = "column"
+        self.space_time_widget.plot_details.add_class("lsc-plot-details")
+        self.space_time_container.children = [self.space_time_widget.options, self.space_time_widget.hbox]
+
+    def _enable_space_time_click(self, change):
+        if self.view_subtabs.selected_index != SPACE_TIME_TAB_INDEX:
+            return
+        plot = self.space_time_widget.plot
+        plot.mode = 'view'
+        plot.mode = 'callback'
+        # k3d places the colorbar labels while the tab is hidden, so the colorbar is redrawn when the tab is shown
+        colorbar_id = plot.colorbar_object_id
+        plot.colorbar_object_id = -1
+        plot.colorbar_object_id = colorbar_id
+
+    @property
+    def conn_edited(self):
+        conn = self.matrix_editor.conn_edited
+        unselected = [i for i, is_in in enumerate(self._active_node_mask) if not is_in]
+        conn.weights[unselected, :] = 0
+        conn.weights[:, unselected] = 0
+        conn.saved_selection = [i for i, is_in in enumerate(self._active_node_mask) if is_in]
+        conn.configure()
+        return conn
+
+    def _on_click_export(self, button):
+        self.matrix_editor.export_h5(self.conn_edited)
+
+    def _update_space_time(self):
+        self.space_time_widget.update_connectivity(self.matrix_editor.new_connectivity)
+
+    def _on_matrix_cell_changed(self, change):
+        editor = self.matrix_editor
+        if editor.popup.layout.visibility != "hidden":
+            return
+        if getattr(editor, "clicked_matrix", None) == "weights":
+            self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
+            self._refresh_node_highlight()
+        self._update_space_time()
+
+    def _build_matrix_tab(self):
+        selection_label = widgets.HTML(
+            '<span class="lsc-selection-label">Selection:</span>'
+        )
+
+        edge_button = widgets.Button(description="Edge Operations")
+        select_button = widgets.Button(description="Select Nodes")
+        reset_button = widgets.Button(description="Reset Edits", icon="undo")
+
+        edge_button.on_click(self._on_edge_operations_click)
+        select_button.on_click(self._on_select_nodes_click)
+        reset_button.on_click(self._on_reset_edits_click)
+        self.selection_counter = widgets.HTML(layout=widgets.Layout(margin="0 0 0 auto"))
+        self.selection_counter.add_class("lsc-selection-label")
+        self._update_selection_counter()
+
+        selection_bar = widgets.HBox(
+            [selection_label, edge_button, select_button, reset_button, self.selection_counter],
+            layout=widgets.Layout(
+                align_items="center",
+                gap="8px",
+                width="100%",
+            ),
+        )
+        selection_bar.add_class("lsc-selection-bar")
+
+        self.select_nodes_popup = self._build_select_nodes_popup()
+        self.edge_operations_popup = self._build_edge_operations_popup()
+
+        matrix_body = widgets.VBox(
+            [self.matrix_editor.header, self.matrix_editor.tab, self.edge_operations_popup, self.select_nodes_popup],
+            layout=widgets.Layout(width="100%", position="relative", overflow="visible"),
+        )
+        matrix_body.add_class("lsc-tab-body")
+
+        content = widgets.VBox(
+            [selection_bar, matrix_body],
+            layout=widgets.Layout(width="100%"),
+        )
+
+        panel = widgets.Box(
+            [content],
+            layout=widgets.Layout(width="100%", position="relative", overflow="visible"),
+        )
+        panel.add_class("lsc-panel")
+        return panel
+
+    def _build_edge_operations_popup(self):
+        title = widgets.HTML('<div class="lsc-select-nodes-title">Edge Operations</div>')
+
+        close_button = widgets.Button(description="\u2715", layout=widgets.Layout(width="32px"))
+        close_button.add_class("lsc-select-nodes-close")
+        close_button.on_click(lambda _: self._set_edge_operations_popup_visible(False))
+
+        title_row = widgets.HBox(
+            [title, close_button],
+            layout=widgets.Layout(justify_content="space-between", align_items="center", width="100%"),
+        )
+
+        operation_label = widgets.HTML('<div class="lsc-edge-op-label">Operation</div>')
+        self.operation_dropdown = widgets.Dropdown(
+            options=[("Set(n)", "Set"), ("Add", "Add"), ("Subtract", "Subtract"),
+                     ("Multiply", "Multiply"), ("Divide", "Divide")],
+            value="Set",
+            layout=widgets.Layout(width="100%"),
+        )
+
+        edge_type_label = widgets.HTML('<div class="lsc-edge-op-label">Edges type</div>')
+        self.edge_type_dropdown = widgets.Dropdown(
+            options=EDGE_TYPES,
+            value=EDGE_TYPES[0],
+            layout=widgets.Layout(width="100%"),
+        )
+
+        weight_label = widgets.HTML('<div class="lsc-edge-op-label">Weight change</div>')
+        self.weight_change_input = widgets.Text(value="0.5", layout=widgets.Layout(width="100%"))
+
+        apply_button = widgets.Button(
+            description="Apply weight change",
+            icon="cog",
+            layout=widgets.Layout(width="100%", margin="12px 0 0 0"),
+        )
+        apply_button.add_class("lsc-btn")
+        apply_button.on_click(self._on_apply_edge_operation)
+
+        self.edge_operation_error_label = widgets.HTML(
+            value="", layout=widgets.Layout(margin="6px 0 0 0"))
+
+        popup = widgets.VBox(
+            [title_row, operation_label, self.operation_dropdown,
+             edge_type_label, self.edge_type_dropdown,
+             weight_label, self.weight_change_input,
+             apply_button, self.edge_operation_error_label],
+            layout=widgets.Layout(
+                position="absolute",
+                top="72px",
+                left="140px",
+                width="300px",
+                z_index="20",
+                visibility="hidden",
+                overflow="visible",
+            ),
+        )
+        popup.add_class("lsc-edge-operations-popup")
+        return popup
+
+    def _set_edge_operations_popup_visible(self, visible):
+        self.edge_operations_popup.layout.visibility = "visible" if visible else "hidden"
+
+    @staticmethod
+    def _format_error(message, color=ERROR_MESSAGE_COLOR):
+        if not message:
+            return ""
+        return '<span style="color:{};font-size:11px;">{}</span>'.format(color, message)
+
+    def _set_edge_operation_error(self, message):
+        self.edge_operation_error_label.value = self._format_error(message)
+
+    def _set_edge_operation_warning(self, message):
+        self.edge_operation_error_label.value = self._format_error(message, WARNING_MESSAGE_COLOR)
+
+    def _set_selection_error(self, message):
+        self.selection_error_label.value = self._format_error(message)
+
+    def _on_apply_edge_operation(self, change):
+        self._set_edge_operation_error("")
+
+        try:
+            value = float(self.weight_change_input.value)
+        except (TypeError, ValueError):
+            self._set_edge_operation_error("Weight change must be a number.")
+            LOGGER.warning(
+                "Edge Operations: '%s' is not a valid numeric weight change." % self.weight_change_input.value)
+            return
+
+        if not numpy.isfinite(value):
+            self._set_edge_operation_error("Weight change must be a finite number.")
+            LOGGER.warning("Edge Operations: '%s' is not a finite weight change." % self.weight_change_input.value)
+            return
+
+        operation = self.operation_dropdown.value
+        edge_type = self.edge_type_dropdown.value
+
+        selected = [i for i, is_in in enumerate(self._active_node_mask) if is_in]
+        unselected = [i for i, is_in in enumerate(self._active_node_mask) if not is_in]
+
+        nodes = {"In": selected, "Out": unselected}
+        source, target = edge_type.split(" -> ")
+        rows, cols = nodes[source], nodes[target]
+
+        if not rows or not cols:
+            self._set_edge_operation_warning("No edges of this type for the current selection.")
+            LOGGER.info("Edge Operations: '%s' set is empty for the current node selection - nothing to apply."
+                        % edge_type)
+            return
+
+        if operation == "Divide" and value == 0:
+            self._set_edge_operation_error("Division by zero is not possible.")
+            LOGGER.warning("Edge Operations: cannot divide by zero.")
+            return
+
+        matrix_name = self._get_visible_matrix_name()
+        matrix = getattr(self.matrix_editor.new_connectivity, matrix_name)
+        idx = numpy.ix_(rows, cols)
+        current = matrix[idx]
+
+        if operation == "Set":
+            new_values = numpy.full_like(current, value)
+        elif operation == "Add":
+            new_values = current + value
+        elif operation == "Subtract":
+            new_values = current - value
+        elif operation == "Multiply":
+            new_values = current * value
+        elif operation == "Divide":
+            new_values = current / value
+
+        matrix[idx] = numpy.clip(new_values, 0, None)
+
+        self.matrix_editor._update_matrices_view(self.matrix_editor.new_connectivity)
+
+        self._last_edited_matrix = matrix_name
+        self._last_edited_rows, self._last_edited_cols = rows, cols
+        self._highlight_edited_cells(matrix_name, rows, cols)
+
+        if matrix_name == "weights":
+            self.head_widget.refresh_edges(self.matrix_editor.new_connectivity, matrix)
+            self._refresh_node_highlight()
+        self._update_space_time()
+
+    def _get_visible_matrix_name(self):
+        selected_index = self.matrix_editor.tab.selected_index
+        if selected_index is None:
+            return EDITABLE_MATRICES[0]
+        return EDITABLE_MATRICES[selected_index]
+
+    def _highlight_edited_cells(self, matrix_name, rows, cols):
+        editor = self.matrix_editor
+        matrix_canvas = getattr(editor, matrix_name + "_matrix")
+        from_row, from_col, num_rows = editor.from_row, editor.from_col, editor.num_rows
+        cell_size, offset = editor.cell_size, editor.layout_offset
+
+        visible_rows = [r for r in rows if from_row <= r < from_row + num_rows]
+        visible_cols = [c for c in cols if from_col <= c < from_col + num_rows]
+        if not visible_rows or not visible_cols:
+            return
+
+        with canvas.hold_canvas(matrix_canvas[5]):
+            matrix_canvas[5].line_width = EDITED_CELL_OUTLINE_WIDTH
+            matrix_canvas[5].stroke_style = EDITED_CELL_OUTLINE_COLOR
+            for r in visible_rows:
+                for c in visible_cols:
+                    x = offset + (c - from_col) * cell_size
+                    y = offset + (r - from_row) * cell_size
+                    matrix_canvas[5].stroke_rect(x, y, cell_size, cell_size)
+
+    def _redraw_edited_cells_outline(self, *args):
+        if self._last_edited_matrix and self._last_edited_rows and self._last_edited_cols:
+            self._highlight_edited_cells(self._last_edited_matrix, self._last_edited_rows, self._last_edited_cols)
+
+    def _build_select_nodes_popup(self):
+        conn_label = getattr(self.connectivity, "title", None) or self.connectivity.gid.hex[:8]
+        title = widgets.HTML(
+            "<div class=\"lsc-select-nodes-title\">Connectivity - {}</div>".format(conn_label)
+        )
+
+        close_button = widgets.Button(description="\u2715", layout=widgets.Layout(width="32px"))
+        close_button.add_class("lsc-select-nodes-close")
+        close_button.on_click(lambda _: self._set_popup_visible(False))
+
+        title_row = widgets.HBox(
+            [title, close_button],
+            layout=widgets.Layout(justify_content="space-between", align_items="center", width="100%"),
+        )
+
+        select_all_button = widgets.Button(description="Select all", layout=widgets.Layout(width="100px"))
+        select_none_button = widgets.Button(description="Clear all", layout=widgets.Layout(width="100px"))
+        select_all_button.on_click(lambda _: self._set_all_checkboxes(True))
+        select_none_button.on_click(lambda _: self._set_all_checkboxes(False))
+
+        self.selection_dropdown = widgets.Dropdown(
+            options=[NEW_SELECTION_OPTION],
+            value=NEW_SELECTION_OPTION,
+            layout=widgets.Layout(width="180px"),
+        )
+        self.selection_dropdown.observe(self._on_selection_dropdown_change, names="value")
+
+        self.selection_name_input = widgets.Text(
+            placeholder="Selection name",
+            layout=widgets.Layout(width="220px"),
+        )
+
+        save_button = widgets.Button(description="Save", layout=widgets.Layout(width="90px"))
+        save_button.add_class("lsc-btn")
+        save_button.on_click(self._on_save_selection)
+
+        self.selection_error_label = widgets.HTML(value="")
+        self.selection_error_label.add_class("lsc-selection-error")
+        name_field = widgets.VBox([self.selection_name_input, self.selection_error_label])
+        name_field.add_class("lsc-selection-name-field")
+
+        controls_row = widgets.HBox(
+            [select_all_button, select_none_button, self.selection_dropdown,
+             name_field, save_button],
+            layout=widgets.Layout(align_items="center", gap="8px", justify_content="center",
+                                  margin="10px 0 14px 0", overflow="visible"),
+        )
+
+        left_indices, right_indices = self._split_hemispheres()
+
+        left_checkboxes = self._build_checkbox_column(left_indices)
+        right_checkboxes = self._build_checkbox_column(right_indices)
+
+        left_section = widgets.VBox(
+            [self._build_hemisphere_button("left", left_indices), self._grid_box(left_checkboxes)],
+            layout=widgets.Layout(width="48%", overflow="visible"),
+        )
+        right_section = widgets.VBox(
+            [self._build_hemisphere_button("right", right_indices), self._grid_box(right_checkboxes)],
+            layout=widgets.Layout(width="48%", overflow="visible"),
+        )
+
+        columns_row = widgets.HBox(
+            [left_section, right_section],
+            layout=widgets.Layout(justify_content="space-between", width="100%", overflow="visible"),
+        )
+
+        scrollable = widgets.Box(
+            [columns_row],
+            layout=widgets.Layout(max_height="420px", overflow="auto", width="100%", padding="4px 2px 0 2px"),
+        )
+
+        popup = widgets.VBox(
+            [title_row, controls_row, scrollable],
+            layout=widgets.Layout(
+                position="absolute",
+                top="50px",
+                left="10px",
+                right="10px",
+                width="auto",
+                z_index="9999",
+                visibility="hidden",
+            ),
+        )
+        popup.add_class("lsc-select-nodes-popup")
+        return popup
+
+    def _build_hemisphere_button(self, hemisphere, indices):
+        button = widgets.Button(description=hemisphere, tooltip="Select or clear all {} nodes".format(hemisphere),
+                                layout=widgets.Layout(width="80px", margin="0 0 6px 0", flex="none"))
+        button.on_click(lambda _: self._toggle_checkboxes(indices))
+        return button
+
+    def _toggle_checkboxes(self, indices):
+        value = not all(self._node_checkboxes[idx].value for idx in indices)
+        for idx in indices:
+            self._node_checkboxes[idx].value = value
+
+    def _build_checkbox_column(self, indices):
+        checkboxes = []
+        for idx in indices:
+            label = str(self.connectivity.region_labels[idx])
+            checkbox = widgets.Checkbox(value=True, description=label, indent=False,
+                                        layout=widgets.Layout(width="auto"))
+            self._node_checkboxes[idx] = checkbox
+            checkboxes.append(checkbox)
+        return checkboxes
+
+    def _grid_box(self, checkboxes):
+        return widgets.GridBox(
+            children=checkboxes,
+            layout=widgets.Layout(
+                grid_template_columns="repeat(auto-fill, minmax({}px, 1fr))".format(NODE_CHECKBOX_MIN_WIDTH),
+                grid_gap="2px 10px",
+                width="100%",
+                overflow="visible",
+            ),
+        )
+
+    def _split_hemispheres(self):
+        n = len(self.connectivity.region_labels)
+        hemispheres = getattr(self.connectivity, "hemispheres", None)
+
+        if hemispheres is not None and len(hemispheres) == n:
+            left_indices = [i for i in range(n) if not hemispheres[i]]
+            right_indices = [i for i in range(n) if hemispheres[i]]
+            return left_indices, right_indices
+
+        half = n // 2
+        return list(range(half)), list(range(half, n))
+
+    def _set_popup_visible(self, visible):
+        self.select_nodes_popup.layout.visibility = "visible" if visible else "hidden"
+
+    def _hide_all_popups(self):
+        self.select_nodes_popup.layout.visibility = "hidden"
+        self.edge_operations_popup.layout.visibility = "hidden"
+
+    def _toggle_popup(self, popup):
+        currently_visible = popup.layout.visibility == "visible"
+        self._hide_all_popups()
+        if not currently_visible:
+            popup.layout.visibility = "visible"
+
+    def _set_all_checkboxes(self, value):
+        for checkbox in self._node_checkboxes.values():
+            checkbox.value = value
+
+    def _current_mask(self):
+        n = len(self.connectivity.region_labels)
+        return [self._node_checkboxes[i].value for i in range(n)]
+
+    def _on_selection_dropdown_change(self, change):
+        name = change["new"]
+        if name == NEW_SELECTION_OPTION:
+            self.selection_name_input.value = ""
+            self._set_all_checkboxes(False)
+            return
+
+        mask = self._node_selections.get(name)
+        if mask is None:
+            return
+        self.selection_name_input.value = name
+        for idx, checkbox in self._node_checkboxes.items():
+            checkbox.value = bool(mask[idx])
+
+        self._active_node_mask = mask
+        self.head_widget.set_node_selection(self.connectivity, mask)
+        self._update_selection_counter()
+
+    def _on_save_selection(self, change):
+        self._set_selection_error("")
+
+        name = self.selection_name_input.value.strip()
+        if name == NEW_SELECTION_OPTION:
+            self._set_selection_error('"{}" is not valid as a selection name.'.format(NEW_SELECTION_OPTION))
+            LOGGER.warning("Select Nodes: '%s' is not valid as a selection name." % name)
+            return
+
+        if not name:
+            self._set_selection_error("An empty name is not valid as a selection name.")
+            LOGGER.warning("Select Nodes: an empty name is not valid as a selection name.")
+            return
+
+        mask = self._current_mask()
+        self._node_selections[name] = mask
+        self._active_node_mask = mask
+
+        options = [NEW_SELECTION_OPTION] + list(self._node_selections.keys())
+        self.selection_dropdown.unobserve(self._on_selection_dropdown_change, names="value")
+        self.selection_dropdown.options = options
+        self.selection_dropdown.value = name
+        self.selection_dropdown.observe(self._on_selection_dropdown_change, names="value")
+
+        self.head_widget.set_node_selection(self.connectivity, mask)
+        self._update_selection_counter()
+
+    def _on_edge_operations_click(self, change):
+        self._set_edge_operation_error("")
+        self._toggle_popup(self.edge_operations_popup)
+
+    def _on_select_nodes_click(self, change):
+        self._set_selection_error("")
+        self._toggle_popup(self.select_nodes_popup)
+
+    def _on_reset_edits_click(self, change):
+        editor = self.matrix_editor
+        editor.new_connectivity = editor._prepare_new_connectivity()
+
+        editor._update_matrices_view(editor.new_connectivity)
+        editor.weights_matrix[5].clear()
+        editor.tract_lengths_matrix[5].clear()
+
+        self._last_edited_matrix = None
+        self._last_edited_rows, self._last_edited_cols = [], []
+        self.head_widget.refresh_edges(editor.new_connectivity, editor.new_connectivity.weights)
+        self._clear_node_edges()
+        self._update_space_time()
+        self._reset_node_selection()
+
+    def _reset_node_selection(self):
+        self._active_node_mask = [True] * len(self.connectivity.region_labels)
+        self._set_all_checkboxes(True)
+        self.selection_name_input.value = ""
+
+        self.selection_dropdown.unobserve(self._on_selection_dropdown_change, names="value")
+        self.selection_dropdown.value = NEW_SELECTION_OPTION
+        self.selection_dropdown.observe(self._on_selection_dropdown_change, names="value")
+
+        self.head_widget.set_node_selection(self.connectivity, self._active_node_mask)
+        self._update_selection_counter()
+
+    def _update_selection_counter(self):
+        self.selection_counter.value = "Selected {} of {} nodes".format(sum(self._active_node_mask),
+                                                                        len(self._active_node_mask))
+
+    def display(self):
+        from IPython.display import display
+
+        display(self)
