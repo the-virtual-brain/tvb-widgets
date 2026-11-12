@@ -96,7 +96,7 @@ def test_head_widget(mocker):
     def mockk(token):
         return MockDriveClient()
 
-    mocker.patch('ebrains_drive.connect', mockk)
+    mocker.patch('ebrains_storage.connect', mockk)
 
     if os.environ.get(CLB_AUTH):
         os.environ.pop(CLB_AUTH)
