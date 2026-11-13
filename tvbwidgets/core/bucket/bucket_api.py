@@ -5,7 +5,7 @@
 # (c) 2022-2026, TVB Widgets Team
 #
 
-from ebrains_drive import BucketApiClient
+from ebrains_storage import BucketApiClient
 from tvbwidgets.core.bucket.buckets import ExtendedBuckets
 
 
