@@ -7,7 +7,7 @@
 import os
 
 import pytest
-from ebrains_drive.exceptions import Unauthorized
+from ebrains_storage.exceptions import Unauthorized
 from tvbwidgets.core.auth import CLB_AUTH
 from tvbwidgets.ui.bucket_widget import BucketWidget
 

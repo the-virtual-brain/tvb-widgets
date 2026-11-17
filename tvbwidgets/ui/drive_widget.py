@@ -7,8 +7,8 @@
 
 import os
 import ipywidgets
-import ebrains_drive
-from ebrains_drive.exceptions import DoesNotExist
+import ebrains_storage
+from ebrains_storage.exceptions import DoesNotExist
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.ui.base_widget import TVBWidget
 
@@ -23,7 +23,7 @@ class DriveWidget(ipywidgets.VBox, TVBWidget):
         self.collab = collab
         self.folder = folder
         bearer_token = get_current_token()
-        self.client = ebrains_drive.connect(token=bearer_token)
+        self.client = ebrains_storage.connect(token=bearer_token)
 
         try:
             all_repos = self.client.repos.list_repos()

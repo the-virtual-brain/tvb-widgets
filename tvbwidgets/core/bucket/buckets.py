@@ -7,7 +7,7 @@
 
 from dataclasses import dataclass
 from typing import List
-from ebrains_drive.buckets import Buckets
+from ebrains_storage.buckets import Buckets
 from tvbwidgets.core.exceptions import BucketDTOError
 from tvbwidgets.core.logger.builder import get_logger
 

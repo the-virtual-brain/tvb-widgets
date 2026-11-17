@@ -10,7 +10,7 @@ import requests
 from tvbwidgets.core.auth import get_current_token
 from tvbwidgets.core.bucket.bucket_api import ExtendedBucketApiClient
 from tvbwidgets.ui.base_widget import TVBWidget
-from ebrains_drive.files import DataproxyFile
+from ebrains_storage.files import DataproxyFile
 
 
 class BucketWidget(ipywidgets.VBox, TVBWidget):

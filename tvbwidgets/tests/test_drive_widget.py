@@ -8,8 +8,8 @@
 import os
 
 import pytest
-from ebrains_drive.files import SeafFile, SeafDir
-from ebrains_drive.repo import Repo
+from ebrains_storage.files import SeafFile, SeafDir
+from ebrains_storage.repo import Repo
 
 from tvbwidgets.core.auth import CLB_AUTH
 from tvbwidgets.ui.drive_widget import DriveWidget
@@ -73,7 +73,7 @@ def test_drive_widget(mocker):
     def mockk(token):
         return MockDriveClient()
 
-    mocker.patch('ebrains_drive.connect', mockk)
+    mocker.patch('ebrains_storage.connect', mockk)
 
     if os.environ.get(CLB_AUTH):
         os.environ.pop(CLB_AUTH)
@@ -111,7 +111,7 @@ def test_storage_widget(mocker):
     def mockk(token):
         return MockDriveClient()
 
-    mocker.patch('ebrains_drive.connect', mockk)
+    mocker.patch('ebrains_storage.connect', mockk)
 
     if os.environ.get(CLB_AUTH):
         os.environ.pop(CLB_AUTH)
