@@ -160,21 +160,6 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
         new_conn = self.__cut_connectivity_edges(selected_regions, selected)
         CONTEXT.connectivity = new_conn
 
-    def __reorder_arrays(self, original_conn, new_weights, interest_areas, new_tracts=None):
-        """
-        Returns ordered versions of the parameters according to the hemisphere permutation.
-        """
-        permutation = original_conn.hemisphere_order_indices
-        inverse_permutation = numpy.argsort(permutation)  # trick to invert a permutation represented as an array
-        interest_areas = inverse_permutation[interest_areas]
-        # see :meth:`ordered_weights` for why [p:][:p]
-        new_weights = new_weights[inverse_permutation, :][:, inverse_permutation]
-
-        if new_tracts is not None:
-            new_tracts = new_tracts[inverse_permutation, :][:, inverse_permutation]
-
-        return new_weights, interest_areas, new_tracts
-
     def __get_history_dropdown(self):
         values = [(conn.gid.hex, conn) for conn in CONTEXT.connectivities_history]
         default = len(values) and values[-1][1] or None
@@ -207,10 +192,8 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
             LOGGER.error('No interest areas selected!')
             return CONTEXT.connectivity
 
-        new_weights, interest_areas, new_tracts = self.__reorder_arrays(original_conn,
-                                                                        original_conn.weights,
-                                                                        interest_areas,
-                                                                        original_conn.tract_lengths)
+        new_weights = original_conn.weights.copy()
+        new_tracts = original_conn.tract_lengths.copy()
 
         for i in range(len(original_conn.weights)):
             for j in range(len(original_conn.weights)):
@@ -254,13 +237,8 @@ class ConnectivityOperations(ipywidgets.VBox, TVBWidget):
             LOGGER.error('No interest areas selected!')
             return CONTEXT.connectivity
 
-        new_weights, interest_areas, new_tracts = self.__reorder_arrays(original_conn,
-                                                                        original_conn.weights,
-                                                                        interest_areas,
-                                                                        original_conn.tract_lengths)
-
-        new_tracts = new_tracts[interest_areas, :][:, interest_areas]
-        new_weights = new_weights[interest_areas, :][:, interest_areas]
+        new_tracts = original_conn.tract_lengths[interest_areas, :][:, interest_areas]
+        new_weights = original_conn.weights[interest_areas, :][:, interest_areas]
 
         final_conn = Connectivity()
         final_conn.parent_connectivity = None
