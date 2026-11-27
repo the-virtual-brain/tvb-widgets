@@ -170,7 +170,7 @@ class DicomWidget(TVBWidget):
         self.sagittal_plot.image.data_source.data['image'] = [self.data[new, :, :].T]
 
         # Update corresponding crosshairs
-        self.update_crosshair_glyph(plot=self.axial_plot, y_coord=255 - new)
+        self.update_crosshair_glyph(plot=self.axial_plot, y_coord=self.data.shape[0] - 1 - new)
         self.update_crosshair_glyph(plot=self.coronal_plot, x_coord=new)
 
     def update_y(self, attr, old, new):
@@ -182,11 +182,11 @@ class DicomWidget(TVBWidget):
         self.update_crosshair_glyph(plot=self.sagittal_plot, x_coord=new)
 
     def update_z(self, attr, old, new):
-        self.axial_plot.image.data_source.data['image'] = [self.data[:, :, 255 - new]]
+        self.axial_plot.image.data_source.data['image'] = [self.data[:, :, self.data.shape[2] - 1 - new]]
 
         # Update corresponding crosshairs
-        self.update_crosshair_glyph(plot=self.sagittal_plot, y_coord=255 - new)
-        self.update_crosshair_glyph(plot=self.coronal_plot, y_coord=255 - new)
+        self.update_crosshair_glyph(plot=self.sagittal_plot, y_coord=self.data.shape[2] - 1 - new)
+        self.update_crosshair_glyph(plot=self.coronal_plot, y_coord=self.data.shape[2] - 1 - new)
 
     # ===================================== UPDATE PLOTS ON TAP EVENT ==================================================
     def handle_tap_axial(self, event):
